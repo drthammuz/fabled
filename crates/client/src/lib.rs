@@ -1,5 +1,8 @@
 use bevy::prelude::*;
 
+pub mod fly_camera;
+pub mod level_render;
+
 /// Address of the server this client should connect to (set from CLI).
 /// Unused until netcode lands in M3; host mode connects to localhost.
 #[derive(Resource, Debug, Clone)]
@@ -10,7 +13,8 @@ pub struct ClientCorePlugin;
 
 impl Plugin for ClientCorePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, log_startup);
+        app.add_plugins((level_render::LevelRenderPlugin, fly_camera::FlyCameraPlugin))
+            .add_systems(Startup, log_startup);
     }
 }
 
