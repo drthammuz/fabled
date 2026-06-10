@@ -8,6 +8,9 @@ version = "0.1.0"
 
 [workspace.dependencies]
 bevy = "0.18"
+# default-features off: drops collider-from-mesh (needs asset events that a
+# headless server doesn't have) and picking/debug extras we don't use.
+avian3d = { version = "0.6", default-features = false, features = ["3d", "f32", "parry-f32"] }
 clap = { version = "4", features = ["derive"] }
 shared = { path = "crates/shared" }
 server = { path = "crates/server" }

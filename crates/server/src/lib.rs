@@ -1,5 +1,8 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use shared::config;
+
+pub mod level;
 
 /// Core server-side gameplay plugin. Added in both `--server` (headless)
 /// and `--host` (listen server) modes, so gameplay always runs on the same
@@ -9,6 +12,15 @@ pub struct ServerCorePlugin;
 impl Plugin for ServerCorePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Time::<Fixed>::from_hz(config::SERVER_TICK_HZ))
+            // Avian's default schedule is FixedPostUpdate, so the simulation
+            // steps exactly once per 30 Hz server tick in every run mode.
+            // `interpolate_all` smooths rendered transforms between ticks
+            // (visual only; does not affect simulation state).
+            .add_plugins(
+                PhysicsPlugins::default()
+                    .set(PhysicsInterpolationPlugin::interpolate_all()),
+            )
+            .add_plugins(level::ServerLevelPlugin)
             .init_resource::<ServerTick>()
             .add_systems(Startup, log_startup)
             .add_systems(FixedUpdate, advance_tick);

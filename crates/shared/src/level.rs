@@ -4,12 +4,23 @@
 
 use bevy::prelude::*;
 
+use crate::props::PropShape;
+
 /// A complete level description. Gameplay code consumes this; it never
 /// cares where it came from.
 pub struct LevelDef {
     pub statics: Vec<StaticDef>,
+    pub props: Vec<PropDef>,
     pub item_spawns: Vec<Vec3>,
     pub player_spawns: Vec<Vec3>,
+}
+
+/// A dynamic physics prop placed by the level.
+pub struct PropDef {
+    pub shape: PropShape,
+    pub position: Vec3,
+    /// Mass density in kg/m^3; mass is derived from the collider volume.
+    pub density: f32,
 }
 
 /// What a static piece of geometry *is*, for cosmetics and debugging.
@@ -128,8 +139,44 @@ pub fn test_level() -> LevelDef {
         size: Vec3::new(slope_len, 0.5, 4.0),
     });
 
+    // Dynamic props: a stack of 10 crates in the south room plus balls of
+    // different sizes/masses. The stack is a 4-3-2-1 pyramid with slight
+    // x-offsets so it tumbles interestingly.
+    let mut props = Vec::new();
+    const CRATE: f32 = 0.8;
+    let stack_origin = Vec3::new(-5.0, 0.0, 12.0);
+    let mut layer_y = CRATE / 2.0;
+    for (layer, count) in [4usize, 3, 2, 1].into_iter().enumerate() {
+        for i in 0..count {
+            let x = (i as f32 - (count as f32 - 1.0) / 2.0) * (CRATE + 0.02)
+                + layer as f32 * 0.05;
+            props.push(PropDef {
+                shape: PropShape::Crate {
+                    size: Vec3::splat(CRATE),
+                },
+                position: stack_origin + Vec3::new(x, layer_y, 0.0),
+                density: 300.0,
+            });
+        }
+        layer_y += CRATE + 0.02;
+    }
+    // Light and medium balls drop harmlessly nearby; the heavy boulder
+    // drops straight onto the crate pyramid to demonstrate mass differences.
+    for (radius, density, position) in [
+        (0.3, 200.0, Vec3::new(2.0, 2.3, 10.0)),  // light beach ball
+        (0.5, 1000.0, Vec3::new(4.0, 2.5, 10.0)), // medium
+        (0.9, 3000.0, stack_origin + Vec3::new(0.3, 8.0, 0.0)), // heavy boulder
+    ] {
+        props.push(PropDef {
+            shape: PropShape::Ball { radius },
+            position,
+            density,
+        });
+    }
+
     LevelDef {
         statics,
+        props,
         item_spawns: vec![
             Vec3::new(-10.0, 1.0, -10.0),
             Vec3::new(5.0, 1.0, 12.0),

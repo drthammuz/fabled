@@ -53,6 +53,8 @@ fn run_server() {
                 1.0 / config::SERVER_LOOP_HZ,
             ))),
             LogPlugin::default(),
+            // Not part of MinimalPlugins, but required by physics.
+            bevy::transform::TransformPlugin,
         ))
         .add_plugins(ServerCorePlugin)
         .run();
