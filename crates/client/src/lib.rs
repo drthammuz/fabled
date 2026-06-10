@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod fly_camera;
 pub mod level_render;
+pub mod netplay;
 pub mod prop_render;
 
 /// Address of the server this client should connect to (set from CLI).
@@ -18,6 +19,7 @@ impl Plugin for ClientCorePlugin {
             level_render::LevelRenderPlugin,
             fly_camera::FlyCameraPlugin,
             prop_render::PropRenderPlugin,
+            netplay::NetPlayPlugin,
         ))
         .add_systems(Startup, log_startup);
     }

@@ -12,8 +12,18 @@ pub struct FlyCameraPlugin;
 
 impl Plugin for FlyCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_camera)
-            .add_systems(Update, (toggle_cursor_grab, look, fly).chain());
+        // Free flight is only active until the server gives us a player to
+        // possess; after that the camera is driven first-person by netplay.
+        app.add_systems(Startup, spawn_camera).add_systems(
+            Update,
+            (
+                toggle_cursor_grab,
+                (look, fly)
+                    .chain()
+                    .run_if(not(any_with_component::<crate::netplay::OwnPlayer>)),
+            )
+                .chain(),
+        );
     }
 }
 

@@ -2,7 +2,9 @@ use avian3d::prelude::*;
 use bevy::prelude::*;
 use shared::config;
 
+pub mod character;
 pub mod level;
+pub mod players;
 
 /// Core server-side gameplay plugin. Added in both `--server` (headless)
 /// and `--host` (listen server) modes, so gameplay always runs on the same
@@ -20,7 +22,7 @@ impl Plugin for ServerCorePlugin {
                 PhysicsPlugins::default()
                     .set(PhysicsInterpolationPlugin::interpolate_all()),
             )
-            .add_plugins(level::ServerLevelPlugin)
+            .add_plugins((level::ServerLevelPlugin, players::ServerPlayersPlugin))
             .init_resource::<ServerTick>()
             .add_systems(Startup, log_startup)
             .add_systems(FixedUpdate, advance_tick);

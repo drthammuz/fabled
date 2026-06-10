@@ -155,7 +155,7 @@ pub fn test_level() -> LevelDef {
                     size: Vec3::splat(CRATE),
                 },
                 position: stack_origin + Vec3::new(x, layer_y, 0.0),
-                density: 300.0,
+                density: 60.0,
             });
         }
         layer_y += CRATE + 0.02;
@@ -163,9 +163,9 @@ pub fn test_level() -> LevelDef {
     // Light and medium balls drop harmlessly nearby; the heavy boulder
     // drops straight onto the crate pyramid to demonstrate mass differences.
     for (radius, density, position) in [
-        (0.3, 200.0, Vec3::new(2.0, 2.3, 10.0)),  // light beach ball
-        (0.5, 1000.0, Vec3::new(4.0, 2.5, 10.0)), // medium
-        (0.9, 3000.0, stack_origin + Vec3::new(0.3, 8.0, 0.0)), // heavy boulder
+        (0.3, 40.0, Vec3::new(2.0, 2.3, 10.0)),   // light beach ball
+        (0.5, 100.0, Vec3::new(4.0, 2.5, 10.0)),  // medium
+        (0.9, 180.0, stack_origin + Vec3::new(0.3, 8.0, 0.0)), // heavy boulder
     ] {
         props.push(PropDef {
             shape: PropShape::Ball { radius },
