@@ -35,8 +35,16 @@ pub struct PlayerInput {
     pub move_dir: Vec2,
     /// Look yaw in radians; the server uses it to orient movement.
     pub yaw: f32,
+    /// Look pitch in radians (negative = look down).
+    pub pitch: f32,
     /// True if jump was pressed since the last input message.
     pub jump: bool,
+    /// Hold Shift to sprint.
+    pub sprint: bool,
+    /// Hold to grab a dynamic object in view.
+    pub grab: bool,
+    /// True if throw was pressed since the last input message.
+    pub throw_action: bool,
 }
 
 /// Server -> owning client: "this replicated entity is your player".

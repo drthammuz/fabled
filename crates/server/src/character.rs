@@ -85,8 +85,10 @@ fn apply_player_inputs(
         for (owner, mut latest) in &mut players {
             if owner.0 == *client_id {
                 let jump = latest.0.jump || message.jump;
+                let throw_action = latest.0.throw_action || message.throw_action;
                 latest.0 = *message;
                 latest.0.jump = jump;
+                latest.0.throw_action = throw_action;
             }
         }
     }
@@ -142,18 +144,27 @@ fn steer_from_input(
         };
         let world_dir = Quat::from_rotation_y(intent.yaw)
             * Vec3::new(move_dir.x, 0.0, -move_dir.y);
-        let desired = Vector::new(
-            world_dir.x * config::PLAYER_MOVE_SPEED,
-            velocity.y,
-            world_dir.z * config::PLAYER_MOVE_SPEED,
-        );
+        let move_speed = if intent.sprint {
+            config::PLAYER_SPRINT_SPEED
+        } else {
+            config::PLAYER_MOVE_SPEED
+        };
+        let has_move_input = move_dir.length_squared() > 0.0;
+        let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
+        let desired_h = if has_move_input {
+            Vector::new(
+                world_dir.x * move_speed,
+                0.0,
+                world_dir.z * move_speed,
+            )
+        } else {
+            horizontal
+        };
         let accel = if grounded {
             config::PLAYER_ACCELERATION
         } else {
             config::PLAYER_ACCELERATION * config::PLAYER_AIR_CONTROL
         };
-        let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
-        let desired_h = Vector::new(desired.x, 0.0, desired.z);
         let delta = (desired_h - horizontal).clamp_length_max(accel * dt);
         velocity.x += delta.x;
         velocity.z += delta.z;
@@ -183,13 +194,24 @@ fn apply_gravity(
 
 fn apply_movement_damping(
     time: Res<Time>,
-    mut query: Query<&mut LinearVelocity, With<CharacterController>>,
+    mut query: Query<(&LatestInput, Has<Grounded>, &mut LinearVelocity), With<CharacterController>>,
 ) {
     let dt = time.delta_secs_f64().adjust_precision();
-    let factor = 1.0 / (1.0 + dt * config::PLAYER_MOVE_DAMPING);
-    for mut velocity in &mut query {
-        velocity.x *= factor;
-        velocity.z *= factor;
+    for (input, grounded, mut velocity) in &mut query {
+        let has_move_input = input.0.move_dir.length_squared() > 0.0;
+        if grounded {
+            if has_move_input {
+                continue;
+            }
+            let factor = 1.0 / (1.0 + dt * config::PLAYER_MOVE_DAMPING);
+            velocity.x *= factor;
+            velocity.z *= factor;
+        } else if !has_move_input {
+            // Light friction in air when coasting — preserves jump momentum.
+            let factor = 1.0 / (1.0 + dt * config::PLAYER_AIR_FRICTION);
+            velocity.x *= factor;
+            velocity.z *= factor;
+        }
     }
 }
 
@@ -271,7 +293,8 @@ fn push_dynamic_bodies(
             let touch_dir = -collision.normal.adjust_precision();
             let relative = collision.character_velocity - forces.linear_velocity();
             let touch_velocity = touch_dir.dot(relative) * touch_dir;
-            let impulse = touch_velocity * mass;
+            // Full player mass shoves light crates violently; scale it down.
+            let impulse = touch_velocity * mass * config::PLAYER_PUSH_FACTOR;
             forces.apply_linear_impulse_at_point(impulse, collision.point);
         }
     }

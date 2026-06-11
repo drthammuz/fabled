@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use shared::config;
 
 pub mod character;
+pub mod grab;
 pub mod level;
 pub mod players;
 
@@ -22,7 +23,11 @@ impl Plugin for ServerCorePlugin {
                 PhysicsPlugins::default()
                     .set(PhysicsInterpolationPlugin::interpolate_all()),
             )
-            .add_plugins((level::ServerLevelPlugin, players::ServerPlayersPlugin))
+            .add_plugins((
+                level::ServerLevelPlugin,
+                players::ServerPlayersPlugin,
+                grab::ServerGrabPlugin,
+            ))
             .init_resource::<ServerTick>()
             .add_systems(Startup, log_startup)
             .add_systems(FixedUpdate, advance_tick);

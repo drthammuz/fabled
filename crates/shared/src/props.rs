@@ -10,3 +10,7 @@ pub enum PropShape {
     Crate { size: Vec3 },
     Ball { radius: f32 },
 }
+
+/// Dynamic props the server allows players to grab and throw.
+#[derive(Component, Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Grabbable;

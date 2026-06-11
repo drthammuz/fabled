@@ -96,6 +96,7 @@ fn spawn_player(
             CharacterController,
             GroundDetection::default(),
             CharacterCollisions::default(),
+            super::grab::GrabTarget::default(),
             PlayerName(name),
             PlayerOwner(owner),
             LatestInput::default(),

@@ -18,8 +18,10 @@ pub const MAX_CLIENTS: usize = 8;
 
 // --- Player movement (server-side) ---
 
-/// Horizontal move speed in m/s.
-pub const PLAYER_MOVE_SPEED: f32 = 7.0;
+/// Walk speed in m/s (+20% over the original 7.0).
+pub const PLAYER_MOVE_SPEED: f32 = 8.4;
+/// Sprint speed in m/s (+50% over walk).
+pub const PLAYER_SPRINT_SPEED: f32 = 12.6;
 /// Upward velocity on jump, m/s.
 pub const PLAYER_JUMP_IMPULSE: f32 = 9.0;
 /// Gravity acceleration, m/s² (negative = down). Stronger than earth for snappy falls.
@@ -28,10 +30,12 @@ pub const PLAYER_GRAVITY: f32 = -24.0;
 pub const PLAYER_TERMINAL_VELOCITY: f32 = 35.0;
 /// Horizontal acceleration toward target speed, m/s².
 pub const PLAYER_ACCELERATION: f32 = 55.0;
-/// Exponential damping on horizontal velocity (higher = stops faster).
+/// Exponential braking on horizontal velocity when grounded and idle.
 pub const PLAYER_MOVE_DAMPING: f32 = 14.0;
-/// Fraction of ground acceleration applied while airborne.
-pub const PLAYER_AIR_CONTROL: f32 = 0.2;
+/// Fraction of ground acceleration applied while airborne (steering only).
+pub const PLAYER_AIR_CONTROL: f32 = 0.55;
+/// Light air friction when airborne with no move input.
+pub const PLAYER_AIR_FRICTION: f32 = 1.5;
 /// Capsule dimensions: radius and cylinder length (total height = length + 2r).
 pub const PLAYER_CAPSULE_RADIUS: f32 = 0.4;
 pub const PLAYER_CAPSULE_LENGTH: f32 = 1.0;
@@ -49,6 +53,41 @@ pub const PLAYER_GROUND_PROBE: f32 = 0.15;
 pub const INTERP_DELAY: f64 = 0.1;
 /// Mouse look sensitivity for the first-person camera.
 pub const LOOK_SENSITIVITY: f32 = 0.002;
+
+// --- Grab / throw (server-side, M4) ---
+
+/// Max raycast distance to acquire a grab target.
+pub const GRAB_RANGE: f32 = 4.0;
+/// How far in front of the player the held object is pulled toward.
+pub const GRAB_HOLD_DISTANCE: f32 = 1.6;
+/// Spring strength pulling grabbed objects toward the hold point (1/s²).
+pub const GRAB_SPRING: f32 = 38.0;
+/// Velocity damping while grabbed (1/s).
+pub const GRAB_DAMPING: f32 = 10.0;
+/// Max force one player's grab can exert (N). One player cannot lift the
+/// heavy boulder against gravity; two players together can.
+pub const GRAB_MAX_FORCE: f32 = 3500.0;
+/// Angular damping on dynamic props (reduces endless spinning).
+pub const PROP_ANGULAR_DAMPING: f32 = 2.5;
+/// Bounciness of dynamic props (0 = none, 1 = perfect bounce).
+pub const PROP_RESTITUTION: f32 = 0.28;
+/// Throw speed for objects up to THROW_REF_MASS, m/s.
+pub const THROW_IMPULSE: f32 = 14.0;
+/// Objects heavier than this get proportionally slower throws.
+pub const THROW_REF_MASS: f32 = 40.0;
+/// Scale on the impulse players impart when walking into dynamic bodies.
+pub const PLAYER_PUSH_FACTOR: f32 = 0.3;
+
+// --- Items / inventory (M5) ---
+
+/// Number of inventory slots per player.
+pub const INVENTORY_SLOTS: usize = 4;
+/// Max distance for the interact (pickup) raycast.
+pub const INTERACT_RANGE: f32 = 3.0;
+/// Forward speed given to dropped items, m/s.
+pub const ITEM_DROP_SPEED: f32 = 3.0;
+/// World-item cube size (full extent), meters.
+pub const ITEM_SIZE: f32 = 0.35;
 
 // --- Fly camera (debug/inspection, client-side only) ---
 

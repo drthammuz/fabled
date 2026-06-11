@@ -87,6 +87,7 @@ fn look_input(
 
 fn send_input(
     keys: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
     look: Res<LookAngles>,
     mut writer: MessageWriter<PlayerInput>,
 ) {
@@ -106,7 +107,11 @@ fn send_input(
     writer.write(PlayerInput {
         move_dir: move_dir.normalize_or_zero(),
         yaw: look.yaw,
+        pitch: look.pitch,
         jump: keys.just_pressed(KeyCode::Space),
+        sprint: keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight),
+        grab: mouse.pressed(MouseButton::Left),
+        throw_action: mouse.just_pressed(MouseButton::Right),
     });
 }
 

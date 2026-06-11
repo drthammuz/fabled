@@ -5,8 +5,9 @@
 use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
+use shared::config;
 use shared::level::{self, PropDef};
-use shared::props::PropShape;
+use shared::props::{Grabbable, PropShape};
 use shared::protocol::NetTransform;
 
 pub struct ServerLevelPlugin;
@@ -43,11 +44,13 @@ fn spawn_level_physics(mut commands: Commands) {
     {
         commands.spawn((
             Replicated,
+            Grabbable,
             RigidBody::Dynamic,
             prop_collider(shape),
             ColliderDensity(*density),
             Friction::new(0.35),
-            Restitution::new(0.05),
+            Restitution::new(config::PROP_RESTITUTION),
+            AngularDamping(config::PROP_ANGULAR_DAMPING),
             *shape,
             NetTransform {
                 translation: *position,
