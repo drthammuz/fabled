@@ -4,6 +4,7 @@
 
 use bevy::prelude::*;
 use shared::props::PropShape;
+use shared::protocol::Item;
 
 pub struct PropRenderPlugin;
 
@@ -15,15 +16,20 @@ impl Plugin for PropRenderPlugin {
 
 fn attach_prop_visuals(
     mut commands: Commands,
-    props: Query<(Entity, &PropShape), Added<PropShape>>,
+    props: Query<(Entity, &PropShape, Has<Item>), Added<PropShape>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (entity, shape) in &props {
+    for (entity, shape, is_item) in &props {
         let (mesh, color) = match *shape {
             PropShape::Crate { size } => (
                 meshes.add(Cuboid::from_size(size)),
-                Color::srgb(0.65, 0.45, 0.25),
+                if is_item {
+                    // Pickup items glow gold so they stand out.
+                    Color::srgb(0.95, 0.78, 0.2)
+                } else {
+                    Color::srgb(0.65, 0.45, 0.25)
+                },
             ),
             PropShape::Ball { radius } => (
                 meshes.add(Sphere::new(radius)),

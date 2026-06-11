@@ -28,14 +28,19 @@ pub const PLAYER_JUMP_IMPULSE: f32 = 9.0;
 pub const PLAYER_GRAVITY: f32 = -24.0;
 /// Max downward speed from gravity, m/s (positive magnitude).
 pub const PLAYER_TERMINAL_VELOCITY: f32 = 35.0;
-/// Horizontal acceleration toward target speed, m/s².
-pub const PLAYER_ACCELERATION: f32 = 55.0;
-/// Exponential braking on horizontal velocity when grounded and idle.
-pub const PLAYER_MOVE_DAMPING: f32 = 14.0;
-/// Fraction of ground acceleration applied while airborne (steering only).
-pub const PLAYER_AIR_CONTROL: f32 = 0.55;
-/// Light air friction when airborne with no move input.
-pub const PLAYER_AIR_FRICTION: f32 = 1.5;
+// Quake/Source-style ground movement: friction is always applied while
+// grounded, then acceleration rebuilds speed toward the wish direction.
+// This is what makes direction changes feel grippy instead of slidy.
+/// Ground friction coefficient (1/s). Higher = grippier stops and turns.
+pub const PLAYER_FRICTION: f32 = 9.0;
+/// Ground acceleration as a multiple of wish speed (1/s).
+/// 10 means full speed is reached in ~0.1 s.
+pub const PLAYER_ACCEL_RATE: f32 = 10.0;
+/// Air acceleration multiple — low: some steering, momentum preserved.
+pub const PLAYER_AIR_ACCEL_RATE: f32 = 1.8;
+/// Scale on the impulse players impart when walking into dynamic bodies
+/// (applied on top of the physically-correct reduced-mass impulse).
+pub const PLAYER_PUSH_STRENGTH: f32 = 0.5;
 /// Capsule dimensions: radius and cylinder length (total height = length + 2r).
 pub const PLAYER_CAPSULE_RADIUS: f32 = 0.4;
 pub const PLAYER_CAPSULE_LENGTH: f32 = 1.0;
@@ -45,6 +50,8 @@ pub const PLAYER_MASS: f32 = 75.0;
 pub const PLAYER_EYE_HEIGHT: f32 = 0.6;
 /// Max distance below the capsule bottom that still counts as grounded.
 pub const PLAYER_GROUND_PROBE: f32 = 0.15;
+/// Max look pitch the server accepts, radians (just under straight up/down).
+pub const PLAYER_MAX_PITCH: f32 = 1.55;
 
 // --- Client-side presentation ---
 
@@ -75,9 +82,6 @@ pub const PROP_RESTITUTION: f32 = 0.28;
 pub const THROW_IMPULSE: f32 = 14.0;
 /// Objects heavier than this get proportionally slower throws.
 pub const THROW_REF_MASS: f32 = 40.0;
-/// Scale on the impulse players impart when walking into dynamic bodies.
-pub const PLAYER_PUSH_FACTOR: f32 = 0.3;
-
 // --- Items / inventory (M5) ---
 
 /// Number of inventory slots per player.

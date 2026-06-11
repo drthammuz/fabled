@@ -89,6 +89,7 @@ fn send_input(
     keys: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
     look: Res<LookAngles>,
+    inventory: Res<crate::hotbar::OwnInventory>,
     mut writer: MessageWriter<PlayerInput>,
 ) {
     let mut move_dir = Vec2::ZERO;
@@ -112,6 +113,10 @@ fn send_input(
         sprint: keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight),
         grab: mouse.pressed(MouseButton::Left),
         throw_action: mouse.just_pressed(MouseButton::Right),
+        interact: keys.just_pressed(KeyCode::KeyE),
+        drop_slot: keys
+            .just_pressed(KeyCode::KeyQ)
+            .then_some(inventory.selected as u8),
     });
 }
 

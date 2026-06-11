@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 pub mod fly_camera;
+pub mod hotbar;
 pub mod level_render;
 pub mod netplay;
 pub mod prop_render;
@@ -20,6 +21,7 @@ impl Plugin for ClientCorePlugin {
             fly_camera::FlyCameraPlugin,
             prop_render::PropRenderPlugin,
             netplay::NetPlayPlugin,
+            hotbar::HotbarPlugin,
         ))
         .add_systems(Startup, log_startup);
     }

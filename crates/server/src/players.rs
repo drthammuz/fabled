@@ -67,14 +67,35 @@ fn on_client_connected(
 fn on_client_disconnected(
     remove: On<Remove, ConnectedClient>,
     mut commands: Commands,
-    players: Query<(Entity, &PlayerOwner)>,
+    mut players: Query<(Entity, &PlayerOwner, &Transform, &mut super::items::Inventory)>,
 ) {
     let client_id = ClientId::Client(remove.entity);
-    for (entity, owner) in &players {
-        if owner.0 == client_id {
-            info!("client disconnected, despawning player {entity}");
-            commands.entity(entity).despawn();
+    for (entity, owner, transform, mut inventory) in &mut players {
+        if owner.0 != client_id {
+            continue;
         }
+        // Spill carried loot into the world so it isn't lost for the team.
+        // The grab (if any) releases by itself: the force-applying system
+        // stops running once the player entity is gone.
+        let mut dropped = 0;
+        for (slot, item) in inventory.0.iter_mut().enumerate() {
+            let Some(item) = item.take() else {
+                continue;
+            };
+            let angle = slot as f32 / config::INVENTORY_SLOTS as f32 * std::f32::consts::TAU;
+            let offset = Vec3::new(angle.cos(), 1.0, angle.sin()) * 0.6;
+            super::items::spawn_world_item(
+                &mut commands,
+                item,
+                transform.translation + offset,
+                Vec3::ZERO,
+            );
+            dropped += 1;
+        }
+        info!(
+            "client disconnected, despawning player {entity} ({dropped} items dropped)"
+        );
+        commands.entity(entity).despawn();
     }
 }
 
@@ -97,6 +118,7 @@ fn spawn_player(
             GroundDetection::default(),
             CharacterCollisions::default(),
             super::grab::GrabTarget::default(),
+            super::items::Inventory::default(),
             PlayerName(name),
             PlayerOwner(owner),
             LatestInput::default(),

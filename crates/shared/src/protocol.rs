@@ -45,6 +45,27 @@ pub struct PlayerInput {
     pub grab: bool,
     /// True if throw was pressed since the last input message.
     pub throw_action: bool,
+    /// True if interact (pickup) was pressed since the last input message.
+    pub interact: bool,
+    /// Set when drop was pressed: which inventory slot to drop.
+    pub drop_slot: Option<u8>,
+}
+
+/// A pickup item. On world entities this is replicated to everyone;
+/// inside inventories it only travels to the owning client via
+/// `InventoryUpdate`.
+#[derive(Component, Serialize, Deserialize, Clone, Debug)]
+pub struct Item {
+    pub id: u32,
+    pub name: String,
+    pub weight: f32,
+    pub value: u32,
+}
+
+/// Server -> owning client only: full contents of YOUR inventory.
+#[derive(Message, Serialize, Deserialize, Clone)]
+pub struct InventoryUpdate {
+    pub slots: Vec<Option<Item>>,
 }
 
 /// Server -> owning client: "this replicated entity is your player".
@@ -67,7 +88,9 @@ impl Plugin for ProtocolPlugin {
             .replicate::<PlayerName>()
             .replicate::<NetTransform>()
             .replicate::<PropShape>()
+            .replicate::<Item>()
             .add_client_message::<PlayerInput>(Channel::Unreliable)
+            .add_server_message::<InventoryUpdate>(Channel::Ordered)
             .add_mapped_server_event::<YouAre>(Channel::Ordered);
     }
 }

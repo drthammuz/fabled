@@ -71,6 +71,7 @@ fn update_grab_targets(
                 .map(|c| c.body)
                 .unwrap_or(hit.entity);
             if grabbables.get(body).is_ok() {
+                info!("player {player} grabbed {body}");
                 grab.0 = Some(body);
             }
         }
@@ -142,5 +143,6 @@ fn apply_throws(
             config::THROW_IMPULSE * (config::THROW_REF_MASS / mass.value()).min(1.0);
         let dir = look_direction(input.0.yaw, input.0.pitch);
         velocity.0 = dir.adjust_precision() * speed;
+        info!("player threw {target} at {speed:.1} m/s");
     }
 }

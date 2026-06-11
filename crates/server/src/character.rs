@@ -15,6 +15,11 @@ use super::players::LatestInput;
 
 pub struct CharacterControllerPlugin;
 
+/// Label for the input + movement chain so other server systems (grab,
+/// items) can order themselves after fresh input has been applied.
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CharacterSystems;
+
 impl Plugin for CharacterControllerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
@@ -22,13 +27,13 @@ impl Plugin for CharacterControllerPlugin {
             (
                 apply_player_inputs,
                 update_grounded,
-                steer_from_input,
+                ground_move,
                 apply_gravity,
-                apply_movement_damping,
                 move_and_slide,
                 push_dynamic_bodies,
             )
                 .chain()
+                .in_set(CharacterSystems)
                 .run_if(in_state(ClientState::Disconnected)),
         );
     }
@@ -77,18 +82,52 @@ impl Default for GroundDetection {
     }
 }
 
+/// Server-side validation: never trust the client. Returns `None` when the
+/// message is malformed (NaN/infinite floats); otherwise returns a copy with
+/// every field clamped to legal ranges.
+fn sanitize_input(message: &PlayerInput) -> Option<PlayerInput> {
+    if !message.move_dir.is_finite()
+        || !message.yaw.is_finite()
+        || !message.pitch.is_finite()
+    {
+        return None;
+    }
+    let mut input = *message;
+    // A hacked client could send move_dir of length 100 for super-speed.
+    input.move_dir = input.move_dir.clamp_length_max(1.0);
+    input.pitch = input
+        .pitch
+        .clamp(-config::PLAYER_MAX_PITCH, config::PLAYER_MAX_PITCH);
+    if let Some(slot) = input.drop_slot {
+        if slot as usize >= config::INVENTORY_SLOTS {
+            input.drop_slot = None;
+        }
+    }
+    Some(input)
+}
+
 fn apply_player_inputs(
     mut inputs: MessageReader<FromClient<PlayerInput>>,
     mut players: Query<(&super::players::PlayerOwner, &mut LatestInput)>,
 ) {
     for FromClient { client_id, message } in inputs.read() {
+        let Some(message) = sanitize_input(message) else {
+            warn_once!("rejected malformed input from {client_id:?}");
+            continue;
+        };
         for (owner, mut latest) in &mut players {
             if owner.0 == *client_id {
+                // Edge-triggered actions stay latched until a system consumes
+                // them; otherwise a press could fall between fixed ticks.
                 let jump = latest.0.jump || message.jump;
                 let throw_action = latest.0.throw_action || message.throw_action;
-                latest.0 = *message;
+                let interact = latest.0.interact || message.interact;
+                let drop_slot = message.drop_slot.or(latest.0.drop_slot);
+                latest.0 = message;
                 latest.0.jump = jump;
                 latest.0.throw_action = throw_action;
+                latest.0.interact = interact;
+                latest.0.drop_slot = drop_slot;
             }
         }
     }
@@ -122,8 +161,15 @@ fn update_grounded(
     }
 }
 
-/// Accelerate toward the input target speed; jump when grounded.
-fn steer_from_input(
+/// Quake/Source-style ground movement — the long-standing standard for
+/// grippy FPS character control:
+/// 1. While grounded, friction always removes a fraction of speed.
+/// 2. Acceleration adds speed along the wish direction, capped so the
+///    velocity component in that direction never exceeds wish speed.
+/// Friction kills the old direction quickly while acceleration rebuilds
+/// the new one, which is what makes turns feel planted. In the air there
+/// is no friction (momentum is preserved) and only weak steering.
+fn ground_move(
     time: Res<Time>,
     mut players: Query<
         (
@@ -142,32 +188,40 @@ fn steer_from_input(
         } else {
             intent.move_dir
         };
-        let world_dir = Quat::from_rotation_y(intent.yaw)
+        let wish_dir = Quat::from_rotation_y(intent.yaw)
             * Vec3::new(move_dir.x, 0.0, -move_dir.y);
-        let move_speed = if intent.sprint {
+        let wish_speed = if intent.sprint {
             config::PLAYER_SPRINT_SPEED
         } else {
             config::PLAYER_MOVE_SPEED
         };
-        let has_move_input = move_dir.length_squared() > 0.0;
-        let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
-        let desired_h = if has_move_input {
-            Vector::new(
-                world_dir.x * move_speed,
-                0.0,
-                world_dir.z * move_speed,
-            )
-        } else {
-            horizontal
-        };
-        let accel = if grounded {
-            config::PLAYER_ACCELERATION
-        } else {
-            config::PLAYER_ACCELERATION * config::PLAYER_AIR_CONTROL
-        };
-        let delta = (desired_h - horizontal).clamp_length_max(accel * dt);
-        velocity.x += delta.x;
-        velocity.z += delta.z;
+
+        // 1) Friction (grounded only).
+        if grounded {
+            let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
+            let speed = horizontal.length();
+            if speed > 1e-4 {
+                let drop = speed * config::PLAYER_FRICTION * dt;
+                let scale = ((speed - drop).max(0.0)) / speed;
+                velocity.x *= scale;
+                velocity.z *= scale;
+            }
+        }
+
+        // 2) Accelerate toward the wish direction.
+        if let Some(wish_dir) = wish_dir.try_normalize() {
+            let accel_rate = if grounded {
+                config::PLAYER_ACCEL_RATE
+            } else {
+                config::PLAYER_AIR_ACCEL_RATE
+            };
+            let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
+            let current = horizontal.dot(wish_dir.adjust_precision());
+            let add = (wish_speed - current)
+                .clamp(0.0, accel_rate * wish_speed * dt);
+            velocity.x += wish_dir.x * add;
+            velocity.z += wish_dir.z * add;
+        }
 
         if intent.jump && grounded {
             velocity.y = config::PLAYER_JUMP_IMPULSE;
@@ -188,29 +242,6 @@ fn apply_gravity(
             velocity.0 += gravity * dt;
         } else {
             velocity.y = -config::PLAYER_TERMINAL_VELOCITY;
-        }
-    }
-}
-
-fn apply_movement_damping(
-    time: Res<Time>,
-    mut query: Query<(&LatestInput, Has<Grounded>, &mut LinearVelocity), With<CharacterController>>,
-) {
-    let dt = time.delta_secs_f64().adjust_precision();
-    for (input, grounded, mut velocity) in &mut query {
-        let has_move_input = input.0.move_dir.length_squared() > 0.0;
-        if grounded {
-            if has_move_input {
-                continue;
-            }
-            let factor = 1.0 / (1.0 + dt * config::PLAYER_MOVE_DAMPING);
-            velocity.x *= factor;
-            velocity.z *= factor;
-        } else if !has_move_input {
-            // Light friction in air when coasting — preserves jump momentum.
-            let factor = 1.0 / (1.0 + dt * config::PLAYER_AIR_FRICTION);
-            velocity.x *= factor;
-            velocity.z *= factor;
         }
     }
 }
@@ -273,28 +304,43 @@ fn move_and_slide(
 }
 
 /// Impart momentum to dynamic bodies the character walked into.
+///
+/// Uses the reduced mass of the player/body pair — the standard collision-
+/// response formula. Light objects (items, small crates) receive at most
+/// roughly the contact velocity instead of being launched at dozens of m/s,
+/// while heavy objects still feel heavy.
 fn push_dynamic_bodies(
     characters: Query<(&ComputedMass, &CharacterCollisions), With<CharacterController>>,
     colliders: Query<&ColliderOf>,
-    mut bodies: Query<(&RigidBody, Forces)>,
+    mut bodies: Query<(
+        &RigidBody,
+        &ComputedMass,
+        Forces,
+        Has<shared::protocol::Item>,
+    )>,
 ) {
-    for (mass, collisions) in &characters {
-        let mass = mass.value();
+    for (player_mass, collisions) in &characters {
+        let player_mass = player_mass.value();
         for collision in &collisions.0 {
             let Ok(collider_of) = colliders.get(collision.collider) else {
                 continue;
             };
-            let Ok((body, mut forces)) = bodies.get_mut(collider_of.body) else {
+            let Ok((body, body_mass, mut forces, is_item)) =
+                bodies.get_mut(collider_of.body)
+            else {
                 continue;
             };
-            if !body.is_dynamic() {
+            // Items are collected (E), never kicked around by walking into
+            // them — walking over loot used to punt it through the floor.
+            if !body.is_dynamic() || is_item {
                 continue;
             }
             let touch_dir = -collision.normal.adjust_precision();
             let relative = collision.character_velocity - forces.linear_velocity();
             let touch_velocity = touch_dir.dot(relative) * touch_dir;
-            // Full player mass shoves light crates violently; scale it down.
-            let impulse = touch_velocity * mass * config::PLAYER_PUSH_FACTOR;
+            let body_mass = body_mass.value();
+            let reduced_mass = player_mass * body_mass / (player_mass + body_mass);
+            let impulse = touch_velocity * reduced_mass * config::PLAYER_PUSH_STRENGTH;
             forces.apply_linear_impulse_at_point(impulse, collision.point);
         }
     }

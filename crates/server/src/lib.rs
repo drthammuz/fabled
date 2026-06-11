@@ -4,6 +4,7 @@ use shared::config;
 
 pub mod character;
 pub mod grab;
+pub mod items;
 pub mod level;
 pub mod players;
 
@@ -27,6 +28,7 @@ impl Plugin for ServerCorePlugin {
                 level::ServerLevelPlugin,
                 players::ServerPlayersPlugin,
                 grab::ServerGrabPlugin,
+                items::ServerItemsPlugin,
             ))
             .init_resource::<ServerTick>()
             .add_systems(Startup, log_startup)
