@@ -5,6 +5,8 @@ pub mod hotbar;
 pub mod level_render;
 pub mod netplay;
 pub mod prop_render;
+pub mod villager_ui;
+pub mod villagers;
 
 /// Address of the server this client should connect to (set from CLI).
 /// Unused until netcode lands in M3; host mode connects to localhost.
@@ -22,6 +24,8 @@ impl Plugin for ClientCorePlugin {
             prop_render::PropRenderPlugin,
             netplay::NetPlayPlugin,
             hotbar::HotbarPlugin,
+            villagers::VillagersPlugin,
+            villager_ui::VillagerUiPlugin,
         ))
         .add_systems(Startup, log_startup);
     }

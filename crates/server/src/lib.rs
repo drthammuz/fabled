@@ -7,6 +7,7 @@ pub mod grab;
 pub mod items;
 pub mod level;
 pub mod players;
+pub mod village_live;
 
 /// Core server-side gameplay plugin. Added in both `--server` (headless)
 /// and `--host` (listen server) modes, so gameplay always runs on the same
@@ -29,6 +30,7 @@ impl Plugin for ServerCorePlugin {
                 players::ServerPlayersPlugin,
                 grab::ServerGrabPlugin,
                 items::ServerItemsPlugin,
+                village_live::VillageLivePlugin,
             ))
             .init_resource::<ServerTick>()
             .add_systems(Startup, log_startup)

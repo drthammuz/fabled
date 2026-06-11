@@ -68,6 +68,33 @@ pub struct InventoryUpdate {
     pub slots: Vec<Option<Item>>,
 }
 
+/// A simulated villager. Replicated to all clients; the client picks a
+/// character model and tint from the profession.
+#[derive(Component, Serialize, Deserialize, Clone)]
+pub struct Villager {
+    pub name: String,
+    pub profession: String,
+}
+
+/// What a villager is currently doing, for animation and the action labels.
+/// Updated by the server only when it changes.
+#[derive(Component, Serialize, Deserialize, Clone, PartialEq)]
+pub struct VillagerState {
+    /// Sim action name ("sleep", "eat", "work", "warm_up", "socialize", "idle").
+    pub action: String,
+    /// Where it happens ("tavern", "farm", "home", ...).
+    pub place: String,
+    /// True while walking to the venue.
+    pub walking: bool,
+}
+
+/// Village time, on a single marker entity. Drives the client's sun.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
+pub struct VillageClock {
+    pub day: u64,
+    pub minute_of_day: u64,
+}
+
 /// Server -> owning client: "this replicated entity is your player".
 #[derive(Event, Serialize, Deserialize, Clone, Copy)]
 pub struct YouAre {
@@ -89,6 +116,9 @@ impl Plugin for ProtocolPlugin {
             .replicate::<NetTransform>()
             .replicate::<PropShape>()
             .replicate::<Item>()
+            .replicate::<Villager>()
+            .replicate::<VillagerState>()
+            .replicate::<VillageClock>()
             .add_client_message::<PlayerInput>(Channel::Unreliable)
             .add_server_message::<InventoryUpdate>(Channel::Ordered)
             .add_mapped_server_event::<YouAre>(Channel::Ordered);

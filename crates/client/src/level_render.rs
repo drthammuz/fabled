@@ -16,10 +16,13 @@ impl Plugin for LevelRenderPlugin {
 
 fn kind_color(kind: StaticKind) -> Color {
     match kind {
-        StaticKind::Floor => Color::srgb(0.45, 0.45, 0.48),
+        StaticKind::Floor => Color::srgb(0.42, 0.52, 0.33),
         StaticKind::Wall => Color::srgb(0.65, 0.62, 0.55),
         StaticKind::Ramp => Color::srgb(0.50, 0.60, 0.50),
         StaticKind::Platform => Color::srgb(0.55, 0.50, 0.62),
+        StaticKind::Building => Color::srgb(0.55, 0.42, 0.3),
+        StaticKind::Field => Color::srgb(0.62, 0.55, 0.3),
+        StaticKind::Pier => Color::srgb(0.45, 0.38, 0.3),
     }
 }
 
@@ -28,7 +31,7 @@ fn spawn_level_visuals(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let level = level::test_level();
+    let level = level::active_level();
 
     for def in &level.statics {
         commands.spawn((

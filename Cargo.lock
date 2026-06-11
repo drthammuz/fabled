@@ -5165,7 +5165,10 @@ dependencies = [
  "avian3d",
  "bevy",
  "bevy_replicon",
+ "rand",
+ "rand_chacha",
  "shared",
+ "sim",
 ]
 
 [[package]]

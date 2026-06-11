@@ -26,7 +26,7 @@ fn prop_collider(shape: &PropShape) -> Collider {
 }
 
 fn spawn_level_physics(mut commands: Commands) {
-    let level = level::test_level();
+    let level = level::active_level();
 
     for def in &level.statics {
         commands.spawn((

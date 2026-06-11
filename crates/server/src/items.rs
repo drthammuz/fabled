@@ -61,7 +61,7 @@ fn item_catalog() -> Vec<Item> {
 }
 
 fn spawn_level_items(mut commands: Commands) {
-    let spawns = level::test_level().item_spawns;
+    let spawns = level::active_level().item_spawns;
     let catalog = item_catalog();
     for (i, pos) in spawns.iter().enumerate() {
         let item = catalog[i % catalog.len()].clone();

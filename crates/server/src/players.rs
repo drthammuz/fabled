@@ -105,7 +105,7 @@ fn spawn_player(
     owner: ClientId,
     name: String,
 ) -> Entity {
-    let spawns = level::test_level().player_spawns;
+    let spawns = level::active_level().player_spawns;
     let spawn_pos = spawns[counter.0 % spawns.len()]
         + Vec3::Y * (config::PLAYER_CAPSULE_LENGTH / 2.0 + config::PLAYER_CAPSULE_RADIUS);
     counter.0 += 1;
