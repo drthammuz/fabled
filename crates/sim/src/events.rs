@@ -154,7 +154,9 @@ struct EventRecord<'a> {
 
 #[derive(Resource)]
 pub struct EventLog {
-    writer: BufWriter<File>,
+    /// None = counting only (evolution runs spin up dozens of villages and
+    /// don't want dozens of log files).
+    writer: Option<BufWriter<File>>,
     pub path: PathBuf,
     pub count: u64,
 }
@@ -163,13 +165,25 @@ impl EventLog {
     pub fn create(path: PathBuf) -> std::io::Result<Self> {
         let file = File::create(&path)?;
         Ok(Self {
-            writer: BufWriter::new(file),
+            writer: Some(BufWriter::new(file)),
             path,
             count: 0,
         })
     }
 
+    pub fn disabled() -> Self {
+        Self {
+            writer: None,
+            path: PathBuf::new(),
+            count: 0,
+        }
+    }
+
     pub fn log(&mut self, clock: &SimClock, event: &SimEvent) {
+        self.count += 1;
+        let Some(writer) = &mut self.writer else {
+            return;
+        };
         let record = EventRecord {
             tick: clock.tick,
             time: clock.stamp(),
@@ -177,12 +191,13 @@ impl EventLog {
         };
         // Single-line JSON + newline = JSONL.
         if let Ok(line) = serde_json::to_string(&record) {
-            let _ = writeln!(self.writer, "{line}");
-            self.count += 1;
+            let _ = writeln!(writer, "{line}");
         }
     }
 
     pub fn flush(&mut self) {
-        let _ = self.writer.flush();
+        if let Some(writer) = &mut self.writer {
+            let _ = writer.flush();
+        }
     }
 }

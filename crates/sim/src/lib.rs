@@ -11,6 +11,8 @@ pub mod clock;
 pub mod control;
 pub mod economy;
 pub mod events;
+pub mod evolve;
+pub mod genome;
 pub mod housing;
 pub mod npc;
 pub mod params;
@@ -40,6 +42,8 @@ pub struct SimConfig {
     /// Stop automatically after this many full sim days; 0 = run until `stop`.
     pub stop_after_days: u64,
     pub out_dir: PathBuf,
+    /// Economic policy, default or evolved (`--genome best_genome.json`).
+    pub policy: genome::Genome,
 }
 
 /// Identity of this run, used in snapshots and file names.
@@ -49,26 +53,19 @@ pub struct SimMeta {
     pub seed: u64,
 }
 
-pub fn run(config: SimConfig) -> std::io::Result<()> {
-    std::fs::create_dir_all(&config.out_dir)?;
-    let wall_stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let log_path = config.out_dir.join(format!(
-        "{}-seed{}-{}.jsonl",
-        config.village, config.seed, wall_stamp
-    ));
-    let log = EventLog::create(log_path.clone())?;
-
+/// Builds a ready-to-tick village world. Shared by the interactive runner
+/// and the evolution harness; the genome carries the (possibly evolved)
+/// economic policy.
+pub fn build_app(village: &str, seed: u64, policy: genome::Genome, log: EventLog) -> App {
     let mut app = App::new();
     app.insert_resource(SimMeta {
-        village: config.village.clone(),
-        seed: config.seed,
+        village: village.to_string(),
+        seed,
     })
     .insert_resource(SimClock::default())
-    .insert_resource(SimRng(ChaCha8Rng::seed_from_u64(config.seed)))
+    .insert_resource(SimRng(ChaCha8Rng::seed_from_u64(seed)))
     .insert_resource(Weather::default())
+    .insert_resource(policy)
     .insert_resource(village::ForageBlight::default())
     .insert_resource(village::DailyStats::default())
     .insert_resource(economy::Ledger::default())
@@ -103,8 +100,8 @@ pub fn run(config: SimConfig) -> std::io::Result<()> {
             log.log(
                 clock,
                 &SimEvent::SimStarted {
-                    village: config.village.clone(),
-                    seed: config.seed,
+                    village: village.to_string(),
+                    seed,
                 },
             );
         });
@@ -126,6 +123,21 @@ pub fn run(config: SimConfig) -> std::io::Result<()> {
             });
         });
     }
+    app
+}
+
+pub fn run(config: SimConfig) -> std::io::Result<()> {
+    std::fs::create_dir_all(&config.out_dir)?;
+    let wall_stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let log_path = config.out_dir.join(format!(
+        "{}-seed{}-{}.jsonl",
+        config.village, config.seed, wall_stamp
+    ));
+    let log = EventLog::create(log_path.clone())?;
+    let mut app = build_app(&config.village, config.seed, config.policy.clone(), log);
 
     println!(
         "sim '{}' seed {} | 1 tick = 1 sim minute | log: {}",

@@ -9,6 +9,7 @@ use bevy::prelude::*;
 
 use crate::clock::SimClock;
 use crate::events::{EventLog, SimEvent};
+use crate::genome::Genome;
 use crate::npc::Npc;
 use crate::params;
 use crate::professions::Profession;
@@ -99,6 +100,7 @@ pub fn conservation_check(
 /// unpaid guards and broke treasuries are exactly the signals we watch for.
 pub fn fiscal_day(
     clock: Res<SimClock>,
+    genome: Res<Genome>,
     mut ledger: ResMut<Ledger>,
     mut log: ResMut<EventLog>,
     npcs: Query<(&Npc, &Profession)>,
@@ -110,10 +112,10 @@ pub fn fiscal_day(
     for (npc, _) in &npcs {
         // Poll tax plus a wealth tax on large purses. The wealth tax is what
         // keeps coins circulating instead of pooling at the best earner.
-        let wealth_tax = (ledger.balance(&npc.name) - params::WEALTH_TAX_THRESHOLD)
+        let wealth_tax = (ledger.balance(&npc.name) - genome.wealth_tax_threshold)
             .max(0)
-            / params::WEALTH_TAX_DIVISOR;
-        let owed = params::POLL_TAX + wealth_tax;
+            / genome.wealth_tax_divisor;
+        let owed = genome.poll_tax + wealth_tax;
         let paid = ledger.collect_tax(&npc.name, owed);
         if paid < owed {
             log.log(
@@ -128,9 +130,9 @@ pub fn fiscal_day(
 
     for (npc, profession) in &npcs {
         let salary = match profession {
-            Profession::Guard => params::SALARY_GUARD,
-            Profession::Mayor => params::SALARY_MAYOR,
-            Profession::Elder => params::PENSION_ELDER,
+            Profession::Guard => genome.salary_guard,
+            Profession::Mayor => genome.salary_mayor,
+            Profession::Elder => genome.pension_elder,
             _ => continue,
         };
         if ledger.pay_from_treasury(&npc.name, salary) {

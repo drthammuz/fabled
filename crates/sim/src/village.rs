@@ -17,6 +17,8 @@ use crate::professions::Market;
 pub struct ForageBlight(pub bool);
 
 /// Counters reset at each day boundary, reported in the daily summary.
+/// The `total_*` fields are lifetime counters (never reset) used by the
+/// evolution fitness function.
 #[derive(Resource, Default)]
 pub struct DailyStats {
     pub meals: u32,
@@ -25,6 +27,9 @@ pub struct DailyStats {
     pub grain_grown: u32,
     pub fish_caught: u32,
     pub bread_baked: u32,
+    pub total_meals: u64,
+    pub total_ales: u64,
+    pub total_starving_episodes: u64,
 }
 
 fn round1(value: f32) -> f32 {
@@ -89,5 +94,10 @@ pub fn daily_summary(
         },
     );
     log.flush();
-    *stats = DailyStats::default();
+    *stats = DailyStats {
+        total_meals: stats.total_meals,
+        total_ales: stats.total_ales,
+        total_starving_episodes: stats.total_starving_episodes,
+        ..Default::default()
+    };
 }

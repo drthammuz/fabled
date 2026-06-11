@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::clock::SimClock;
 use crate::economy::Ledger;
 use crate::events::{EventLog, SimEvent};
+use crate::genome::Genome;
 use crate::params;
 use crate::village::DailyStats;
 use crate::weather::SimRng;
@@ -145,6 +146,7 @@ pub fn meal_option(
     purse: i64,
     market: &Market,
     roster: &Roster,
+    genome: &Genome,
 ) -> Option<(MealSource, i64)> {
     match profession {
         Profession::Baker if market.bakery_bread > 0 => {
@@ -164,23 +166,23 @@ pub fn meal_option(
     // The frugal need a much fuller purse before the tavern feels right.
     let comfort = (params::TAVERN_COMFORT_PURSE as f32 * (0.5 + 1.5 * frugality)) as i64;
     if tavern_open && purse >= comfort {
-        return Some((MealSource::Tavern, params::PRICE_SUPPER));
+        return Some((MealSource::Tavern, genome.price_supper));
     }
     let fish_ok = market.stall_fish > 0
         && roster.0.contains_key(&Profession::Fisher)
-        && purse >= params::PRICE_FISH;
+        && purse >= genome.price_fish;
     if fish_ok {
-        return Some((MealSource::FishStall, params::PRICE_FISH));
+        return Some((MealSource::FishStall, genome.price_fish));
     }
     let bread_ok = market.bakery_bread > 0
         && roster.0.contains_key(&Profession::Baker)
-        && purse >= params::PRICE_BREAD;
+        && purse >= genome.price_bread;
     if bread_ok {
-        return Some((MealSource::Bakery, params::PRICE_BREAD));
+        return Some((MealSource::Bakery, genome.price_bread));
     }
-    if tavern_open && purse >= params::PRICE_SUPPER {
+    if tavern_open && purse >= genome.price_supper {
         // Not rich, but the tavern is the only stocked option left.
-        return Some((MealSource::Tavern, params::PRICE_SUPPER));
+        return Some((MealSource::Tavern, genome.price_supper));
     }
     None
 }
@@ -248,6 +250,7 @@ pub fn buy_ale(
     market: &mut Market,
     ledger: &mut Ledger,
     roster: &Roster,
+    genome: &Genome,
     stats: &mut DailyStats,
     clock: &SimClock,
     log: &mut EventLog,
@@ -263,21 +266,22 @@ pub fn buy_ale(
         return false;
     };
     let buffer = (frugality * 20.0) as i64;
-    if purse < params::PRICE_ALE + buffer {
+    if purse < genome.price_ale + buffer {
         return false;
     }
-    if !ledger.transfer(buyer, keeper, params::PRICE_ALE) {
+    if !ledger.transfer(buyer, keeper, genome.price_ale) {
         return false;
     }
     market.tavern_ale -= 1;
     stats.ales_sold += 1;
+    stats.total_ales += 1;
     log.log(
         clock,
         &SimEvent::Purchase {
             buyer: buyer.to_string(),
             seller: keeper.clone(),
             good: "ale".to_string(),
-            price: params::PRICE_ALE,
+            price: genome.price_ale,
         },
     );
     true
@@ -291,6 +295,7 @@ pub fn complete_work_hour(
     market: &mut Market,
     ledger: &mut Ledger,
     roster: &Roster,
+    genome: &Genome,
     rng: &mut SimRng,
     blight: bool,
     stats: &mut DailyStats,
@@ -312,13 +317,13 @@ pub fn complete_work_hour(
             }
             // Wage from the farmer's purse, per completed hour.
             if let Some(farmer) = roster.0.get(&Profession::Farmer) {
-                if ledger.transfer(farmer, name, params::FARMHAND_WAGE_PER_HOUR) {
+                if ledger.transfer(farmer, name, genome.farmhand_wage) {
                     log.log(
                         clock,
                         &SimEvent::WagePaid {
                             from: farmer.clone(),
                             to: name.to_string(),
-                            amount: params::FARMHAND_WAGE_PER_HOUR,
+                            amount: genome.farmhand_wage,
                         },
                     );
                 } else {
@@ -358,10 +363,10 @@ pub fn complete_work_hour(
                 if let Some(farmer) = roster.0.get(&Profession::Farmer) {
                     let short = want - market.bakery_grain;
                     let affordable =
-                        (ledger.balance(name) / params::PRICE_GRAIN).max(0) as u32;
+                        (ledger.balance(name) / genome.price_grain).max(0) as u32;
                     let amount = short.min(market.farm_grain).min(affordable);
                     if amount > 0
-                        && ledger.transfer(name, farmer, amount as i64 * params::PRICE_GRAIN)
+                        && ledger.transfer(name, farmer, amount as i64 * genome.price_grain)
                     {
                         market.farm_grain -= amount;
                         market.bakery_grain += amount;
@@ -371,7 +376,7 @@ pub fn complete_work_hour(
                                 buyer: name.to_string(),
                                 seller: farmer.clone(),
                                 good: format!("grain x{amount}"),
-                                price: amount as i64 * params::PRICE_GRAIN,
+                                price: amount as i64 * genome.price_grain,
                             },
                         );
                     }
@@ -392,6 +397,7 @@ pub fn complete_work_hour(
 /// the baker and the fisher.
 pub fn tavern_restock(
     clock: Res<SimClock>,
+    genome: Res<Genome>,
     mut market: ResMut<Market>,
     mut ledger: ResMut<Ledger>,
     roster: Res<Roster>,
@@ -414,12 +420,12 @@ pub fn tavern_restock(
     let want_ale = params::TAVERN_TARGET_ALE.saturating_sub(market.tavern_ale);
     if want_ale > 0 {
         if let Some(farmer) = roster.0.get(&Profession::Farmer) {
-            let affordable = (spendable(&ledger) / params::PRICE_GRAIN) as u32;
+            let affordable = (spendable(&ledger) / genome.price_grain) as u32;
             let grain = (want_ale * params::GRAIN_PER_ALE)
                 .min(market.farm_grain)
                 .min(affordable * params::GRAIN_PER_ALE);
             if grain > 0
-                && ledger.transfer(&keeper, farmer, grain as i64 * params::PRICE_GRAIN)
+                && ledger.transfer(&keeper, farmer, grain as i64 * genome.price_grain)
             {
                 market.farm_grain -= grain;
                 market.tavern_ale += grain / params::GRAIN_PER_ALE;
@@ -429,7 +435,7 @@ pub fn tavern_restock(
                         buyer: keeper.clone(),
                         seller: farmer.clone(),
                         good: format!("grain x{grain} (brewing)"),
-                        price: grain as i64 * params::PRICE_GRAIN,
+                        price: grain as i64 * genome.price_grain,
                     },
                 );
             }
@@ -440,10 +446,10 @@ pub fn tavern_restock(
     let want_fish = params::TAVERN_TARGET_FISH.saturating_sub(market.tavern_fish);
     if want_fish > 0 {
         if let Some(fisher) = roster.0.get(&Profession::Fisher) {
-            let affordable = (spendable(&ledger) / params::WHOLESALE_FISH) as u32;
+            let affordable = (spendable(&ledger) / genome.wholesale_fish) as u32;
             let amount = want_fish.min(market.stall_fish).min(affordable);
             if amount > 0
-                && ledger.transfer(&keeper, fisher, amount as i64 * params::WHOLESALE_FISH)
+                && ledger.transfer(&keeper, fisher, amount as i64 * genome.wholesale_fish)
             {
                 market.stall_fish -= amount;
                 market.tavern_fish += amount;
@@ -453,7 +459,7 @@ pub fn tavern_restock(
                         buyer: keeper.clone(),
                         seller: fisher.clone(),
                         good: format!("fish x{amount}"),
-                        price: amount as i64 * params::WHOLESALE_FISH,
+                        price: amount as i64 * genome.wholesale_fish,
                     },
                 );
             }
@@ -464,10 +470,10 @@ pub fn tavern_restock(
     let want_bread = params::TAVERN_TARGET_BREAD.saturating_sub(market.tavern_bread);
     if want_bread > 0 {
         if let Some(baker) = roster.0.get(&Profession::Baker) {
-            let affordable = (spendable(&ledger) / params::WHOLESALE_BREAD) as u32;
+            let affordable = (spendable(&ledger) / genome.wholesale_bread) as u32;
             let amount = want_bread.min(market.bakery_bread).min(affordable);
             if amount > 0
-                && ledger.transfer(&keeper, baker, amount as i64 * params::WHOLESALE_BREAD)
+                && ledger.transfer(&keeper, baker, amount as i64 * genome.wholesale_bread)
             {
                 market.bakery_bread -= amount;
                 market.tavern_bread += amount;
@@ -477,7 +483,7 @@ pub fn tavern_restock(
                         buyer: keeper.clone(),
                         seller: baker.clone(),
                         good: format!("bread x{amount}"),
-                        price: amount as i64 * params::WHOLESALE_BREAD,
+                        price: amount as i64 * genome.wholesale_bread,
                     },
                 );
             }

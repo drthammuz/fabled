@@ -11,6 +11,7 @@ use crate::brain::{self, Emotions, Memories, Traits};
 use crate::clock::SimClock;
 use crate::economy::Ledger;
 use crate::events::{EventLog, SimEvent};
+use crate::genome::Genome;
 use crate::housing::{self, Home};
 use crate::params;
 use crate::professions::{self, Market, MealSource, Profession, Roster};
@@ -171,6 +172,7 @@ pub fn needs_tick(
     weather: Res<Weather>,
     mut ledger: ResMut<Ledger>,
     mut roster: ResMut<Roster>,
+    mut stats: ResMut<DailyStats>,
     mut log: ResMut<EventLog>,
     mut npcs: Query<(
         Entity,
@@ -234,6 +236,7 @@ pub fn needs_tick(
         let lonely = needs.social >= 90.0;
         let miserable = emotions.mood <= 15.0;
         if starving && !flags.starving {
+            stats.total_starving_episodes += 1;
             log.log(&clock, &SimEvent::NpcStarving { npc: npc.name.clone() });
         }
         if freezing && !flags.freezing {
@@ -302,6 +305,7 @@ fn meal_place(source: MealSource) -> PlaceKind {
 /// walking to wherever it happens.
 pub fn act(
     clock: Res<SimClock>,
+    genome: Res<Genome>,
     mut market: ResMut<Market>,
     mut ledger: ResMut<Ledger>,
     roster: Res<Roster>,
@@ -365,6 +369,7 @@ pub fn act(
                 ActivityKind::Eat => {
                     needs.hunger = (needs.hunger - params::MEAL_RELIEF).max(0.0);
                     stats.meals += 1;
+                    stats.total_meals += 1;
                     emotions.mood = (emotions.mood + params::MOOD_MEAL).min(100.0);
                 }
                 ActivityKind::Work => {
@@ -374,6 +379,7 @@ pub fn act(
                         &mut market,
                         &mut ledger,
                         &roster,
+                        &genome,
                         &mut rng,
                         blight.0,
                         &mut stats,
@@ -417,8 +423,15 @@ pub fn act(
         }
 
         let purse = ledger.balance(&npc.name);
-        let meal =
-            professions::meal_option(*profession, traits.frugality, hour, purse, &market, &roster);
+        let meal = professions::meal_option(
+            *profession,
+            traits.frugality,
+            hour,
+            purse,
+            &market,
+            &roster,
+            &genome,
+        );
 
         // "Hungry with no way to eat" is a key economic distress signal.
         if needs.hunger >= 80.0 && meal.is_none() {
@@ -508,7 +521,7 @@ pub fn act(
                 let place = if tavern_social {
                     paid = professions::buy_ale(
                         &npc.name, *profession, traits.frugality, purse, &mut market,
-                        &mut ledger, &roster, &mut stats, &clock, &mut log,
+                        &mut ledger, &roster, &genome, &mut stats, &clock, &mut log,
                     );
                     PlaceKind::Tavern
                 } else {
