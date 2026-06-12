@@ -153,10 +153,14 @@ fn attach_villager_visuals(
         let Some(entry) = library.0.get(path) else {
             continue;
         };
+        // The KayKit rigs stand ~2.3 units tall in scene space (the raw
+        // mesh bounds are taller, but the skeleton pulls the legs up and
+        // plants the feet at y=0). Scale to ~1.7 m, just under the player.
+        const SCALE: f32 = 1.7 / 2.3;
         let scene = commands
             .spawn((
                 SceneRoot(entry.scene.clone()),
-                Transform::from_scale(Vec3::splat(0.85)),
+                Transform::from_scale(Vec3::splat(SCALE)),
                 SceneOf(entity),
             ))
             .observe(
@@ -193,14 +197,13 @@ fn attach_villager_visuals(
 /// model's graph and start idling.
 fn hook_animation_players(
     mut commands: Commands,
-    new_players: Query<Entity, Added<AnimationPlayer>>,
+    mut new_players: Query<(Entity, &mut AnimationPlayer), Added<AnimationPlayer>>,
     parents: Query<&ChildOf>,
     scene_links: Query<&SceneOf>,
     models: Query<&VillagerModel>,
     library: Res<CharacterLibrary>,
-    mut players: Query<&mut AnimationPlayer>,
 ) {
-    for rig in &new_players {
+    for (rig, mut player) in &mut new_players {
         // Walk up to find the scene child (SceneOf), then the villager root.
         let mut current = rig;
         let mut villager = None;
@@ -220,9 +223,9 @@ fn hook_animation_players(
         let Some(graph) = entry.graph.clone() else { continue };
 
         let mut transitions = AnimationTransitions::new();
-        if let Ok(mut player) = players.get_mut(rig) {
-            transitions.play(&mut player, entry.idle, Duration::ZERO).repeat();
-        }
+        transitions
+            .play(&mut player, entry.idle, Duration::ZERO)
+            .repeat();
         commands
             .entity(rig)
             .insert((AnimationGraphHandle(graph), transitions));

@@ -3,9 +3,16 @@
 /// Fixed gameplay/physics tick rate of the server (Hz).
 pub const SERVER_TICK_HZ: f64 = 30.0;
 
-/// Live village pacing: real seconds per sim minute. 2.0 means a village
-/// day lasts 48 real minutes.
-pub const SECS_PER_SIM_MINUTE: f64 = 2.0;
+/// Live village pacing: real seconds per sim minute (default; +/- adjusts
+/// One real minute is one game hour: a village day lasts 24 real minutes.
+pub const SECS_PER_SIM_MINUTE: f64 = 1.0;
+
+/// Villager commute speed in m/s, world space. Deliberately close to the
+/// player's walk speed so NPCs read as people, not snails; visual walking
+/// is decoupled from the sim's abstract travel times.
+pub const VILLAGER_WALK_SPEED: f32 = 7.0;
+/// Slow ambling speed for idle wandering around a venue, m/s.
+pub const VILLAGER_AMBLE_SPEED: f32 = 2.2;
 
 /// How often the headless server app loop wakes up (Hz). Must be >= tick
 /// rate; the `FixedUpdate` accumulator consumes time at `SERVER_TICK_HZ`.

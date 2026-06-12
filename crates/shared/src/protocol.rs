@@ -88,6 +88,19 @@ pub struct VillagerState {
     pub walking: bool,
 }
 
+/// A villager's live stats, for the overhead info panel. Needs and mood
+/// are 0..=100; purse is in coins. Updated by the server each sim minute
+/// (only when changed).
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
+pub struct VillagerStats {
+    pub hunger: u8,
+    pub energy: u8,
+    pub warmth: u8,
+    pub social: u8,
+    pub mood: u8,
+    pub purse: i64,
+}
+
 /// Village time, on a single marker entity. Drives the client's sun.
 #[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub struct VillageClock {
@@ -118,6 +131,7 @@ impl Plugin for ProtocolPlugin {
             .replicate::<Item>()
             .replicate::<Villager>()
             .replicate::<VillagerState>()
+            .replicate::<VillagerStats>()
             .replicate::<VillageClock>()
             .add_client_message::<PlayerInput>(Channel::Unreliable)
             .add_server_message::<InventoryUpdate>(Channel::Ordered)

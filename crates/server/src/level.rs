@@ -28,7 +28,19 @@ fn prop_collider(shape: &PropShape) -> Collider {
 fn spawn_level_physics(mut commands: Commands) {
     let level = level::active_level();
 
+    // Terrain ground: a static trimesh built from the shared heightfield,
+    // identical to what the client renders.
+    commands.spawn((
+        RigidBody::Static,
+        Collider::trimesh(shared::terrain::grid_positions(), shared::terrain::grid_indices()),
+        Transform::IDENTITY,
+    ));
+
     for def in &level.statics {
+        // Gables are cosmetic prisms tucked inside the roofs; no collider.
+        if def.kind == level::StaticKind::Gable {
+            continue;
+        }
         commands.spawn((
             RigidBody::Static,
             Collider::cuboid(def.size.x, def.size.y, def.size.z),

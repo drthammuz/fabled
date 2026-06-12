@@ -7,7 +7,7 @@ edition = "2024"
 version = "0.1.0"
 
 [workspace.dependencies]
-bevy = { version = "0.18", features = ["serialize"] }
+bevy = { version = "0.18", features = ["serialize", "jpeg"] }
 # default-features off: drops collider-from-mesh (needs asset events that a
 # headless server doesn't have) and picking/debug extras we don't use.
 avian3d = { version = "0.6", default-features = false, features = ["3d", "f32", "parry-f32"] }

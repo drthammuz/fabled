@@ -33,10 +33,18 @@ pub enum StaticKind {
     Platform,
     /// Village building walls (timber look).
     Building,
-    /// Flat cosmetic patches (farm field, the square); thin, walkable.
+    /// Flat cosmetic patches (farm field); thin, walkable.
     Field,
+    /// The cobbled village square.
+    Square,
     /// Dock planks over the water line.
     Pier,
+    /// Pitched roof slabs (rotated cuboids, tiled).
+    Roof,
+    /// Triangular gable walls closing the roof ends. Client renders these
+    /// as prisms; the server spawns no collider for them (they sit above
+    /// the walls, inside the roof).
+    Gable,
 }
 
 /// One static cuboid: full extents `size`, centered at `position`.
@@ -63,27 +71,31 @@ pub fn active_level() -> LevelDef {
     village_level()
 }
 
-/// Four walls with a door gap facing `door_toward` (axis-aligned, whichever
-/// axis dominates), for the village buildings.
-fn building_walls(center: Vec3, size: Vec2, height: f32, door_toward: Vec3) -> Vec<StaticDef> {
+/// Four walls with a door gap facing the square, for the village buildings.
+///
+/// Corner joints: the door wall and its opposite are extended by one wall
+/// thickness (T/2 sticking out each end) so they reach the *outer* face of
+/// the side walls; the side walls are shortened by T to butt cleanly
+/// against them. Centering every wall on the footprint edge would leave a
+/// T/2 x T/2 hole at each corner.
+fn building_walls(center: Vec3, size: Vec2, height: f32) -> Vec<StaticDef> {
     const T: f32 = 0.3; // wall thickness
     const DOOR: f32 = 1.6;
     let (hx, hz) = (size.x / 2.0, size.y / 2.0);
-    let to = door_toward - center;
-    // Which wall holds the door?
-    let door_on_x = to.x.abs() * hz > to.z.abs() * hx; // compare normalized
+    let side = crate::village_map::door_side(center, size);
+    let door_on_x = side.x != 0.0;
     let mut walls = Vec::new();
     let mut solid = |position: Vec3, size: Vec3| {
         walls.push(StaticDef::axis_aligned(StaticKind::Building, position, size));
     };
     let y = height / 2.0;
-    // The two walls parallel to the door wall axis.
     if door_on_x {
-        let door_x = if to.x > 0.0 { hx } else { -hx };
+        let door_x = side.x * hx;
+        let long = size.y + T; // covers the corners
         // Solid wall opposite the door.
-        solid(center + Vec3::new(-door_x, y, 0.0), Vec3::new(T, height, size.y));
-        // Door wall: two segments above/below the gap.
-        let seg = (size.y - DOOR) / 2.0;
+        solid(center + Vec3::new(-door_x, y, 0.0), Vec3::new(T, height, long));
+        // Door wall: two segments either side of the gap.
+        let seg = (long - DOOR) / 2.0;
         solid(
             center + Vec3::new(door_x, y, -(DOOR / 2.0 + seg / 2.0)),
             Vec3::new(T, height, seg),
@@ -92,13 +104,14 @@ fn building_walls(center: Vec3, size: Vec2, height: f32, door_toward: Vec3) -> V
             center + Vec3::new(door_x, y, DOOR / 2.0 + seg / 2.0),
             Vec3::new(T, height, seg),
         );
-        // Side walls.
-        solid(center + Vec3::new(0.0, y, -hz), Vec3::new(size.x, height, T));
-        solid(center + Vec3::new(0.0, y, hz), Vec3::new(size.x, height, T));
+        // Side walls, butting against the extended pair.
+        solid(center + Vec3::new(0.0, y, -hz), Vec3::new(size.x - T, height, T));
+        solid(center + Vec3::new(0.0, y, hz), Vec3::new(size.x - T, height, T));
     } else {
-        let door_z = if to.z > 0.0 { hz } else { -hz };
-        solid(center + Vec3::new(0.0, y, -door_z), Vec3::new(size.x, height, T));
-        let seg = (size.x - DOOR) / 2.0;
+        let door_z = side.z * hz;
+        let long = size.x + T;
+        solid(center + Vec3::new(0.0, y, -door_z), Vec3::new(long, height, T));
+        let seg = (long - DOOR) / 2.0;
         solid(
             center + Vec3::new(-(DOOR / 2.0 + seg / 2.0), y, door_z),
             Vec3::new(seg, height, T),
@@ -107,10 +120,81 @@ fn building_walls(center: Vec3, size: Vec2, height: f32, door_toward: Vec3) -> V
             center + Vec3::new(DOOR / 2.0 + seg / 2.0, y, door_z),
             Vec3::new(seg, height, T),
         );
-        solid(center + Vec3::new(-hx, y, 0.0), Vec3::new(T, height, size.y));
-        solid(center + Vec3::new(hx, y, 0.0), Vec3::new(T, height, size.y));
+        solid(center + Vec3::new(-hx, y, 0.0), Vec3::new(T, height, size.y - T));
+        solid(center + Vec3::new(hx, y, 0.0), Vec3::new(T, height, size.y - T));
     }
     walls
+}
+
+/// A pitched roof: two tilted slabs meeting at a ridge along the longer
+/// footprint axis, plus gable walls closing the triangular ends.
+fn building_roof(center: Vec3, size: Vec2, height: f32) -> Vec<StaticDef> {
+    const OVERHANG: f32 = 0.45;
+    const PITCH: f32 = 0.62; // radians, ~35 degrees
+    const SLAB: f32 = 0.14;
+    let ridge_x = size.x >= size.y;
+    let (long, short) = if ridge_x {
+        (size.x, size.y)
+    } else {
+        (size.y, size.x)
+    };
+    let span = short / 2.0 + OVERHANG;
+    let rise = span * PITCH.tan();
+    let length = long + 2.0 * OVERHANG;
+    let width = span / PITCH.cos() + 0.12; // slight overlap at the ridge
+    let y = height + rise / 2.0;
+
+    let mut parts = Vec::new();
+    for side in [-1.0f32, 1.0] {
+        let (position, rotation, slab_size) = if ridge_x {
+            (
+                center + Vec3::new(0.0, y, side * span / 2.0),
+                Quat::from_rotation_x(side * PITCH),
+                Vec3::new(length, SLAB, width),
+            )
+        } else {
+            (
+                center + Vec3::new(side * span / 2.0, y, 0.0),
+                Quat::from_rotation_z(-side * PITCH),
+                Vec3::new(width, SLAB, length),
+            )
+        };
+        parts.push(StaticDef {
+            kind: StaticKind::Roof,
+            position,
+            rotation,
+            size: slab_size,
+        });
+    }
+    // Gables: position is the BASE CENTER (top of the wall), size is
+    // (base width, rise, thickness). Only the client consumes these.
+    for side in [-1.0f32, 1.0] {
+        let (position, rotation) = if ridge_x {
+            (
+                center + Vec3::new(side * size.x / 2.0, height, 0.0),
+                Quat::from_rotation_y(std::f32::consts::FRAC_PI_2),
+            )
+        } else {
+            (
+                center + Vec3::new(0.0, height, side * size.y / 2.0),
+                Quat::IDENTITY,
+            )
+        };
+        parts.push(StaticDef {
+            kind: StaticKind::Gable,
+            position,
+            rotation,
+            size: Vec3::new(short, rise, 0.3),
+        });
+    }
+    parts
+}
+
+/// Walls plus roof: a complete village building shell.
+fn building(center: Vec3, size: Vec2, height: f32) -> Vec<StaticDef> {
+    let mut parts = building_walls(center, size, height);
+    parts.extend(building_roof(center, size, height));
+    parts
 }
 
 /// The village: open ground, public buildings around the square, a ring of
@@ -118,19 +202,14 @@ fn building_walls(center: Vec3, size: Vec2, height: f32, door_toward: Vec3) -> V
 pub fn village_level() -> LevelDef {
     use crate::village_map::{building_size, home_world_pos, place_world_pos};
 
-    const GROUND: f32 = 160.0;
+    // No ground cuboid here: the procedural terrain (see `shared::terrain`)
+    // provides the ground surface and its collider.
     let square = place_world_pos("square");
 
     let mut statics = vec![
-        // Ground: top surface at y = 0.
-        StaticDef::axis_aligned(
-            StaticKind::Floor,
-            Vec3::new(0.0, -0.25, 0.0),
-            Vec3::new(GROUND, 0.5, GROUND),
-        ),
         // The village square: a slightly raised cobble patch.
         StaticDef::axis_aligned(
-            StaticKind::Field,
+            StaticKind::Square,
             square + Vec3::new(0.0, 0.01, 0.0),
             Vec3::new(12.0, 0.04, 12.0),
         ),
@@ -150,24 +229,18 @@ pub fn village_level() -> LevelDef {
 
     // Public buildings.
     for place in ["tavern", "bakery"] {
-        statics.extend(building_walls(
-            place_world_pos(place),
-            building_size(place),
-            3.0,
-            square,
-        ));
+        statics.extend(building(place_world_pos(place), building_size(place), 3.0));
     }
     // Farm barn (sits at the edge of the field).
-    statics.extend(building_walls(
+    statics.extend(building(
         place_world_pos("farm") + Vec3::new(0.0, 0.0, -9.0),
         Vec2::new(5.0, 4.0),
         2.8,
-        square,
     ));
     // Villager huts.
     for index in 0..8 {
         let home = home_world_pos(index);
-        statics.extend(building_walls(home, building_size("home"), 2.5, square));
+        statics.extend(building(home, building_size("home"), 2.5));
     }
 
     // A few crates and a ball near the square so the physics toys remain.

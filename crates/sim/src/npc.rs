@@ -62,6 +62,8 @@ pub enum ActivityKind {
     Work,
     WarmUp,
     Socialize,
+    /// A walk around the village: off-duty street life.
+    Stroll,
     Idle,
 }
 
@@ -73,6 +75,7 @@ impl ActivityKind {
             Self::Work => "work",
             Self::WarmUp => "warm_up",
             Self::Socialize => "socialize",
+            Self::Stroll => "stroll",
             Self::Idle => "idle",
         }
     }
@@ -189,13 +192,21 @@ pub fn needs_tick(
     for (entity, npc, traits, emotions, home, mut needs, mut health, mut flags, activity) in
         &mut npcs
     {
-        needs.hunger = (needs.hunger + params::HUNGER_PER_HOUR * traits.metabolism / 60.0)
+        let asleep = activity.kind == ActivityKind::Sleep && clock.tick >= activity.arrives;
+        // Metabolism slows while asleep (see HUNGER_ASLEEP_FACTOR), so a
+        // villager who ate supper sleeps through the night.
+        let hunger_factor = if asleep {
+            params::HUNGER_ASLEEP_FACTOR
+        } else {
+            1.0
+        };
+        needs.hunger = (needs.hunger
+            + params::HUNGER_PER_HOUR * traits.metabolism * hunger_factor / 60.0)
             .clamp(0.0, 100.0);
         needs.social = (needs.social
             + params::SOCIAL_PER_HOUR * (0.5 + traits.sociability) / 60.0)
             .clamp(0.0, 100.0);
 
-        let asleep = activity.kind == ActivityKind::Sleep && clock.tick >= activity.arrives;
         if asleep {
             needs.energy =
                 (needs.energy + params::ENERGY_SLEEP_PER_HOUR / 60.0).clamp(0.0, 100.0);
@@ -328,7 +339,6 @@ pub fn act(
 ) {
     let now = clock.tick;
     let hour = clock.hour();
-    let is_night = !(params::DAY_START_HOUR..params::NIGHT_START_HOUR).contains(&hour);
     let is_evening = (16..params::TAVERN_CLOSE_HOUR).contains(&hour);
     let can_socialize = (8..23).contains(&hour);
 
@@ -353,11 +363,16 @@ pub fn act(
     ) in &mut npcs
     {
         if activity.kind == ActivityKind::Sleep && now >= activity.arrives {
-            // Wake when rested, dangerously hungry, or the shift starts
-            // (only if reasonably rested — exhausted workers oversleep).
-            let wake = needs.energy >= 95.0
-                || needs.hunger >= 85.0
-                || (profession.on_shift(hour) && needs.energy > 50.0);
+            // Circadian wake gating: at night you stay in bed unless truly
+            // starving or your shift starts; in the morning you get up once
+            // reasonably rested (fully rested sleepers may lie in until
+            // dawn — that's fine). Short sleepers wake for work anyway and
+            // carry the energy debt into the evening, which pushes them to
+            // bed earlier the next night.
+            let night = hour >= params::NIGHT_START_HOUR || hour < params::DAY_START_HOUR;
+            let wake = needs.hunger >= 85.0
+                || (profession.on_shift(hour) && needs.energy > 50.0)
+                || (!night && needs.energy >= 85.0);
             if !wake {
                 continue;
             }
@@ -418,6 +433,10 @@ pub fn act(
                     needs.social = (needs.social - relief).max(0.0);
                     emotions.mood = (emotions.mood + mood_bump).min(100.0);
                 }
+                ActivityKind::Stroll => {
+                    needs.social = (needs.social - params::SOCIAL_RELIEF_STROLL).max(0.0);
+                    emotions.mood = (emotions.mood + params::MOOD_STROLL).min(100.0);
+                }
                 _ => {}
             }
         }
@@ -472,7 +491,7 @@ pub fn act(
             purse,
             meal.is_some(),
             on_shift,
-            is_night,
+            hour,
             is_evening,
             can_socialize,
         );
@@ -529,6 +548,7 @@ pub fn act(
                 };
                 (place, params::SOCIALIZE_MINUTES)
             }
+            ActivityKind::Stroll => (PlaceKind::Square, params::STROLL_MINUTES),
             ActivityKind::Idle => (PlaceKind::Home, params::IDLE_MINUTES),
         };
 
@@ -572,7 +592,7 @@ fn decide(
     purse: i64,
     meal_available: bool,
     on_shift: bool,
-    is_night: bool,
+    hour: u64,
     is_evening: bool,
     can_socialize: bool,
 ) -> ActivityKind {
@@ -587,15 +607,33 @@ fn decide(
         consider(ActivityKind::Eat, 40.0 + needs.hunger, &mut best);
     }
 
-    let mut sleep = 100.0 - needs.energy;
-    if is_night {
-        sleep += 40.0;
-    }
+    // Circadian rhythm: a graded day/night pressure, not a binary flag.
+    // Daytime carries a real penalty (no napping unless exhausted), the
+    // evening ramps up toward bedtime, deep night keeps sleepers down.
+    let circadian = match hour {
+        20 => 10.0,
+        21 => 20.0,
+        22 => 30.0,
+        23 => 38.0,
+        0..=4 => 45.0,
+        5 => 30.0,
+        6..=7 => 0.0,
+        _ => -35.0,
+    };
+    let mut sleep = (100.0 - needs.energy) * 0.9 + circadian;
     if on_shift {
         // The diligent push through fatigue; the lazy doze off on duty.
         sleep -= 10.0 + 25.0 * traits.diligence;
     }
     consider(ActivityKind::Sleep, sleep, &mut best);
+
+    // Off-duty daytime strolls: cheap fresh air that beats sitting at
+    // home, but loses to work, meals, real sleep pressure, and the tavern
+    // when properly lonely.
+    if !on_shift && (7..21).contains(&hour) {
+        let stroll = 17.0 + 8.0 * (1.0 - traits.diligence) + 5.0 * traits.sociability;
+        consider(ActivityKind::Stroll, stroll, &mut best);
+    }
 
     if needs.warmth < 50.0 {
         consider(ActivityKind::WarmUp, 140.0 - needs.warmth, &mut best);

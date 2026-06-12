@@ -4,7 +4,7 @@
 //! always show within close range. Also drives the sun from village time.
 
 use bevy::prelude::*;
-use shared::protocol::{VillageClock, Villager, VillagerState};
+use shared::protocol::{VillageClock, Villager, VillagerState, VillagerStats};
 
 use crate::fly_camera::FlyCamera;
 
@@ -12,16 +12,19 @@ pub struct VillagerUiPlugin;
 
 impl Plugin for VillagerUiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LabelMode>().add_systems(
-            Update,
-            (
-                toggle_label_mode,
-                spawn_labels,
-                update_labels,
-                cleanup_labels,
-                drive_sun,
-            ),
-        );
+        app.init_resource::<LabelMode>()
+            .add_systems(Startup, spawn_clock_display)
+            .add_systems(
+                Update,
+                (
+                    toggle_label_mode,
+                    spawn_labels,
+                    update_labels,
+                    cleanup_labels,
+                    update_clock_display,
+                    drive_sun,
+                ),
+            );
     }
 }
 
@@ -43,6 +46,7 @@ struct VillagerLabel {
     target: Entity,
     name_line: Entity,
     action_line: Entity,
+    stats_line: Entity,
 }
 
 fn toggle_label_mode(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<LabelMode>) {
@@ -89,24 +93,39 @@ fn spawn_labels(mut commands: Commands, villagers: Query<(Entity, &Villager), Ad
                 TextColor(Color::srgb(0.95, 0.85, 0.4)),
             ))
             .id();
+        let stats_line = commands
+            .spawn((
+                Text::new(""),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.75, 0.85, 0.95)),
+            ))
+            .id();
         let label = commands
             .spawn((
                 VillagerLabel {
                     target: entity,
                     name_line,
                     action_line,
+                    stats_line,
                 },
                 Node {
                     position_type: PositionType::Absolute,
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
+                    padding: UiRect::axes(Val::Px(6.0), Val::Px(3.0)),
+                    border_radius: BorderRadius::all(Val::Px(5.0)),
                     ..default()
                 },
+                // Readable over any backdrop.
+                BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.55)),
             ))
             .id();
         commands
             .entity(label)
-            .add_children(&[name_line, action_line]);
+            .add_children(&[name_line, action_line, stats_line]);
     }
 }
 
@@ -126,6 +145,7 @@ fn action_text(state: &VillagerState) -> String {
                 "chatting on the square".to_string()
             }
         }
+        "stroll" => "out for a stroll".to_string(),
         other => other.to_string(),
     }
 }
@@ -133,7 +153,7 @@ fn action_text(state: &VillagerState) -> String {
 fn update_labels(
     mode: Res<LabelMode>,
     camera: Single<(&Camera, &GlobalTransform), With<FlyCamera>>,
-    villagers: Query<(&GlobalTransform, &VillagerState), With<Villager>>,
+    villagers: Query<(&GlobalTransform, &VillagerState, &VillagerStats), With<Villager>>,
     mut labels: Query<(&VillagerLabel, &mut Node, &mut Visibility)>,
     mut texts: Query<&mut Text>,
     mut text_visibility: Query<&mut Visibility, Without<VillagerLabel>>,
@@ -141,10 +161,11 @@ fn update_labels(
     let (camera, cam_transform) = *camera;
     let cam_pos = cam_transform.translation();
     for (label, mut node, mut visibility) in &mut labels {
-        let Ok((transform, state)) = villagers.get(label.target) else {
+        let Ok((transform, state, stats)) = villagers.get(label.target) else {
             continue;
         };
-        let head = transform.translation() + Vec3::Y * 2.1;
+        // The models are ~1.7 m tall; hover the panel just over the head.
+        let head = transform.translation() + Vec3::Y * 1.95;
         let distance = cam_pos.distance(head);
 
         let show_name = distance <= NAME_RANGE || *mode == LabelMode::All;
@@ -182,6 +203,13 @@ fn update_labels(
                 Visibility::Hidden
             };
         }
+        if let Ok(mut stats_vis) = text_visibility.get_mut(label.stats_line) {
+            *stats_vis = if show_action {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
+        }
         if show_action {
             if let Ok(mut text) = texts.get_mut(label.action_line) {
                 let next = action_text(state);
@@ -189,7 +217,56 @@ fn update_labels(
                     text.0 = next;
                 }
             }
+            if let Ok(mut text) = texts.get_mut(label.stats_line) {
+                let next = format!(
+                    "hun {} \u{00b7} nrg {} \u{00b7} wrm {} \u{00b7} lon {} \u{00b7} mood {} \u{00b7} {}c",
+                    stats.hunger, stats.energy, stats.warmth, stats.social, stats.mood, stats.purse
+                );
+                if text.0 != next {
+                    text.0 = next;
+                }
+            }
         }
+    }
+}
+
+#[derive(Component)]
+struct ClockDisplay;
+
+fn spawn_clock_display(mut commands: Commands) {
+    commands.spawn((
+        ClockDisplay,
+        Text::new("Day - --:--"),
+        TextFont {
+            font_size: 22.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.95, 0.92, 0.8)),
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(8.0),
+            right: Val::Px(12.0),
+            ..default()
+        },
+    ));
+}
+
+fn update_clock_display(
+    clock: Query<&VillageClock>,
+    mut display: Query<&mut Text, With<ClockDisplay>>,
+) {
+    let Ok(clock) = clock.single() else { return };
+    let Ok(mut text) = display.single_mut() else {
+        return;
+    };
+    let next = format!(
+        "Day {} \u{00b7} {:02}:{:02}",
+        clock.day,
+        clock.minute_of_day / 60,
+        clock.minute_of_day % 60
+    );
+    if text.0 != next {
+        text.0 = next;
     }
 }
 

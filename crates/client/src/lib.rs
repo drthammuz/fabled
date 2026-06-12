@@ -5,6 +5,7 @@ pub mod hotbar;
 pub mod level_render;
 pub mod netplay;
 pub mod prop_render;
+pub mod terrain_render;
 pub mod villager_ui;
 pub mod villagers;
 
@@ -19,6 +20,7 @@ pub struct ClientCorePlugin;
 impl Plugin for ClientCorePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            terrain_render::TerrainRenderPlugin,
             level_render::LevelRenderPlugin,
             fly_camera::FlyCameraPlugin,
             prop_render::PropRenderPlugin,

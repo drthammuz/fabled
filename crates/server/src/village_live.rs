@@ -10,12 +10,12 @@ use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use shared::config;
-use shared::protocol::{NetTransform, VillageClock, Villager, VillagerState};
+use shared::protocol::{NetTransform, VillageClock, Villager, VillagerState, VillagerStats};
 use shared::village_map;
 
 use sim::clock::SimClock;
 use sim::events::EventLog;
-use sim::npc::{Activity, Npc};
+use sim::npc::{Activity, ActivityKind, Npc};
 use sim::professions::Profession;
 
 #[derive(ScheduleLabel, Clone, Debug, PartialEq, Eq, Hash)]
@@ -37,8 +37,7 @@ impl Plugin for VillageLivePlugin {
             })
             .unwrap_or_else(|_| EventLog::disabled());
 
-        // Live games start mid-morning, not at 00:00 in the dark.
-        app.insert_resource(SimClock { tick: 8 * 60 })
+        app.insert_resource(SimClock { tick: 0 })
             .insert_resource(sim::weather::SimRng(
                 <rand_chacha::ChaCha8Rng as rand::SeedableRng>::seed_from_u64(42),
             ))
@@ -54,9 +53,18 @@ impl Plugin for VillageLivePlugin {
             .init_schedule(SimTick)
             .add_systems(
                 Startup,
-                (sim::npc::spawn_npcs, decorate_villagers, spawn_clock_entity).chain(),
+                (
+                    sim::npc::spawn_npcs,
+                    warm_up_sim,
+                    decorate_villagers,
+                    spawn_clock_entity,
+                )
+                    .chain(),
             )
-            .add_systems(FixedUpdate, (drive_sim, move_villagers).chain());
+            .add_systems(
+                FixedUpdate,
+                (drive_sim, wander_villagers, move_villagers).chain(),
+            );
 
         app.edit_schedule(SimTick, |schedule| {
             schedule.add_systems(
@@ -81,20 +89,57 @@ impl Plugin for VillageLivePlugin {
     }
 }
 
-/// Accumulates real time into sim minutes.
+/// Accumulates real time into sim minutes at the fixed pace
+/// (`config::SECS_PER_SIM_MINUTE`).
 #[derive(Resource, Default)]
 struct SimPacing {
     accumulator: f64,
 }
 
-/// Where a villager is walking from/to, in world space and sim-tick time.
+/// Where a villager is currently walking: a queue of world-space waypoints
+/// (doors first, venue last). Visual movement is decoupled from the sim's
+/// abstract travel times: villagers cover ground at a fixed human speed
+/// regardless of time compression.
 #[derive(Component)]
 struct WorldWalk {
-    from: Vec3,
-    to: Vec3,
-    /// Sim ticks (fractional progress comes from the pacing accumulator).
-    depart_tick: u64,
-    arrive_tick: u64,
+    /// Remaining waypoints, walked front to back.
+    path: Vec<Vec3>,
+    /// m/s in world space.
+    speed: f32,
+}
+
+/// Cosmetic idling: when a villager has nowhere to walk, they occasionally
+/// amble to a random spot around their current venue. Pure server-side
+/// visual flavor — the economy sim never sees it.
+#[derive(Component)]
+struct Wander {
+    anchor: Vec3,
+    /// Venue name, for wander radius and door lookups.
+    place: String,
+    /// `Time::elapsed_secs` after which the next amble may start.
+    next_at: f32,
+}
+
+/// How far villagers drift around each venue while there (meters). Walled
+/// venues keep this small enough to stay inside their walls.
+fn wander_radius(place: &str) -> f32 {
+    match place {
+        "farm" => 9.0,
+        "dock" => 5.0,
+        "square" => 6.0,
+        "tavern" => 2.0,
+        "bakery" => 1.6,
+        _ => 1.2, // hut interiors
+    }
+}
+
+/// Door waypoint for a venue, if it has walls.
+fn venue_door(place: &str, home_index: usize) -> Option<Vec3> {
+    if place == "home" {
+        Some(village_map::home_door_pos(home_index))
+    } else {
+        village_map::place_door_pos(place)
+    }
 }
 
 /// Marker entity carrying the replicated village clock.
@@ -114,6 +159,18 @@ fn world_pos_for(activity: &Activity, home_index: usize) -> Vec3 {
 #[derive(Component)]
 struct HomeIndex(usize);
 
+/// Live games join the village just before the workday ends. Rather than
+/// teleporting fresh NPCs into an arbitrary hour (which made half of them
+/// nap at 17:30 because they spawned "tired"), fast-forward the sim from
+/// midnight so everyone arrives at 16:55 with a real day behind them.
+fn warm_up_sim(world: &mut World) {
+    const START_MINUTE: u64 = 16 * 60 + 55;
+    for _ in 0..START_MINUTE {
+        world.run_schedule(SimTick);
+    }
+    info!("village live: warmed up to day 1, 16:55");
+}
+
 /// After the sim spawns its NPCs, make them visible to the network layer.
 fn decorate_villagers(
     mut commands: Commands,
@@ -121,7 +178,7 @@ fn decorate_villagers(
 ) {
     let mut count = 0;
     for (index, (entity, npc, profession, activity)) in npcs.iter().enumerate() {
-        let home = village_map::home_world_pos(index);
+        let here = world_pos_for(activity, index);
         commands.entity(entity).insert((
             Replicated,
             Villager {
@@ -133,16 +190,31 @@ fn decorate_villagers(
                 place: activity.place.name().to_string(),
                 walking: false,
             },
+            VillagerStats {
+                hunger: 0,
+                energy: 0,
+                warmth: 0,
+                social: 0,
+                mood: 0,
+                purse: 0,
+            },
             HomeIndex(index),
             NetTransform {
-                translation: home,
+                translation: here,
                 rotation: Quat::IDENTITY,
             },
+            // The server-side Transform makes host mode render villagers
+            // directly (and gives their model children a valid transform
+            // chain). Networked clients get theirs from NetTransform.
+            Transform::from_translation(here),
             WorldWalk {
-                from: home,
-                to: home,
-                depart_tick: 0,
-                arrive_tick: 0,
+                path: Vec::new(),
+                speed: config::VILLAGER_WALK_SPEED,
+            },
+            Wander {
+                anchor: here,
+                place: activity.place.name().to_string(),
+                next_at: 0.0,
             },
         ));
         count += 1;
@@ -175,11 +247,8 @@ fn drive_sim(world: &mut World) {
     world.resource_mut::<SimPacing>().accumulator += delta;
     // Catch up at most a few ticks per frame; pacing hiccups must not
     // freeze the server in a sim-tick loop.
-    for _ in 0..4 {
-        let due = {
-            let pacing = world.resource::<SimPacing>();
-            pacing.accumulator >= config::SECS_PER_SIM_MINUTE
-        };
+    for _ in 0..8 {
+        let due = world.resource::<SimPacing>().accumulator >= config::SECS_PER_SIM_MINUTE;
         if !due {
             break;
         }
@@ -192,30 +261,57 @@ fn drive_sim(world: &mut World) {
 /// update the replicated clock.
 fn sync_villager_state(
     clock: Res<SimClock>,
+    time: Res<Time>,
+    ledger: Res<sim::economy::Ledger>,
     mut villagers: Query<(
         &Activity,
         &HomeIndex,
-        &NetTransform,
+        &Npc,
+        &sim::npc::Needs,
+        &sim::brain::Emotions,
         &mut WorldWalk,
+        &mut Wander,
         &mut VillagerState,
+        &mut VillagerStats,
     )>,
     mut clock_entity: Query<&mut VillageClock>,
 ) {
-    for (activity, home, net, mut walk, mut state) in &mut villagers {
-        let target = world_pos_for(activity, home.0);
-        if walk.to != target {
-            walk.from = net.translation;
-            walk.to = target;
-            walk.depart_tick = clock.tick;
-            // The sim's travel time is its own (bigger) map; in the world we
-            // walk the compressed distance over the same duration.
-            walk.arrive_tick = activity.arrives.max(clock.tick);
+    for (activity, home, npc, needs, emotions, mut walk, mut wander, mut state, mut stats) in
+        &mut villagers
+    {
+        let next_stats = VillagerStats {
+            hunger: needs.hunger.round().clamp(0.0, 100.0) as u8,
+            energy: needs.energy.round().clamp(0.0, 100.0) as u8,
+            warmth: needs.warmth.round().clamp(0.0, 100.0) as u8,
+            social: needs.social.round().clamp(0.0, 100.0) as u8,
+            mood: emotions.mood.round().clamp(0.0, 100.0) as u8,
+            purse: ledger.accounts.get(&npc.name).copied().unwrap_or(0),
+        };
+        if *stats != next_stats {
+            *stats = next_stats;
         }
-        let walking = clock.tick < activity.arrives && walk.to != walk.from;
+        let target = world_pos_for(activity, home.0);
+        if wander.anchor != target {
+            // New venue: commute there at full speed, then settle in.
+            // Walled venues are entered and left through their doors.
+            let mut path = Vec::new();
+            if let Some(door_out) = venue_door(&wander.place, home.0) {
+                path.push(door_out);
+            }
+            if let Some(door_in) = venue_door(activity.place.name(), home.0) {
+                path.push(door_in);
+            }
+            path.push(target);
+            wander.anchor = target;
+            wander.place = activity.place.name().to_string();
+            wander.next_at = time.elapsed_secs() + 4.0;
+            walk.path = path;
+            walk.speed = config::VILLAGER_WALK_SPEED;
+        }
         let next = VillagerState {
             action: activity.kind.name().to_string(),
             place: activity.place.name().to_string(),
-            walking,
+            walking: state.walking,
         };
         if *state != next {
             *state = next;
@@ -232,39 +328,100 @@ fn sync_villager_state(
     }
 }
 
-/// Every server tick (30 Hz): move villagers along their walks with
-/// fractional sim-time progress, facing their direction of travel.
-fn move_villagers(
-    clock: Res<SimClock>,
-    pacing: Res<SimPacing>,
-    mut villagers: Query<(&WorldWalk, &Activity, &mut NetTransform, &mut VillagerState)>,
+/// Cosmetic ambling: villagers who have arrived somewhere pick a random
+/// nearby spot now and then instead of standing frozen. Sleepers and
+/// diners stay put. Strollers and the guard on patrol roam much wider —
+/// that's the visible street life of the village.
+fn wander_villagers(
+    time: Res<Time>,
+    mut villagers: Query<(&Activity, &Profession, &mut WorldWalk, &mut Wander)>,
 ) {
-    let fraction = (pacing.accumulator / config::SECS_PER_SIM_MINUTE).clamp(0.0, 1.0) as f32;
-    let now = clock.tick as f32 + fraction;
-    for (walk, activity, mut net, mut state) in &mut villagers {
-        if walk.arrive_tick <= walk.depart_tick {
+    let now = time.elapsed_secs();
+    for (activity, profession, mut walk, mut wander) in &mut villagers {
+        if matches!(activity.kind, ActivityKind::Sleep | ActivityKind::Eat) {
             continue;
         }
-        let span = (walk.arrive_tick - walk.depart_tick) as f32;
-        let progress = ((now - walk.depart_tick as f32) / span).clamp(0.0, 1.0);
-        let position = walk.from.lerp(walk.to, progress);
-        let direction = walk.to - walk.from;
-        let rotation = if direction.length_squared() > 0.01 && progress < 1.0 {
-            Quat::from_rotation_y(direction.x.atan2(direction.z))
-        } else {
-            net.rotation
-        };
-        let next = NetTransform {
-            translation: position,
-            rotation,
-        };
-        if *net != next {
-            *net = next;
+        if !walk.path.is_empty() || now < wander.next_at {
+            continue;
         }
-        // Flip the walking flag off as soon as the walk visually completes,
-        // even between sim ticks, so animations switch promptly.
-        if progress >= 1.0 && state.walking && clock.tick >= activity.arrives {
-            state.walking = false;
+        let stroll = activity.kind == ActivityKind::Stroll;
+        let patrol =
+            activity.kind == ActivityKind::Work && *profession == Profession::Guard;
+        let (radius, speed, pause, outdoors) = if stroll {
+            // Roam the streets between the square and the home ring.
+            (16.0, 3.2, 0.5 + rand::random::<f32>() * 2.5, true)
+        } else if patrol {
+            // The guard makes rounds across the whole village core.
+            (22.0, 3.2, 1.0 + rand::random::<f32>() * 3.0, true)
+        } else {
+            let radius = wander_radius(&wander.place);
+            let outdoors = matches!(wander.place.as_str(), "square" | "farm" | "dock");
+            (
+                radius,
+                config::VILLAGER_AMBLE_SPEED,
+                2.0 + rand::random::<f32>() * 9.0,
+                outdoors,
+            )
+        };
+        // Outdoor targets must not land inside a building.
+        for _ in 0..8 {
+            let angle = rand::random::<f32>() * std::f32::consts::TAU;
+            let dist = radius * rand::random::<f32>().sqrt();
+            let target =
+                wander.anchor + Vec3::new(angle.cos() * dist, 0.0, angle.sin() * dist);
+            if outdoors && village_map::inside_any_building(target.xz(), 0.9) {
+                continue;
+            }
+            walk.path = vec![target];
+            walk.speed = speed;
+            break;
+        }
+        wander.next_at = now + pause;
+    }
+}
+
+/// Every server tick (30 Hz): step villagers toward their walk target at
+/// constant speed, facing their direction of travel.
+fn move_villagers(
+    time: Res<Time>,
+    mut villagers: Query<(
+        &mut WorldWalk,
+        &mut NetTransform,
+        &mut Transform,
+        &mut VillagerState,
+    )>,
+) {
+    let delta = time.delta_secs();
+    for (mut walk, mut net, mut transform, mut state) in &mut villagers {
+        // Pop reached waypoints (more than one in a frame if they're close).
+        while let Some(&next) = walk.path.first() {
+            if transform.translation.distance_squared(next) < 0.04 {
+                walk.path.remove(0);
+            } else {
+                break;
+            }
+        }
+        let Some(&next) = walk.path.first() else {
+            if state.walking {
+                state.walking = false;
+            }
+            continue;
+        };
+        let offset = next - transform.translation;
+        let distance = offset.length();
+        let step = (walk.speed * delta).min(distance);
+        let direction = offset / distance;
+        let mut position = transform.translation + direction * step;
+        // Hug the terrain (flat across the village, but commute corridors
+        // can brush the edge of the hills).
+        position.y = shared::terrain::height(position.x, position.z);
+        let rotation = Quat::from_rotation_y(direction.x.atan2(direction.z));
+        transform.translation = position;
+        transform.rotation = rotation;
+        net.translation = position;
+        net.rotation = rotation;
+        if !state.walking {
+            state.walking = true;
         }
     }
 }

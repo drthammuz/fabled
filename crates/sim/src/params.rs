@@ -50,8 +50,15 @@ pub const GRAIN_PER_ALE: u32 = 1;
 
 /// Hunger growth. ~11/h crosses the eat threshold about 3x per day.
 pub const HUNGER_PER_HOUR: f32 = 11.0;
-/// Energy drain while awake; 100/16h means a full day on a full sleep.
-pub const ENERGY_DRAIN_PER_HOUR: f32 = 6.25;
+/// Metabolism slows in sleep: hunger growth multiplier while asleep.
+/// Keeps a villager who ate supper asleep through the night; only those
+/// who went to bed already hungry wake up for a midnight meal.
+pub const HUNGER_ASLEEP_FACTOR: f32 = 0.35;
+/// Energy drain while awake. ~4.7/h means a 06:00-21:00 day costs ~70
+/// energy: tired by evening, but never forced into an afternoon nap on a
+/// normal schedule. (At 6.25/h the village free-ran on a ~20h cycle with
+/// mass 16:00 naps — verified in 30-day runs.)
+pub const ENERGY_DRAIN_PER_HOUR: f32 = 4.7;
 /// Energy recovery while sleeping; full recharge in ~8h.
 pub const ENERGY_SLEEP_PER_HOUR: f32 = 12.5;
 /// Outdoor warmth change is (temp_c - 10) * this, per hour: warm days
@@ -89,6 +96,15 @@ pub const EAT_MINUTES: u64 = 30;
 pub const FORAGE_MINUTES: u64 = 180;
 pub const WARMUP_MINUTES: u64 = 60;
 pub const IDLE_MINUTES: u64 = 60;
+pub const STROLL_MINUTES: u64 = 45;
+
+/// A stroll around the village: light mood lift, no money involved.
+/// Mostly an off-duty alternative to idling at home, so the streets
+/// aren't empty. Social relief is kept near zero so strolling never
+/// substitutes for the tavern (the service economy depends on lonely
+/// people buying ale).
+pub const MOOD_STROLL: f32 = 2.0;
+pub const SOCIAL_RELIEF_STROLL: f32 = 2.0;
 
 /// Daytime window: hour in [DAY_START, NIGHT_START) counts as day.
 pub const DAY_START_HOUR: u64 = 6;
