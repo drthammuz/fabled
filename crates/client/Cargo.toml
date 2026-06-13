@@ -3,7 +3,12 @@ name = "client"
 version.workspace = true
 edition.workspace = true
 
+[features]
+village = []
+
 [dependencies]
 bevy.workspace = true
 bevy_replicon.workspace = true
 shared.workspace = true
+bevy_hanabi = { version = "0.18", default-features = false, features = ["3d"] }
+bevy_water = "0.18"

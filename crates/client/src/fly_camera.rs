@@ -3,10 +3,18 @@
 //! Controls: left-click the window to capture the mouse, Esc to release.
 //! WASD to move, Space/Ctrl for up/down, Shift to fly fast.
 
+use bevy::camera::Exposure;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
+use bevy::render::view::Hdr;
+use bevy::light::VolumetricFog;
+use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use shared::config;
+
+/// Whether the player is viewing in third-person (middle-mouse toggle).
+#[derive(Resource, Default)]
+pub struct ThirdPersonMode(pub bool);
 
 pub struct FlyCameraPlugin;
 
@@ -14,16 +22,19 @@ impl Plugin for FlyCameraPlugin {
     fn build(&self, app: &mut App) {
         // Free flight is only active until the server gives us a player to
         // possess; after that the camera is driven first-person by netplay.
-        app.add_systems(Startup, spawn_camera).add_systems(
-            Update,
-            (
-                toggle_cursor_grab,
-                (look, fly)
-                    .chain()
-                    .run_if(not(any_with_component::<crate::netplay::OwnPlayer>)),
-            )
-                .chain(),
-        );
+        app.init_resource::<ThirdPersonMode>()
+            .add_systems(Startup, spawn_camera)
+            .add_systems(
+                Update,
+                (
+                    toggle_cursor_grab,
+                    toggle_third_person,
+                    (look, fly)
+                        .chain()
+                        .run_if(not(any_with_component::<crate::netplay::OwnPlayer>)),
+                )
+                    .chain(),
+            );
     }
 }
 
@@ -36,11 +47,37 @@ pub struct FlyCamera {
 fn spawn_camera(mut commands: Commands) {
     let transform = Transform::from_xyz(0.0, 10.0, 28.0).looking_at(Vec3::ZERO, Vec3::Y);
     let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
-    commands.spawn((Camera3d::default(), transform, FlyCamera { yaw, pitch }));
+    commands.spawn((
+        Camera3d::default(),
+        Exposure { ev100: 5.5 },
+        Hdr,
+        VolumetricFog {
+            ambient_color: Color::srgb(0.45, 0.52, 0.55),
+            ambient_intensity: 0.15,
+            step_count: 40,
+            ..default()
+        },
+        DistanceFog {
+            color: Color::srgba(0.02, 0.02, 0.05, 1.0),
+            falloff: FogFalloff::ExponentialSquared { density: 0.032 },
+            ..default()
+        },
+        transform,
+        FlyCamera { yaw, pitch },
+    ));
 }
 
 fn cursor_grabbed(options: &CursorOptions) -> bool {
     options.grab_mode != CursorGrabMode::None
+}
+
+fn toggle_third_person(
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut mode: ResMut<ThirdPersonMode>,
+) {
+    if mouse.just_pressed(MouseButton::Middle) {
+        mode.0 = !mode.0;
+    }
 }
 
 fn toggle_cursor_grab(

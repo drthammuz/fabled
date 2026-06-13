@@ -59,6 +59,14 @@ pub const PLAYER_CAPSULE_LENGTH: f32 = 1.0;
 pub const PLAYER_MASS: f32 = 75.0;
 /// Camera eye height above the capsule center.
 pub const PLAYER_EYE_HEIGHT: f32 = 0.6;
+/// Crouched capsule cylinder length (total height = length + 2r).
+pub const PLAYER_CROUCH_LENGTH: f32 = 0.45;
+/// Eye height while crouched.
+pub const PLAYER_CROUCH_EYE_HEIGHT: f32 = 0.25;
+/// Walk speed while crouched, m/s.
+pub const PLAYER_CROUCH_SPEED: f32 = 4.5;
+/// Upward cast distance required before standing up from crouch.
+pub const PLAYER_STAND_UP_CLEARANCE: f32 = 0.55;
 /// Max distance below the capsule bottom that still counts as grounded.
 pub const PLAYER_GROUND_PROBE: f32 = 0.15;
 /// Max look pitch the server accepts, radians (just under straight up/down).
@@ -104,6 +112,11 @@ pub const ITEM_DROP_SPEED: f32 = 3.0;
 /// World-item cube size (full extent), meters.
 pub const ITEM_SIZE: f32 = 0.35;
 
+/// Y-world offset for hub rooms. They generate this many metres below the
+/// stretch floor so players physically fall from the extraction pit into the
+/// hub without an abrupt teleport.
+pub const HUB_Y_OFFSET: f32 = -22.0;
+
 // --- Fly camera (debug/inspection, client-side only) ---
 
 /// Base fly speed in m/s.
@@ -112,3 +125,39 @@ pub const FLY_CAM_SPEED: f32 = 12.0;
 pub const FLY_CAM_FAST_MULT: f32 = 4.0;
 /// Mouse look sensitivity in radians per pixel of mouse motion.
 pub const FLY_CAM_SENSITIVITY: f32 = 0.002;
+
+// --- Client atmosphere (M1) ---
+
+/// Toxic steam above water channels.
+pub const FOG_CHANNEL_DENSITY: f32 = 0.18;
+/// General tunnel haze along walkways.
+pub const FOG_TUNNEL_DENSITY: f32 = 0.06;
+/// Hanabi spawn rate for water-channel boil bubbles (per second).
+pub const WATER_BOIL_RATE: f32 = 20.0;
+/// Hanabi spawn rate for sparse tunnel air motes (per second, per zone).
+pub const AIR_MOTE_RATE: f32 = 5.0;
+/// Max wall panel length before splitting (client visual only).
+pub const WALL_PANEL_MAX_M: f32 = 3.5;
+
+// --- Water (M5–M6) ---
+
+/// World-space Y of the animated water surface.
+pub const WATER_SURFACE_HEIGHT: f32 = 0.02;
+/// Gerstner-style wave height for sewer channels, metres.
+pub const WATER_WAVE_AMPLITUDE: f32 = 0.035;
+/// Toxic green base tint (matches flat-water fallback).
+pub const WATER_BASE_COLOR: (f32, f32, f32, f32) = (0.05, 0.45, 0.18, 0.92);
+/// Shallow channel tint.
+pub const WATER_SHALLOW_COLOR: (f32, f32, f32, f32) = (0.08, 0.55, 0.22, 1.0);
+/// Deep channel tint.
+pub const WATER_DEEP_COLOR: (f32, f32, f32, f32) = (0.02, 0.25, 0.10, 1.0);
+/// Liquid density for buoyancy (kg/m³).
+pub const WATER_DENSITY: f32 = 1000.0;
+/// Walk speed multiplier while wading (50% of normal).
+pub const PLAYER_WADE_SPEED_MULT: f32 = 0.5;
+/// Horizontal velocity damping per second while wading.
+pub const PLAYER_WATER_HORIZ_DRAG: f32 = 4.0;
+/// Minimum entry speed to emit a splash event, m/s.
+pub const WATER_SPLASH_MIN_SPEED: f32 = 0.8;
+/// Footfall ripple interval while wading on ground, seconds.
+pub const WATER_FOOTFALL_INTERVAL: f32 = 0.45;

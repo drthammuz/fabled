@@ -9,7 +9,7 @@ use bevy::ecs::query::Has;
 use bevy::prelude::*;
 use shared::config;
 use bevy_replicon::prelude::*;
-use shared::protocol::PlayerInput;
+use shared::protocol::{PlayerGrounded, PlayerInput};
 
 use super::players::LatestInput;
 
@@ -26,11 +26,15 @@ impl Plugin for CharacterControllerPlugin {
             FixedUpdate,
             (
                 apply_player_inputs,
+                enter_crouch,
+                try_stand_up,
                 update_grounded,
+                sync_grounded_component,
                 ground_move,
                 apply_gravity,
                 move_and_slide,
                 push_dynamic_bodies,
+                rotate_to_yaw,
             )
                 .chain()
                 .in_set(CharacterSystems)
@@ -62,6 +66,40 @@ pub struct CharacterCollision {
 #[derive(Component)]
 pub struct Grounded;
 
+/// Per-player speed multiplier (1.0 = base). Scout uses 1.25.
+#[derive(Component, Clone, Copy)]
+pub struct SpeedMultiplier(pub f32);
+
+impl Default for SpeedMultiplier {
+    fn default() -> Self { Self(1.0) }
+}
+
+/// Tracks crouch state and drives capsule resizing.
+#[derive(Component, Default)]
+pub struct CrouchState {
+    pub crouching: bool,
+}
+
+/// Ref-count of overlapping water sensor volumes (wading).
+#[derive(Component, Default, Debug)]
+pub struct PlayerWaterContact(pub u32);
+
+fn standing_capsule() -> Collider {
+    Collider::capsule(config::PLAYER_CAPSULE_RADIUS, config::PLAYER_CAPSULE_LENGTH)
+}
+
+fn crouch_capsule() -> Collider {
+    Collider::capsule(config::PLAYER_CAPSULE_RADIUS, config::PLAYER_CROUCH_LENGTH)
+}
+
+/// Vertical body shift applied on each crouch/stand transition: half the
+/// capsule-length difference. The kinematic `move_and_slide` has no penetration
+/// recovery, so when the tall capsule is restored on standing it would be left
+/// embedded in the floor (body stuck low / model sunk). Shifting the body
+/// keeps the feet planted and reliably restores standing height.
+const CROUCH_Y_SHIFT: f32 =
+    (config::PLAYER_CAPSULE_LENGTH - config::PLAYER_CROUCH_LENGTH) * 0.5;
+
 #[derive(Component)]
 pub struct GroundDetection {
     pub max_angle: Scalar,
@@ -74,10 +112,98 @@ impl Default for GroundDetection {
         Self {
             max_angle: PI / 6.0,
             max_distance: config::PLAYER_GROUND_PROBE,
-            cast_shape: Collider::capsule(
-                config::PLAYER_CAPSULE_RADIUS,
-                config::PLAYER_CAPSULE_LENGTH,
+            cast_shape: standing_capsule(),
+        }
+    }
+}
+
+fn enter_crouch(
+    mut players: Query<
+        (
+            &LatestInput,
+            &mut CrouchState,
+            &mut Collider,
+            &mut GroundDetection,
+            &mut Transform,
+        ),
+        With<CharacterController>,
+    >,
+) {
+    for (input, mut crouch, mut collider, mut ground, mut transform) in &mut players {
+        if input.0.crouch && !crouch.crouching {
+            crouch.crouching = true;
+            *collider = crouch_capsule();
+            ground.cast_shape = crouch_capsule();
+            // Drop the (now shorter) body so the feet stay on the floor.
+            transform.translation.y -= CROUCH_Y_SHIFT;
+        }
+    }
+}
+
+fn try_stand_up(
+    mut param_set: ParamSet<(
+        Query<
+            (
+                Entity,
+                &LatestInput,
+                &CrouchState,
+                &Transform,
             ),
+            With<CharacterController>,
+        >,
+        SpatialQuery,
+        Query<
+            (
+                Entity,
+                &mut CrouchState,
+                &mut Collider,
+                &mut GroundDetection,
+                &mut Transform,
+            ),
+            With<CharacterController>,
+        >,
+    )>,
+) {
+    let candidates: Vec<(Entity, Vec3, Quat)> = param_set
+        .p0()
+        .iter()
+        .filter_map(|(entity, input, crouch, transform)| {
+            if input.0.crouch || !crouch.crouching {
+                None
+            } else {
+                Some((entity, transform.translation, transform.rotation))
+            }
+        })
+        .collect();
+
+    let can_stand: Vec<Entity> = {
+        let spatial = param_set.p1();
+        candidates
+            .into_iter()
+            .filter(|(entity, translation, rotation)| {
+                spatial
+                    .cast_shape(
+                        &standing_capsule(),
+                        translation.adjust_precision(),
+                        rotation.adjust_precision(),
+                        Dir3::Y,
+                        &ShapeCastConfig::from_max_distance(config::PLAYER_STAND_UP_CLEARANCE),
+                        &SpatialQueryFilter::from_excluded_entities([*entity]),
+                    )
+                    .is_none()
+            })
+            .map(|(entity, _, _)| entity)
+            .collect()
+    };
+
+    for (entity, mut crouch, mut collider, mut ground, mut transform) in param_set.p2().iter_mut() {
+        if can_stand.contains(&entity) {
+            crouch.crouching = false;
+            *collider = standing_capsule();
+            ground.cast_shape = standing_capsule();
+            // Raise the body so the restored tall capsule sits on the floor
+            // instead of being left embedded in it (no penetration recovery).
+            transform.translation.y += CROUCH_Y_SHIFT;
         }
     }
 }
@@ -161,6 +287,17 @@ fn update_grounded(
     }
 }
 
+/// Mirror the physics `Grounded` marker into the replicated `PlayerGrounded`
+/// component so clients receive the authoritative grounded state.
+fn sync_grounded_component(
+    mut commands: Commands,
+    query: Query<(Entity, Has<Grounded>), With<CharacterController>>,
+) {
+    for (entity, is_grounded) in &query {
+        commands.entity(entity).insert(PlayerGrounded(is_grounded));
+    }
+}
+
 /// Quake/Source-style ground movement — the long-standing standard for
 /// grippy FPS character control:
 /// 1. While grounded, friction always removes a fraction of speed.
@@ -176,12 +313,14 @@ fn ground_move(
             &mut LatestInput,
             &mut LinearVelocity,
             Has<Grounded>,
+            &SpeedMultiplier,
+            &PlayerWaterContact,
         ),
         With<CharacterController>,
     >,
 ) {
     let dt = time.delta_secs_f64().adjust_precision();
-    for (mut input, mut velocity, grounded) in &mut players {
+    for (mut input, mut velocity, grounded, speed_mult, water) in &mut players {
         let intent = &input.0;
         let move_dir = if intent.move_dir.length_squared() > 1.0 {
             intent.move_dir.normalize()
@@ -190,11 +329,18 @@ fn ground_move(
         };
         let wish_dir = Quat::from_rotation_y(intent.yaw)
             * Vec3::new(move_dir.x, 0.0, -move_dir.y);
-        let wish_speed = if intent.sprint {
+        let wish_speed = (if intent.crouch {
+            config::PLAYER_CROUCH_SPEED
+        } else if intent.sprint {
             config::PLAYER_SPRINT_SPEED
         } else {
             config::PLAYER_MOVE_SPEED
-        };
+        }) * speed_mult.0
+            * if water.0 > 0 {
+                config::PLAYER_WADE_SPEED_MULT
+            } else {
+                1.0
+            };
 
         // 1) Friction (grounded only).
         if grounded {
@@ -223,7 +369,7 @@ fn ground_move(
             velocity.z += wish_dir.z * add;
         }
 
-        if intent.jump && grounded {
+        if intent.jump && grounded && !intent.crouch {
             velocity.y = config::PLAYER_JUMP_IMPULSE;
             input.0.jump = false;
         }
@@ -309,6 +455,16 @@ fn move_and_slide(
 /// response formula. Light objects (items, small crates) receive at most
 /// roughly the contact velocity instead of being launched at dozens of m/s,
 /// while heavy objects still feel heavy.
+/// Rotate the player capsule to face the look yaw so the replicated
+/// rotation is correct for remote clients rendering the character model.
+fn rotate_to_yaw(
+    mut players: Query<(&LatestInput, &mut Transform), With<CharacterController>>,
+) {
+    for (input, mut transform) in &mut players {
+        transform.rotation = Quat::from_rotation_y(input.0.yaw);
+    }
+}
+
 fn push_dynamic_bodies(
     characters: Query<(&ComputedMass, &CharacterCollisions), With<CharacterController>>,
     colliders: Query<&ColliderOf>,

@@ -4,13 +4,13 @@
 
 use bevy::prelude::*;
 use shared::props::PropShape;
-use shared::protocol::Item;
+use shared::protocol::{Enemy, Item};
 
 pub struct PropRenderPlugin;
 
 impl Plugin for PropRenderPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, attach_prop_visuals);
+        app.add_systems(Update, (attach_prop_visuals, attach_enemy_visuals));
     }
 }
 
@@ -41,6 +41,28 @@ fn attach_prop_visuals(
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color: color,
                 perceptual_roughness: 0.8,
+                ..default()
+            })),
+        ));
+    }
+}
+
+fn attach_enemy_visuals(
+    mut commands: Commands,
+    enemies: Query<Entity, Added<Enemy>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // Placeholder: dark armoured capsule body with a single red sensor eye glow.
+    // Replace with GLTF model when assets arrive.
+    for entity in &enemies {
+        commands.entity(entity).insert((
+            Mesh3d(meshes.add(Capsule3d::new(0.32, 0.75))),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(0.12, 0.13, 0.16),
+                metallic: 0.9,
+                perceptual_roughness: 0.35,
+                emissive: LinearRgba::from(Color::srgb(1.0, 0.05, 0.0)) * 3.5,
                 ..default()
             })),
         ));

@@ -6,10 +6,17 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use shared::config;
 use shared::level;
-use shared::protocol::{NetTransform, Player, PlayerInput, PlayerName, YouAre};
+use shared::protocol::{
+    ClassPick, InventoryUpdate, NetTransform, Player, PlayerAlive, PlayerClass, PlayerInput,
+    PlayerName, PlayTrainSound, YouAre,
+};
+use shared::{classes, items};
+
+use crate::combat::Health;
 
 use crate::character::{
-    CharacterCollisions, CharacterController, GroundDetection,
+    CharacterCollisions, CharacterController, CrouchState, GroundDetection, PlayerWaterContact,
+    SpeedMultiplier,
 };
 
 pub struct ServerPlayersPlugin;
@@ -17,13 +24,63 @@ pub struct ServerPlayersPlugin;
 impl Plugin for ServerPlayersPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpawnCounter>()
+            .init_resource::<TrainSoundTimer>()
             .add_plugins(super::character::CharacterControllerPlugin)
             .add_observer(on_client_connected)
             .add_observer(on_client_disconnected)
             .add_systems(
+                FixedUpdate,
+                (
+                    handle_class_pick,
+                    tick_train_sound,
+                )
+                    .run_if(in_state(ClientState::Disconnected)),
+            )
+            .add_systems(
                 FixedLast,
                 sync_net_transforms.run_if(in_state(ClientState::Disconnected)),
             );
+    }
+}
+
+/// Counts down until the next train-passing sound is broadcast to all clients.
+#[derive(Resource)]
+struct TrainSoundTimer {
+    remaining: f32,
+    /// Simple LCG state for pseudo-random interval generation.
+    rng: u64,
+}
+
+impl Default for TrainSoundTimer {
+    fn default() -> Self {
+        Self { remaining: 60.0, rng: 0xdeadbeef_cafef00d }
+    }
+}
+
+impl TrainSoundTimer {
+    /// Next pseudo-random float in [0, 1).
+    fn next_f32(&mut self) -> f32 {
+        self.rng ^= self.rng << 13;
+        self.rng ^= self.rng >> 7;
+        self.rng ^= self.rng << 17;
+        (self.rng as f32) / (u64::MAX as f32)
+    }
+}
+
+fn tick_train_sound(
+    time: Res<Time>,
+    mut timer: ResMut<TrainSoundTimer>,
+    mut writer: MessageWriter<ToClients<PlayTrainSound>>,
+) {
+    timer.remaining -= time.delta_secs();
+    if timer.remaining <= 0.0 {
+        // Broadcast to every connected client (and host).
+        writer.write(ToClients {
+            targets: SendTargets::All,
+            message: PlayTrainSound,
+        });
+        // Next interval: 90–200 seconds.
+        timer.remaining = 90.0 + timer.next_f32() * 110.0;
     }
 }
 
@@ -84,11 +141,12 @@ fn on_client_disconnected(
             };
             let angle = slot as f32 / config::INVENTORY_SLOTS as f32 * std::f32::consts::TAU;
             let offset = Vec3::new(angle.cos(), 1.0, angle.sin()) * 0.6;
-            super::items::spawn_world_item(
+            super::level::spawn_world_item(
                 &mut commands,
                 item,
                 transform.translation + offset,
                 Vec3::ZERO,
+                false,
             );
             dropped += 1;
         }
@@ -112,26 +170,95 @@ fn spawn_player(
 
     commands
         .spawn((
-            Replicated,
-            Player,
-            CharacterController,
-            GroundDetection::default(),
-            CharacterCollisions::default(),
-            super::grab::GrabTarget::default(),
+            (
+                Replicated,
+                Player,
+                CharacterController,
+                GroundDetection::default(),
+                CharacterCollisions::default(),
+                super::grab::GrabTarget::default(),
+                PlayerName(name),
+                PlayerAlive(true),
+                PlayerClass::default(),
+                PlayerOwner(owner),
+                LatestInput::default(),
+                SpeedMultiplier::default(),
+                PlayerWaterContact::default(),
+                Mass(config::PLAYER_MASS),
+                LinearVelocity::default(),
+            ),
+            (
+                NetTransform {
+                    translation: spawn_pos,
+                    rotation: Quat::IDENTITY,
+                },
+                Collider::capsule(config::PLAYER_CAPSULE_RADIUS, config::PLAYER_CAPSULE_LENGTH),
+                Transform::from_translation(spawn_pos),
+            ),
+        ))
+        .insert((
+            CrouchState::default(),
             super::items::Inventory::default(),
-            PlayerName(name),
-            PlayerOwner(owner),
-            LatestInput::default(),
-            Mass(config::PLAYER_MASS),
-            LinearVelocity::default(),
-            NetTransform {
-                translation: spawn_pos,
-                rotation: Quat::IDENTITY,
-            },
-            Collider::capsule(config::PLAYER_CAPSULE_RADIUS, config::PLAYER_CAPSULE_LENGTH),
-            Transform::from_translation(spawn_pos),
+            Health::default(),
         ))
         .id()
+}
+
+fn handle_class_pick(
+    mut picks: MessageReader<FromClient<ClassPick>>,
+    mut players: Query<
+        (
+            &PlayerOwner,
+            &mut PlayerClass,
+            &mut SpeedMultiplier,
+            &mut super::items::Inventory,
+            &mut Health,
+            &PlayerAlive,
+        ),
+        With<Player>,
+    >,
+    mut writer: MessageWriter<ToClients<InventoryUpdate>>,
+) {
+    for FromClient { client_id, message } in picks.read() {
+        let ClassPick(kind) = *message;
+        let def = classes::class_def(kind);
+        for (owner, mut class, mut speed, mut inv, mut health, alive) in &mut players {
+            if owner.0 != *client_id {
+                continue;
+            }
+            if !alive.0 {
+                continue;
+            }
+            class.0 = kind;
+            speed.0 = def.speed_mult;
+            health.max = def.max_hp;
+            health.current = def.max_hp;
+            // Resize inventory to class limit; grant starting item in slot 0.
+            inv.0 = vec![None; def.inventory_slots];
+            if let Some(item_id) = def.starting_item_id {
+                let item = match item_id {
+                    items::PIPE_BAT => Some(items::pipe_bat()),
+                    items::MEDICAL_BAG => Some(items::medical_bag()),
+                    items::HACKER_DEVICE => Some(items::hacker_device()),
+                    _ => None,
+                };
+                if let Some(item) = item {
+                    inv.0[0] = Some(item);
+                }
+            }
+            // Pad to config::INVENTORY_SLOTS so the client hotbar always
+            // receives a full-length update.
+            let mut padded = inv.0.clone();
+            while padded.len() < config::INVENTORY_SLOTS {
+                padded.push(None);
+            }
+            writer.write(ToClients {
+                targets: SendTargets::Single(owner.0),
+                message: InventoryUpdate { slots: padded },
+            });
+            info!("player {:?} chose {:?}", client_id, kind);
+        }
+    }
 }
 
 fn sync_net_transforms(mut query: Query<(&Transform, &mut NetTransform)>) {

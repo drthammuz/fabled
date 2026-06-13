@@ -1,6 +1,9 @@
+pub mod classes;
 pub mod config;
+pub mod items;
 pub mod level;
 pub mod props;
 pub mod protocol;
+pub mod run;
 pub mod terrain;
 pub mod village_map;
