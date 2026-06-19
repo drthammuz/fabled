@@ -49,12 +49,17 @@ pub const PLAYER_FRICTION: f32 = 9.0;
 pub const PLAYER_ACCEL_RATE: f32 = 10.0;
 /// Air acceleration multiple — low: some steering, momentum preserved.
 pub const PLAYER_AIR_ACCEL_RATE: f32 = 1.8;
+/// Light horizontal braking in air when no move input (kills wall-jump ghost run).
+pub const PLAYER_AIR_STOP_FRICTION: f32 = 5.0;
 /// Scale on the impulse players impart when walking into dynamic bodies
 /// (applied on top of the physically-correct reduced-mass impulse).
 pub const PLAYER_PUSH_STRENGTH: f32 = 0.5;
 /// Capsule dimensions: radius and cylinder length (total height = length + 2r).
 pub const PLAYER_CAPSULE_RADIUS: f32 = 0.4;
 pub const PLAYER_CAPSULE_LENGTH: f32 = 1.0;
+
+/// `--city` player spawn (capsule centre). Colliders load async — may take a moment.
+pub const CITY_SPAWN: bevy::prelude::Vec3 = bevy::prelude::Vec3::new(0.0, 18.0, 40.0);
 /// Player mass in kg (used when pushing dynamic props).
 pub const PLAYER_MASS: f32 = 75.0;
 /// Camera eye height above the capsule center.
@@ -68,7 +73,23 @@ pub const PLAYER_CROUCH_SPEED: f32 = 4.5;
 /// Upward cast distance required before standing up from crouch.
 pub const PLAYER_STAND_UP_CLEARANCE: f32 = 0.55;
 /// Max distance below the capsule bottom that still counts as grounded.
-pub const PLAYER_GROUND_PROBE: f32 = 0.15;
+pub const PLAYER_GROUND_PROBE: f32 = 0.12;
+/// Max distance to pull the capsule down onto walkable ground after movement.
+pub const PLAYER_SNAP_TO_GROUND: f32 = 0.08;
+/// Upward speed above which ground traces are skipped (Quake: 180 ups).
+pub const PLAYER_JUMP_GROUND_CUTOFF: f32 = 4.0;
+/// Grace period after leaving the ground where a jump still counts as grounded.
+pub const PLAYER_COYOTE_TIME: f32 = 0.1;
+/// Max height of a step/ledge the player climbs automatically (no jump).
+/// The character controller lifts the body up onto obstacles up to this tall
+/// when they're a near-vertical face with a walkable surface on top — this is
+/// what makes stairs and small ledges traversable without a helper ramp.
+/// 4.35 m landing / 7 steps = 0.62 m per step.  Set slightly above that.
+pub const PLAYER_STEP_HEIGHT: f32 = 0.65;
+/// Ignore automatic step-up for ledges smaller than this (floor tile lips, mesh seams).
+pub const PLAYER_STEP_MIN_CLIMB: f32 = 0.12;
+/// Only treat near-vertical faces as risers (~77° from up); shallow bevels are not stairs.
+pub const PLAYER_STEP_MIN_RISER_ANGLE: f32 = 1.35;
 /// Max look pitch the server accepts, radians (just under straight up/down).
 pub const PLAYER_MAX_PITCH: f32 = 1.55;
 
@@ -153,10 +174,12 @@ pub const WATER_SHALLOW_COLOR: (f32, f32, f32, f32) = (0.08, 0.55, 0.22, 1.0);
 pub const WATER_DEEP_COLOR: (f32, f32, f32, f32) = (0.02, 0.25, 0.10, 1.0);
 /// Liquid density for buoyancy (kg/m³).
 pub const WATER_DENSITY: f32 = 1000.0;
-/// Walk speed multiplier while wading (50% of normal).
-pub const PLAYER_WADE_SPEED_MULT: f32 = 0.5;
-/// Horizontal velocity damping per second while wading.
-pub const PLAYER_WATER_HORIZ_DRAG: f32 = 4.0;
+/// Walk speed multiplier while wading. Sewer channels are narrower than the
+/// player capsule, so you almost always straddle a channel edge — a heavy
+/// penalty here read as the whole tunnel being "sticky". Keep it subtle: a
+/// mild slow that barely registers when brushing an edge but adds a little
+/// weight in open water. (The old compounding per-tick water drag is gone.)
+pub const PLAYER_WADE_SPEED_MULT: f32 = 0.85;
 /// Minimum entry speed to emit a splash event, m/s.
 pub const WATER_SPLASH_MIN_SPEED: f32 = 0.8;
 /// Footfall ripple interval while wading on ground, seconds.

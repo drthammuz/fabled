@@ -10,8 +10,14 @@ use shared::protocol::{NetTransform, Player, PlayerAlive, PlayerName};
 use crate::character::CharacterSystems;
 use crate::combat::Health;
 use crate::items::Inventory;
-use crate::level::{LevelEntity, LoadedLevel, load_level};
+use crate::level::{
+    cull_kenney_branch_floors, cull_kenney_branch_groups, cull_kenney_l1, KenneyColliderScene,
+    KenneyFloorCellMeta, KenneyLayoutCache, KenneyPieceMeta, LevelEntity, LoadedLevel, load_level,
+};
 use crate::players::{LatestInput, PlayerOwner};
+use shared::kenney_hub;
+use shared::kenney_layout::KenneyLayout;
+use shared::map_pool::PoolIndex;
 
 pub struct RunPlugin;
 
@@ -22,6 +28,7 @@ impl Plugin for RunPlugin {
                 FixedUpdate,
                 (
                     check_extraction,
+                    hub_physical_commit,
                     hub_shop,
                     hub_routing,
                     check_permadeath,
@@ -37,8 +44,19 @@ impl Plugin for RunPlugin {
 #[derive(Component)]
 pub struct RunEntity;
 
-fn spawn_run_entity(mut commands: Commands) {
+fn spawn_run_entity(
+    mut commands: Commands,
+    test: Option<Res<shared::TestMode>>,
+    city: Option<Res<shared::CityViewMode>>,
+) {
     let start = run::start_node();
+    let level_id = if city.is_some() {
+        "city".to_string()
+    } else if test.is_some() {
+        "testmap".to_string()
+    } else {
+        start.id.to_string()
+    };
     let run_seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.subsec_nanos() as u64 ^ d.as_secs().wrapping_mul(0x9e3779b97f4a7c15))
@@ -48,12 +66,14 @@ fn spawn_run_entity(mut commands: Commands) {
         RunEntity,
         RunState {
             phase: RunPhase::InStretch,
-            level_id: start.id.to_string(),
+            level_id,
             hub_id: None,
             credits: 0,
             scrap: 0,
             map_holder: None,
             route_options: vec![],
+            hub_commit: Default::default(),
+            map_stream: Default::default(),
             run_seed,
         },
     ));
@@ -144,6 +164,108 @@ fn check_extraction(
     run.phase         = RunPhase::InHub;
     run.hub_id        = Some(hub_id.to_string());
     run.route_options = routes;
+    run.hub_commit    = Default::default();
+}
+
+fn extraction_module_slots(layout: &KenneyLayout) -> Option<((u32, u32), (u32, u32))> {
+    let [ex, ez] = layout.extraction_xz?;
+    let cell = layout.grid_unit_m;
+    let x0 = layout.map_world_x0();
+    let z0 = layout.map_world_z0();
+    let mix = ((ex - x0) / cell).floor().max(0.0) as u32;
+    let miz = ((ez - z0) / cell).floor().max(0.0) as u32;
+    let cells = shared::editor_map::CELLS_PER_MODULE;
+    let col = mix / cells;
+    let row = miz / cells;
+    if col == 0 {
+        return None;
+    }
+    Some(((col, row), (col - 1, row)))
+}
+
+fn hub_physical_commit(
+    mut commands: Commands,
+    layout_cache: Res<KenneyLayoutCache>,
+    mut run_q: Query<&mut RunState, With<RunEntity>>,
+    players: Query<(&Transform, &PlayerAlive, &PlayerName), With<Player>>,
+    pieces: Query<(Entity, &KenneyPieceMeta)>,
+    scenes: Query<(Entity, &KenneyPieceMeta), With<KenneyColliderScene>>,
+    floors: Query<(Entity, &KenneyFloorCellMeta)>,
+) {
+    let Ok(mut run) = run_q.single_mut() else {
+        return;
+    };
+    if run.phase != RunPhase::InHub {
+        return;
+    }
+    if PoolIndex::load_from_disk().is_some() {
+        return;
+    }
+    let layout = &layout_cache.0;
+    if layout.branch_levels.is_empty() {
+        return;
+    }
+
+    let slots = extraction_module_slots(layout);
+    let mut l1_cull = false;
+
+    let alive_names: Vec<String> = players
+        .iter()
+        .filter(|(_, alive, _)| alive.0)
+        .map(|(_, _, name)| name.0.clone())
+        .collect();
+
+    for (transform, alive, name) in &players {
+        if !alive.0 || run.hub_commit.player_committed(&name.0) {
+            continue;
+        }
+        let pos = transform.translation;
+        for (key, branch) in &layout.branch_levels {
+            let Ok(exit) = key.parse::<u8>() else {
+                continue;
+            };
+            if run.hub_commit.is_exit_closed(exit) {
+                continue;
+            }
+            if !kenney_hub::detects_branch_commit(pos, exit, branch, layout.extraction_xz) {
+                continue;
+            }
+            info!("{} committed to hub exit {exit} ({})", name.0, branch.label);
+            run.hub_commit.player_exits.push(shared::run::PlayerExitCommit {
+                player: name.0.clone(),
+                exit,
+            });
+            if run.hub_commit.chosen_exit.is_none() {
+                run.hub_commit.chosen_exit = Some(exit);
+                info!("party locked exit {exit} — finish routing when all operators arrive");
+            }
+            break;
+        }
+    }
+
+    if run.hub_commit.l1_unloaded {
+        return;
+    }
+    if run.hub_commit.all_alive_committed(&alive_names) {
+        run.hub_commit.l1_unloaded = true;
+        l1_cull = true;
+        info!("all operators committed — unloading L1 stretch");
+    }
+
+    if l1_cull {
+        if let Some(keep_exit) = run.hub_commit.chosen_exit {
+            cull_kenney_branch_groups(&mut commands, keep_exit, &pieces, &scenes);
+            if let Some((hub_slot, west_slot)) = slots {
+                cull_kenney_branch_floors(&mut commands, keep_exit, hub_slot, west_slot, &floors);
+            }
+        }
+        cull_kenney_l1(&mut commands, &pieces, &scenes, &floors);
+        if let Some(exit) = run.hub_commit.chosen_exit {
+            run.phase = RunPhase::InStretch;
+            run.hub_id = None;
+            info!("departed hub via exit {exit}");
+        }
+    }
 }
 
 fn shop_stock(camp: CampKind) -> Vec<(u32, u32, &'static str)> {
@@ -236,6 +358,7 @@ fn hub_shop(
 fn hub_routing(
     mut commands: Commands,
     level_entities: Query<Entity, With<LevelEntity>>,
+    layout_cache: Res<KenneyLayoutCache>,
     mut loaded: ResMut<LoadedLevel>,
     mut run_q: Query<&mut RunState, With<RunEntity>>,
     mut players: Query<
@@ -254,6 +377,13 @@ fn hub_routing(
         return;
     };
     if run.phase != RunPhase::InHub {
+        return;
+    }
+    // Kenney physical exits handle departure when hub exits are present.
+    if !layout_cache.0.hub_exits.is_empty() || !layout_cache.0.branch_levels.is_empty() {
+        return;
+    }
+    if PoolIndex::load_from_disk().is_some() {
         return;
     }
     let mut picked = None;
@@ -355,6 +485,7 @@ fn restart_run_keys(
     run.scrap = 0;
     run.map_holder = None;
     run.hub_id = None;
+    run.hub_commit = Default::default();
     // Fresh seed gives a new layout on restart.
     run.run_seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

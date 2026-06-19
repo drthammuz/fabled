@@ -1,11 +1,15 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
+use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use bevy::app::ScheduleRunnerPlugin;
+use bevy::asset::AssetPlugin;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::state::app::StatesPlugin;
-use bevy::window::PresentMode;
+use bevy::window::{PresentMode, WindowMode};
 use bevy_replicon::prelude::*;
 use bevy_replicon_renet::netcode::{
     ClientAuthentication, NetcodeClientTransport, NetcodeServerTransport, ServerAuthentication,
@@ -37,6 +41,28 @@ struct Cli {
     /// Run a listen server: server + local client in one process
     #[arg(long)]
     host: bool,
+
+    /// Developer test map: bypass the class-select screen and procgen, load the
+    /// flat `testmap` showcase room, and auto-pick classes. Implies `--host`.
+    #[arg(long)]
+    test: bool,
+
+    /// With `--test`: procedural walls/stairs from `userinput/wall_map.json`
+    /// (default when `--test` is passed without `--kenney`).
+    #[arg(long, requires = "test", conflicts_with = "kenney")]
+    rusty: bool,
+
+    /// With `--test`: place Kenney space-kit GLBs instead of the procedural ramp.
+    #[arg(long, requires = "test", conflicts_with = "rusty")]
+    kenney: bool,
+
+    /// Kenney module layout editor (zoomed-out map view). Implies `--host`.
+    #[arg(long, conflicts_with_all = ["test", "kenney", "rusty", "city"])]
+    editor: bool,
+
+    /// Walk `assets/models/misc/cyberpunk_city.glb` with collision + daylight. Implies `--host`.
+    #[arg(long, conflicts_with_all = ["server", "client", "test", "editor"])]
+    city: bool,
 }
 
 fn main() {
@@ -46,10 +72,10 @@ fn main() {
         run_server();
     } else if let Some(address) = cli.client {
         run_client(address);
-    } else if cli.host {
-        run_host();
+    } else if cli.host || cli.test || cli.editor || cli.city {
+        run_host(&cli);
     } else {
-        eprintln!("error: specify one of --server, --client <ip>, or --host");
+        eprintln!("error: specify one of --server, --client <ip>, --host, or --city");
         std::process::exit(2);
     }
 }
@@ -82,27 +108,86 @@ fn run_client(address: String) {
 }
 
 /// Listen server: full client app plus the server core in one process.
-fn run_host() {
-    client_app("fabled - host")
-        .add_plugins(ServerCorePlugin)
-        .add_systems(Startup, open_server)
-        .add_systems(PostStartup, server::players::spawn_local_player)
-        .run();
+fn run_host(cli: &Cli) {
+    let title = if cli.city {
+        "fabled - cyberpunk city"
+    } else if cli.editor {
+        "fabled - editor [build 2025-06-15d]"
+    } else if cli.test {
+        "fabled - test map"
+    } else {
+        "fabled - host"
+    };
+    let settings = shared::editor_settings::UserEditorPrefs::load();
+    let window_mode = if cli.editor {
+        client::display_settings::window_mode_for(settings.editor_display)
+    } else if cli.test {
+        client::display_settings::window_mode_for(settings.test_display)
+    } else if cli.city {
+        WindowMode::Windowed
+    } else {
+        WindowMode::Windowed
+    };
+    let mut app = App::new();
+    if cli.city {
+        app.insert_resource(shared::CityViewMode);
+    } else if cli.editor {
+        shared::level::set_test_map_style(shared::TestMapStyle::Rusty);
+        shared::level::set_editor_layout(true);
+        app.insert_resource(shared::EditorMode);
+        app.insert_resource(shared::TestMode {
+            style: shared::TestMapStyle::Rusty,
+        });
+    } else if cli.test {
+        let style = if cli.kenney {
+            shared::TestMapStyle::Kenney
+        } else {
+            shared::TestMapStyle::Rusty
+        };
+        shared::level::set_test_map_style(style);
+        app.insert_resource(shared::TestMode { style });
+    }
+    build_client_app(&mut app, title, window_mode);
+    app.insert_resource(settings);
+    app.add_plugins(ServerCorePlugin)
+        .add_systems(Startup, open_server);
+    app.run();
 }
 
 fn client_app(title: &str) -> App {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: title.into(),
-            present_mode: PresentMode::AutoVsync,
-            ..default()
-        }),
-        ..default()
-    }))
+    build_client_app(&mut app, title, WindowMode::Windowed);
+    app
+}
+
+fn build_client_app(app: &mut App, title: &str, window_mode: WindowMode) {
+    let asset_root = game_asset_root();
+    info!("asset root: {}", asset_root.display());
+    app.add_plugins(
+        DefaultPlugins
+            .set(AssetPlugin {
+                // Bats run target/debug/fabled.exe directly; cwd is not the repo root.
+                file_path: asset_root.to_string_lossy().into_owned(),
+                ..default()
+            })
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: title.into(),
+                    present_mode: PresentMode::AutoVsync,
+                    mode: window_mode,
+                    ..default()
+                }),
+                ..default()
+            }),
+    )
     .add_plugins((RepliconPlugins, RepliconRenetPlugins, ProtocolPlugin))
     .add_plugins(ClientCorePlugin);
-    app
+}
+
+/// Absolute path to `assets/` so the built exe finds models/textures when launched
+/// from `target/debug/` (editor.bat / testkenney.bat).
+fn game_asset_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("assets")
 }
 
 #[derive(Resource)]

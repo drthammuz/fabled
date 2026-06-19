@@ -6,6 +6,7 @@ pub mod character;
 pub mod combat;
 pub mod grab;
 pub mod items;
+pub mod map_stream;
 pub mod level;
 pub mod liquids;
 pub mod players;
@@ -32,6 +33,7 @@ impl Plugin for ServerCorePlugin {
             )
             .add_plugins((
                 level::ServerLevelPlugin,
+                map_stream::KenneyStreamPlugin,
                 liquids::LiquidsPlugin,
                 players::ServerPlayersPlugin,
                 grab::ServerGrabPlugin,

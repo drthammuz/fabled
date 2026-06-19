@@ -3,6 +3,7 @@
 //! TrenchBroom .map) into the same `LevelDef` without touching gameplay code.
 
 use bevy::prelude::*;
+use serde::Deserialize;
 
 use crate::props::PropShape;
 
@@ -78,12 +79,31 @@ pub enum StaticKind {
     SewerWall,
     /// Emissive accent strip.
     Neon,
+    /// Red door marker from wall_map.json (visual only).
+    DoorMarker,
     /// Raised metal walkway (player path).
     SewerWalkway,
     /// Toxic water channel — client visuals + server skips collider.
     SewerWater,
-    /// Ceiling pipe / conduit bundle (visual).
+    /// Ceiling pipe / conduit bundle (visual). Axis-aligned cylinder whose
+    /// long axis is its longest `size` dimension.
     SewerPipe,
+    /// An arbitrarily-oriented pipe segment (elbow joints, culvert mouths).
+    /// `rotation` orients local +Z to the pipe axis; `size` = (d, d, length).
+    SewerPipeBend,
+    /// The dark recessed interior of a culvert mouth — a near-black unlit disc
+    /// behind the grate that reads as an open hole. `rotation`/`size` follow the
+    /// same convention as [`StaticKind::SewerPipeBend`]. No collider.
+    PipeBore,
+    /// An OPEN-ended pipe mouth (a tube with no end caps) you can see into — the
+    /// culvert ring. Same `rotation`/`size` convention as `SewerPipeBend`
+    /// (diameter, diameter, length). No collider.
+    PipeRing,
+    /// A smooth swept-tube quarter-bend + vertical stub (one gap-free mesh).
+    /// `position` = bend start, `rotation` maps local +Z→from-dir and +Y→to-dir,
+    /// `size` = (pipe_radius, arc_radius, stub_length). Client sweeps a circle
+    /// along the arc. No collider (sits at the ceiling, out of reach).
+    PipeElbow,
     /// Ceiling cross-brace (visual only — no collider).
     SewerBrace,
     /// Arch rib spanning the tunnel width (visual only — no collider).
@@ -111,6 +131,62 @@ impl StaticDef {
     }
 }
 
+/// Radius, length and rotation for an axis-aligned [`StaticKind::SewerPipe`]
+/// cylinder. The pipe's long axis is its longest `size` dimension; the returned
+/// rotation aligns a +Y-axis cylinder (Bevy mesh / Avian collider convention)
+/// to that axis. Used by both the client (mesh) and server (collider) so the
+/// visible pipe and its solid collider always match.
+pub fn straight_pipe(def: &StaticDef) -> (f32, f32, Quat) {
+    use std::f32::consts::FRAC_PI_2;
+    let s = def.size;
+    let radius = s.x.min(s.y).min(s.z) * 0.5;
+    let length = s.x.max(s.y).max(s.z);
+    let rot = if s.z >= s.x && s.z >= s.y {
+        def.rotation * Quat::from_rotation_x(FRAC_PI_2)
+    } else if s.x >= s.y {
+        def.rotation * Quat::from_rotation_z(FRAC_PI_2)
+    } else {
+        def.rotation
+    };
+    (radius, length, rot)
+}
+
+/// Radius, length and rotation for a [`StaticKind::SewerPipeBend`] segment.
+/// `size` is (d, d, length) and `rotation` orients local +Z to the pipe axis;
+/// the returned rotation aligns a +Y-axis cylinder to that same axis.
+pub fn bend_pipe(def: &StaticDef) -> (f32, f32, Quat) {
+    let radius = def.size.x * 0.5;
+    let length = def.size.z;
+    let axis = def.rotation * Vec3::Z;
+    (radius, length, Quat::from_rotation_arc(Vec3::Y, axis))
+}
+
+use std::sync::OnceLock;
+
+use crate::TestMapStyle;
+
+static TEST_MAP_STYLE: OnceLock<TestMapStyle> = OnceLock::new();
+
+/// Set before the app runs (from `main` when `--test` is passed).
+pub fn set_test_map_style(style: TestMapStyle) {
+    let _ = TEST_MAP_STYLE.set(style);
+}
+
+pub fn test_map_style() -> TestMapStyle {
+    TEST_MAP_STYLE.get().copied().unwrap_or(TestMapStyle::Rusty)
+}
+
+static EDITOR_LAYOUT: OnceLock<bool> = OnceLock::new();
+
+/// Set before the app runs (from `main` when `--editor` is passed).
+pub fn set_editor_layout(open: bool) {
+    let _ = EDITOR_LAYOUT.set(open);
+}
+
+fn editor_layout() -> bool {
+    EDITOR_LAYOUT.get().copied().unwrap_or(false)
+}
+
 /// The level every run mode currently loads (overridden by run state on server).
 pub fn active_level() -> LevelDef {
     level_by_id("sewer_entry", 0)
@@ -118,9 +194,567 @@ pub fn active_level() -> LevelDef {
 
 /// Look up a level by id from the stretch graph, generating geometry from `seed`.
 pub fn level_by_id(id: &str, seed: u64) -> LevelDef {
+    if id == "testmap" {
+        return testmap_level(seed);
+    }
+    if id == "city" {
+        return city_level(seed);
+    }
     crate::run::node(id)
         .map(|n| (n.build)(seed))
         .unwrap_or_else(|| sewer_entry_level(seed))
+}
+
+/// Empty level for `--city` — geometry + collision come from the city GLB.
+pub fn city_level(_seed: u64) -> LevelDef {
+    LevelDef {
+        id: "city".into(),
+        statics: vec![],
+        props: vec![],
+        lights: vec![],
+        item_spawns: vec![],
+        player_spawns: vec![crate::config::CITY_SPAWN],
+        extraction: None,
+        enemy_spawns: vec![],
+        grid_cells: vec![],
+    }
+}
+
+/// Developer test map — Kenney sandbox sized from saved layout (or 5×5 default).
+pub fn testmap_level(_seed: u64) -> LevelDef {
+    use StaticKind::*;
+    let layout = crate::map_pool::test_play_layout();
+    let (ex, ez) = layout.map_extent_m();
+    let w = ex.max(ez).max(kenney_sandbox_extent_m());
+    let (cx, cz) = if layout.pieces.is_empty() && layout.floors.is_empty() {
+        kenney_sandbox_center_xz()
+    } else {
+        layout.map_center_xz()
+    };
+
+    let mut statics = Vec::new();
+    // Fallback slab when no per-cell floors exported yet.
+    if layout.floors.is_empty() {
+        sa_v(
+            &mut statics,
+            SewerFloor,
+            Vec3::new(cx, -0.1, cz),
+            Vec3::new(w, 0.2, w),
+        );
+    }
+
+    LevelDef {
+        id: "testmap".into(),
+        statics,
+        props: vec![],
+        lights: vec![],
+        item_spawns: vec![],
+        player_spawns: vec![
+            Vec3::new(cx - 2.0, 1.2, cz - 6.0),
+            Vec3::new(cx + 2.0, 1.2, cz - 6.0),
+            Vec3::new(cx - 2.0, 1.2, cz - 4.0),
+            Vec3::new(cx + 2.0, 1.2, cz - 4.0),
+        ],
+        // Hub floor at y = -MOD_H; flag points to hub interior (~standing height).
+        extraction: layout
+            .extraction_xz
+            .map(|[x, z]| Vec3::new(x, -3.0, z)),
+        enemy_spawns: vec![],
+        grid_cells: vec![],
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User coordinate wall map — loaded from userinput/wall_map.json
+// ─────────────────────────────────────────────────────────────────────────────
+
+const WALL_MAP_JSON: &str = include_str!("../../../userinput/wall_map.json");
+
+static WALL_MAP: std::sync::OnceLock<WallMapSpec> = std::sync::OnceLock::new();
+
+#[derive(Deserialize)]
+struct WallMapSpec {
+    coord_system: WallCoordSystem,
+    grid: WallGridBounds,
+    outer_walls: Vec<WallSegment>,
+    inner_walls: Vec<WallSegment>,
+    #[serde(default)]
+    doors: Vec<DoorSegment>,
+    stairs: StairsSpec,
+}
+
+#[derive(Deserialize)]
+struct DoorSegment {
+    from: [f32; 2],
+    to: [f32; 2],
+}
+
+#[derive(Deserialize)]
+struct WallCoordSystem {
+    world_x0: f32,
+    cell_meters: f32,
+}
+
+#[derive(Deserialize)]
+struct WallGridBounds {
+    max_x: f32,
+    max_y: f32,
+}
+
+#[derive(Deserialize)]
+struct WallSegment {
+    from: [f32; 2],
+    to: [f32; 2],
+}
+
+#[derive(Deserialize)]
+struct ClimbSpec {
+    from: [f32; 2],
+    to: [f32; 2],
+}
+
+#[derive(Deserialize)]
+struct StairsSpec {
+    corners: [[f32; 2]; 4],
+    /// Low end → high end in grid coords. Corner order is ignored (only the
+    /// bounding box matters); use this to set which way the ramp faces.
+    #[serde(default)]
+    climb: Option<ClimbSpec>,
+}
+
+fn wall_map_spec() -> &'static WallMapSpec {
+    WALL_MAP.get_or_init(|| serde_json::from_str(WALL_MAP_JSON).expect("userinput/wall_map.json must be valid"))
+}
+
+/// West edge of user x=0 in world space (from wall_map.json).
+/// Editor / `--test --kenney` playfield: 3×3 Kenney modules (60 m), default map size.
+pub const KENNEY_SANDBOX_CELLS: f32 = 15.0;
+
+pub fn kenney_sandbox_extent_m() -> f32 {
+    KENNEY_SANDBOX_CELLS * user_map_cell()
+}
+
+pub fn kenney_sandbox_center_xz() -> (f32, f32) {
+    let w = kenney_sandbox_extent_m();
+    (user_map_x0() + w * 0.5, w * 0.5)
+}
+
+pub fn user_map_x0() -> f32 { wall_map_spec().coord_system.world_x0 }
+
+/// One grid unit in metres (from wall_map.json).
+pub fn user_map_cell() -> f32 { wall_map_spec().coord_system.cell_meters }
+
+/// West edge of user x=0 in world space.
+pub const USER_MAP_X0: f32 = -16.0;
+
+/// User grid coordinate → world X (east = +X).
+pub fn user_x(x: f32) -> f32 { user_map_x0() + x * user_map_cell() }
+/// User grid coordinate → world Z (north = +Z, y=0 is south).
+pub fn user_z(y: f32) -> f32 { y * user_map_cell() }
+
+const WALL_EPS: f32 = 0.001;
+
+/// Shared-axis overlap between collinear door and wall; returns opening centre on that axis.
+fn door_opening_on_wall(door: &DoorSegment, seg: &WallSegment) -> Option<f32> {
+    let (wx0, wy0, wx1, wy1) = (seg.from[0], seg.from[1], seg.to[0], seg.to[1]);
+    let (dx0, dy0, dx1, dy1) = (door.from[0], door.from[1], door.to[0], door.to[1]);
+    if (wy0 - wy1).abs() < WALL_EPS && (dy0 - dy1).abs() < WALL_EPS && (wy0 - dy0).abs() < WALL_EPS {
+        let w_lo = wx0.min(wx1);
+        let w_hi = wx0.max(wx1);
+        let d_lo = dx0.min(dx1);
+        let d_hi = dx0.max(dx1);
+        let o_lo = w_lo.max(d_lo);
+        let o_hi = w_hi.min(d_hi);
+        if o_hi > o_lo + WALL_EPS {
+            return Some((o_lo + o_hi) * 0.5);
+        }
+        let cx = (dx0 + dx1) * 0.5;
+        if cx >= w_lo - WALL_EPS && cx <= w_hi + WALL_EPS {
+            return Some(cx);
+        }
+    } else if (wx0 - wx1).abs() < WALL_EPS && (dx0 - dx1).abs() < WALL_EPS && (wx0 - dx0).abs() < WALL_EPS {
+        let w_lo = wy0.min(wy1);
+        let w_hi = wy0.max(wy1);
+        let d_lo = dy0.min(dy1);
+        let d_hi = dy0.max(dy1);
+        let o_lo = w_lo.max(d_lo);
+        let o_hi = w_hi.min(d_hi);
+        if o_hi > o_lo + WALL_EPS {
+            return Some((o_lo + o_hi) * 0.5);
+        }
+        let cy = (dy0 + dy1) * 0.5;
+        if cy >= w_lo - WALL_EPS && cy <= w_hi + WALL_EPS {
+            return Some(cy);
+        }
+    }
+    None
+}
+
+/// Opening centres along the segment axis (grid x for horizontal, grid y for vertical).
+fn doors_on_segment(seg: &WallSegment, doors: &[DoorSegment]) -> Vec<f32> {
+    let mut along: Vec<f32> = doors
+        .iter()
+        .filter_map(|d| door_opening_on_wall(d, seg))
+        .collect();
+    along.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    along.dedup_by(|a, b| (*a - *b).abs() < WALL_EPS);
+    along
+}
+
+/// Place one wall segment given endpoints in user grid coords.
+fn wall_line(
+    s: &mut Vec<StaticDef>,
+    x0: f32, y0: f32, x1: f32, y1: f32,
+    y_lo: f32, y_hi: f32, wt: f32,
+    opens_along: &[f32],
+) {
+    if (y0 - y1).abs() < WALL_EPS {
+        let z = user_z(y0);
+        let opens: Vec<f32> = opens_along.iter().map(|&gx| user_x(gx)).collect();
+        wall_ns(s, user_x(x0.min(x1)), user_x(x0.max(x1)), z, y_lo, y_hi, wt, &opens);
+    } else if (x0 - x1).abs() < WALL_EPS {
+        let x = user_x(x0);
+        let opens: Vec<f32> = opens_along.iter().map(|&gy| user_z(gy)).collect();
+        wall_ew(s, user_z(y0.min(y1)), user_z(y0.max(y1)), x, y_lo, y_hi, wt, &opens);
+    }
+}
+
+fn place_wall_segment(
+    statics: &mut Vec<StaticDef>,
+    seg: &WallSegment,
+    doors: &[DoorSegment],
+    y_lo: f32,
+    y_hi: f32,
+    wt: f32,
+) {
+    let opens = doors_on_segment(seg, doors);
+    wall_line(
+        statics,
+        seg.from[0], seg.from[1], seg.to[0], seg.to[1],
+        y_lo, y_hi, wt, &opens,
+    );
+}
+
+fn user_wall_map(statics: &mut Vec<StaticDef>, lights: &mut Vec<LightDef>) {
+    use StaticKind::*;
+    let spec = wall_map_spec();
+    let cell = spec.coord_system.cell_meters;
+    const WT: f32 = 0.35;
+    let y_lo = 0.0_f32;
+    let y_hi = MOD_H;
+
+    let floor_w = (spec.grid.max_x + 1.0) * cell;
+    let floor_d = (spec.grid.max_y + 1.0) * cell;
+    let floor_cx = user_map_x0() + floor_w * 0.5;
+    let floor_cz = floor_d * 0.5;
+
+    sa_v(statics, SewerFloor, Vec3::new(floor_cx, y_lo - 0.1, floor_cz), Vec3::new(floor_w, 0.2, floor_d));
+    if !editor_layout() {
+        sa_v(statics, SewerWall,  Vec3::new(floor_cx, y_hi + 0.1, floor_cz), Vec3::new(floor_w, 0.2, floor_d));
+    }
+
+    for seg in &spec.outer_walls {
+        place_wall_segment(statics, seg, &spec.doors, y_lo, y_hi, WT);
+    }
+    for seg in &spec.inner_walls {
+        place_wall_segment(statics, seg, &spec.doors, y_lo, y_hi, WT);
+    }
+
+    pt_v(lights, Vec3::new(0.0, y_hi - 0.9, floor_cz), Color::srgb(0.4, 0.7, 1.0), 55_000.0, 20.0);
+
+    place_door_markers(statics, &spec.doors, cell);
+    if test_map_style() == TestMapStyle::Rusty {
+        place_stairs(statics, lights, &spec.stairs, cell, y_lo, y_hi);
+    }
+}
+
+fn place_door_markers(statics: &mut Vec<StaticDef>, doors: &[DoorSegment], cell: f32) {
+    use StaticKind::DoorMarker;
+    const MARKER_H: f32 = 0.12;
+    const MARKER_T: f32 = 0.14;
+    let y = 0.2_f32;
+
+    for door in doors {
+        let (x0, y0, x1, y1) = (
+            door.from[0], door.from[1], door.to[0], door.to[1],
+        );
+        if (y0 - y1).abs() < WALL_EPS {
+            let len = (x1 - x0).abs() * cell;
+            if len < 0.01 {
+                continue;
+            }
+            sa_v(
+                statics,
+                DoorMarker,
+                Vec3::new(user_x((x0 + x1) * 0.5), y, user_z(y0)),
+                Vec3::new(len * 0.95, MARKER_H, MARKER_T),
+            );
+        } else if (x0 - x1).abs() < WALL_EPS {
+            let len = (y1 - y0).abs() * cell;
+            if len < 0.01 {
+                continue;
+            }
+            sa_v(
+                statics,
+                DoorMarker,
+                Vec3::new(user_x(x0), y, user_z((y0 + y1) * 0.5)),
+                Vec3::new(MARKER_T, MARKER_H, len * 0.95),
+            );
+        }
+    }
+}
+
+fn place_stairs(
+    statics: &mut Vec<StaticDef>,
+    lights: &mut Vec<LightDef>,
+    stairs: &StairsSpec,
+    cell: f32,
+    y_lo: f32,
+    y_hi: f32,
+) {
+    use StaticKind::*;
+    let xs: [f32; 4] = stairs.corners.map(|c| c[0]);
+    let ys: [f32; 4] = stairs.corners.map(|c| c[1]);
+    let st_x0 = xs.iter().copied().fold(f32::INFINITY, f32::min);
+    let st_x1 = xs.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let st_y0 = ys.iter().copied().fold(f32::INFINITY, f32::min);
+    let st_y1 = ys.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+
+    let mid_x = (st_x0 + st_x1) * 0.5;
+    let mid_y = (st_y0 + st_y1) * 0.5;
+    let (climb_from, climb_to) = match &stairs.climb {
+        Some(c) => (c.from, c.to),
+        None => ([mid_x, st_y0], [mid_x, st_y1]),
+    };
+
+    let dx = climb_to[0] - climb_from[0];
+    let dy = climb_to[1] - climb_from[1];
+    let rise = y_hi - y_lo;
+    let (width, run, position, rotation, ramp_size) = if dx.abs() >= dy.abs() {
+        let width = (st_y1 - st_y0) * cell;
+        let run = dx.abs() * cell;
+        let angle = rise.atan2(run);
+        let slope_len = (run * run + rise * rise).sqrt();
+        let x_lo = climb_from[0].min(climb_to[0]);
+        let rot = if dx > 0.0 {
+            Quat::from_rotation_z(angle)
+        } else {
+            Quat::from_rotation_z(-angle)
+        };
+        (
+            width,
+            run,
+            Vec3::new(
+                user_x(x_lo) + run * 0.5,
+                y_lo + rise * 0.5,
+                user_z(mid_y),
+            ),
+            rot,
+            Vec3::new(slope_len, 0.45, width * 0.92),
+        )
+    } else {
+        let width = (st_x1 - st_x0) * cell;
+        let run = dy.abs() * cell;
+        let angle = rise.atan2(run);
+        let slope_len = (run * run + rise * rise).sqrt();
+        let z_lo = climb_from[1].min(climb_to[1]);
+        let rot = if dy > 0.0 {
+            Quat::from_rotation_x(angle)
+        } else {
+            Quat::from_rotation_x(-angle)
+        };
+        (
+            width,
+            run,
+            Vec3::new(
+                user_x(mid_x),
+                y_lo + rise * 0.5,
+                user_z(z_lo) + run * 0.5,
+            ),
+            rot,
+            Vec3::new(width * 0.92, 0.45, slope_len),
+        )
+    };
+
+    statics.push(StaticDef {
+        kind: Ramp,
+        position,
+        rotation,
+        size: ramp_size,
+    });
+
+    sa_v(
+        statics,
+        Neon,
+        Vec3::new(
+            user_x((st_x0 + st_x1) * 0.5),
+            y_lo + 0.06,
+            user_z((st_y0 + st_y1) * 0.5),
+        ),
+        Vec3::new(width * 0.85, 0.06, run * 0.85),
+    );
+
+    pt_v(
+        lights,
+        Vec3::new(
+            user_x((st_x0 + st_x1) * 0.5),
+            y_hi - 0.9,
+            user_z((st_y0 + st_y1) * 0.5),
+        ),
+        Color::srgb(1.0, 0.85, 0.2),
+        25_000.0,
+        10.0,
+    );
+}
+
+/// Kenney `stairs.glb` placement from `wall_map.json` (floor origin + yaw).
+///
+/// Model convention (yaw = 0): entry arch at local Z = −6.1, landing at +2.1.
+pub fn kenney_stairs_placement() -> Option<(Vec3, f32)> {
+    let entry_offset = crate::kenney_catalog::piece("stairs")
+        .and_then(|p| p.stairs.as_ref())
+        .map(|s| -s.entry_z)
+        .unwrap_or(6.1);
+    let spec = wall_map_spec();
+    let stairs = &spec.stairs;
+    let xs: [f32; 4] = stairs.corners.map(|c| c[0]);
+    let ys: [f32; 4] = stairs.corners.map(|c| c[1]);
+    let st_x0 = xs.iter().copied().fold(f32::INFINITY, f32::min);
+    let st_x1 = xs.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let st_y0 = ys.iter().copied().fold(f32::INFINITY, f32::min);
+    let st_y1 = ys.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let mid_x = (st_x0 + st_x1) * 0.5;
+    let (climb_from, climb_to) = match &stairs.climb {
+        Some(c) => (c.from, c.to),
+        None => ([mid_x, st_y0], [mid_x, st_y1]),
+    };
+    let dx = climb_to[0] - climb_from[0];
+    let dy = climb_to[1] - climb_from[1];
+    if dy.abs() < dx.abs() {
+        return None;
+    }
+    let x = user_x(mid_x);
+    if dy > 0.0 {
+        Some((Vec3::new(x, 0.002, user_z(climb_from[1]) + entry_offset), 0.0))
+    } else {
+        Some((
+            Vec3::new(x, 0.002, user_z(climb_from[1]) - entry_offset),
+            std::f32::consts::PI,
+        ))
+    }
+}
+
+// Legacy example-grid helpers (kept for Kenney showcase constants).
+
+/// One grid unit = 4 m.
+pub const GRID_CELL: f32 = 4.0;
+pub const GRID_COLS: i32 = 9;
+pub const GRID_ROWS: i32 = 6;
+
+/// West edge of vertical grid line `ci` (0..=9).
+pub fn grid_x(ci: i32) -> f32 { GRID_X0 + ci as f32 * GRID_CELL }
+/// South edge of cell row `ri` (0 = north).
+pub fn grid_z_south(ri: i32) -> f32 { (GRID_ROWS - 1 - ri) as f32 * GRID_CELL }
+/// North edge of cell row `ri`.
+pub fn grid_z_north(ri: i32) -> f32 { (GRID_ROWS - ri) as f32 * GRID_CELL }
+/// Centre X of cell column `ci`.
+pub fn cell_x(ci: i32) -> f32 { grid_x(ci) + GRID_CELL * 0.5 }
+/// Centre Z of cell row `ri`.
+pub fn cell_z(ri: i32) -> f32 { grid_z_south(ri) + GRID_CELL * 0.5 }
+
+/// Module footprint (12 m — Kenney kit compatibility).
+pub const MOD_SIZE:   f32 = 12.0;
+pub const MOD_H:      f32 = 4.5;
+pub const MOD_OPEN_W: f32 = 4.0;
+pub const MOD_OPEN_H: f32 = 4.25;
+pub const GRID_X0: f32 = -18.0;
+pub const GRID_Z0: f32 =   0.0;
+pub const SLOT_L: f32 =  2.0;
+pub const SLOT_C: f32 =  6.0;
+pub const SLOT_R: f32 = 10.0;
+
+/// Wall perpendicular to Z (spans x_lo..x_hi at fixed z, y_lo..y_hi).
+/// `opens`: world x-positions of opening centres.
+fn wall_ns(
+    s: &mut Vec<StaticDef>,
+    x_lo: f32, x_hi: f32,
+    z: f32,
+    y_lo: f32, y_hi: f32,
+    t: f32,
+    opens: &[f32],
+) {
+    use StaticKind::SewerWall;
+    let wh     = y_hi - y_lo;
+    let y_ctr  = (y_lo + y_hi) * 0.5;
+    let hw     = MOD_OPEN_W * 0.5;
+    let lintel = wh - MOD_OPEN_H;
+
+    let mut ops: Vec<f32> = opens.to_vec();
+    ops.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    let mut cur = x_lo;
+    for &ox in &ops {
+        let end = ox - hw;
+        if end > cur + 0.02 {
+            sa_v(s, SewerWall,
+                Vec3::new((cur + end) * 0.5, y_ctr, z),
+                Vec3::new(end - cur, wh, t));
+        }
+        cur = ox + hw;
+    }
+    if cur < x_hi - 0.02 {
+        sa_v(s, SewerWall,
+            Vec3::new((cur + x_hi) * 0.5, y_ctr, z),
+            Vec3::new(x_hi - cur, wh, t));
+    }
+    if lintel > 0.02 {
+        let ly = y_lo + MOD_OPEN_H + lintel * 0.5;
+        for &ox in &ops {
+            sa_v(s, SewerWall, Vec3::new(ox, ly, z), Vec3::new(MOD_OPEN_W, lintel, t));
+        }
+    }
+}
+
+/// Wall perpendicular to X (spans z_lo..z_hi at fixed x, y_lo..y_hi).
+/// `opens`: world z-positions of opening centres.
+fn wall_ew(
+    s: &mut Vec<StaticDef>,
+    z_lo: f32, z_hi: f32,
+    x: f32,
+    y_lo: f32, y_hi: f32,
+    t: f32,
+    opens: &[f32],
+) {
+    use StaticKind::SewerWall;
+    let wh     = y_hi - y_lo;
+    let y_ctr  = (y_lo + y_hi) * 0.5;
+    let hw     = MOD_OPEN_W * 0.5;
+    let lintel = wh - MOD_OPEN_H;
+
+    let mut ops: Vec<f32> = opens.to_vec();
+    ops.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    let mut cur = z_lo;
+    for &oz in &ops {
+        let end = oz - hw;
+        if end > cur + 0.02 {
+            sa_v(s, SewerWall,
+                Vec3::new(x, y_ctr, (cur + end) * 0.5),
+                Vec3::new(t, wh, end - cur));
+        }
+        cur = oz + hw;
+    }
+    if cur < z_hi - 0.02 {
+        sa_v(s, SewerWall,
+            Vec3::new(x, y_ctr, (cur + z_hi) * 0.5),
+            Vec3::new(t, wh, z_hi - cur));
+    }
+    if lintel > 0.02 {
+        let ly = y_lo + MOD_OPEN_H + lintel * 0.5;
+        for &oz in &ops {
+            sa_v(s, SewerWall, Vec3::new(x, ly, oz), Vec3::new(t, lintel, MOD_OPEN_W));
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -431,6 +1065,166 @@ fn gen_grid(
 fn sa_v(statics: &mut Vec<StaticDef>, kind: StaticKind, pos: Vec3, size: Vec3) {
     statics.push(StaticDef::axis_aligned(kind, pos, size));
 }
+
+/// A square-section steel grate bar (rendered with the reinforced-steel
+/// `SewerArch` material) spanning `a`→`b`. Used for culvert grates so they read
+/// as dark structural steel, not bright pipe metal.
+fn grate_bar(st: &mut Vec<StaticDef>, a: Vec3, b: Vec3, d: f32) {
+    let delta = b - a;
+    let len = delta.length();
+    if len < 1e-3 {
+        return;
+    }
+    st.push(StaticDef {
+        kind: StaticKind::SewerArch,
+        position: (a + b) * 0.5,
+        rotation: Quat::from_rotation_arc(Vec3::Z, delta / len),
+        size: Vec3::new(d, d, len),
+    });
+}
+
+
+/// A ceiling pipe running between `a` and `b` (both at the pipe height, `a` the
+/// −axis end, `b` the +axis end). Where an end is flagged it curves smoothly up
+/// to meet the ceiling underside and tucks in (no flat disc left hanging in
+/// mid-air); otherwise it runs straight to the cell edge (into a wall, or
+/// continuing into the next cell). `ceiling_bottom` is the roof underside.
+fn ceiling_pipe(
+    st: &mut Vec<StaticDef>,
+    a: Vec3,
+    b: Vec3,
+    ceiling_bottom: f32,
+    d: f32,
+    bend_a: bool,
+    bend_b: bool,
+) {
+    let axis = b - a;
+    let len = axis.length();
+    if len < 1e-3 {
+        return;
+    }
+    let dir = axis / len;
+    // Rise needed to reach the ceiling; the quarter-elbow advances by this much
+    // along the run too, so shorten the straight section by the same amount.
+    let arc_r = (ceiling_bottom - a.y).max(0.12);
+    let a2 = if bend_a { a + dir * arc_r } else { a };
+    let b2 = if bend_b { b - dir * arc_r } else { b };
+
+    // Straight section (axis-aligned cylinder).
+    let mid = (a2 + b2) * 0.5;
+    let seg = (b2 - a2).length();
+    if seg > 1e-3 {
+        let mut size = Vec3::splat(d);
+        if dir.x.abs() > 0.5 {
+            size.x = seg;
+        } else {
+            size.z = seg;
+        }
+        sa_v(st, StaticKind::SewerPipe, mid, size);
+    }
+
+    // Bends up into the roof, as a single smooth swept-tube mesh (no segment
+    // gaps). `rotation` maps local +Z→the horizontal out-dir and +Y→up; the
+    // client sweeps a circular profile along the quarter-arc + vertical stub.
+    let mut into_roof = |start: Vec3, out: Vec3| {
+        let (from, to) = (out, Vec3::Y);
+        let rot = Quat::from_mat3(&Mat3::from_cols(to.cross(from), to, from));
+        let stub_len = (ceiling_bottom + 0.12 - (start.y + arc_r)).max(0.05);
+        st.push(StaticDef {
+            kind: StaticKind::PipeElbow,
+            position: start,
+            rotation: rot,
+            size: Vec3::new(d * 0.5, arc_r, stub_len),
+        });
+    };
+    if bend_a {
+        into_roof(a2, -dir);
+    }
+    if bend_b {
+        into_roof(b2, dir);
+    }
+}
+
+/// A grated culvert mouth set low in a dead-end wall, at the water channel — the
+/// "stream under a road" pipe the sewer water flows into/out of. Built to read
+/// as an OPEN hole: a short metal ring recessed into the wall, a dark bore
+/// behind it, and closely-spaced round grate bars across the front. `side`
+/// selects the wall (0:+Z 1:-Z 2:+X 3:-X); `lats` are the lateral offsets of
+/// each stream along that wall; `r` is the mouth radius.
+fn culvert(
+    st: &mut Vec<StaticDef>,
+    li: &mut Vec<LightDef>,
+    side: usize,
+    cx: f32,
+    cz: f32,
+    lats: &[f32],
+    stream_w: f32,
+) {
+    use StaticKind::{PipeBore, PipeRing};
+    const RING_LEN: f32 = 0.30; // how far the open pipe protrudes from the wall
+    // The pipe IS the stream's pipe: opening (inner) radius = half the stream
+    // width. The tube is open-ended so you see into it.
+    let r = stream_w * 0.5;
+    // Drop the mouth to floor level so its width at the floor matches the stream
+    // (centre just above the floor → the lower half is buried, the opening sits
+    // in the water like a real culvert).
+    let y0 = r * 0.2;
+    let glow = Color::srgb(0.1, 0.7, 0.3);
+
+    let along_z = side <= 1;
+    let sgn = if side == 0 || side == 2 { 1.0 } else { -1.0 };
+    // Outward direction from the wall into the room.
+    let out = if along_z { Vec3::new(0.0, 0.0, -sgn) } else { Vec3::new(-sgn, 0.0, 0.0) };
+    let axis = -out; // tube axis points into the wall
+    let rot = Quat::from_rotation_arc(Vec3::Z, axis);
+    // In-plane "lateral" direction (along the wall) for the grate cross-hatch.
+    let lat_dir = if along_z { Vec3::X } else { Vec3::Z };
+
+    for &lat in lats {
+        let centre = if along_z {
+            Vec3::new(cx + lat, y0, cz + sgn * GHALF)
+        } else {
+            Vec3::new(cx + sgn * GHALF, y0, cz + lat)
+        };
+        // Open-ended pipe (no caps) protruding from the wall — you see into it.
+        st.push(StaticDef {
+            kind: PipeRing,
+            position: centre + out * (RING_LEN * 0.5),
+            rotation: rot,
+            size: Vec3::new(2.0 * r, 2.0 * r, RING_LEN),
+        });
+        // Dark, murky-water bore disc at the BACK of the tube (against the wall)
+        // so looking in shows water, not the wall metal.
+        st.push(StaticDef {
+            kind: PipeBore,
+            position: centre + out * 0.02,
+            rotation: rot,
+            size: Vec3::new(2.0 * r * 0.98, 2.0 * r * 0.98, 0.02),
+        });
+        // Diamond grate at the FRONT opening, recessed just inside the rim. Each
+        // bar is an exact chord of the opening (radius r): its endpoints land on
+        // the pipe wall — never short, never overshooting.
+        let grate_c = centre + out * (RING_LEN - 0.02);
+        let bar_d = (r * 0.16).clamp(0.025, 0.045);
+        // Clip the bars to half a bar-thickness INSIDE the wall so the square
+        // bar's corner sits flush with the pipe wall instead of poking through.
+        let rc = r - bar_d * 0.5;
+        let d1 = (lat_dir + Vec3::Y).normalize();
+        let d2 = (lat_dir - Vec3::Y).normalize();
+        for (dir, perp) in [(d1, d2), (d2, d1)] {
+            for k in -2..=2 {
+                let o = k as f32 * (rc * 0.42);
+                if o.abs() >= rc {
+                    continue;
+                }
+                let half = (rc * rc - o * o).sqrt(); // exact half-chord length
+                let c = grate_c + perp * o;
+                grate_bar(st, c - dir * half, c + dir * half, bar_d);
+            }
+        }
+        li.push(LightDef { position: centre + out * 0.25, color: glow, intensity: 130.0, range: 2.4 });
+    }
+}
 fn pt_v(lights: &mut Vec<LightDef>, pos: Vec3, color: Color, intensity: f32, range: f32) {
     lights.push(LightDef { position: pos, color, intensity, range });
 }
@@ -562,11 +1356,18 @@ fn build_module(
         }
     }
 
+    // Neighbour room kind per side — lets ceiling pipes know whether they
+    // continue into the next cell or terminate (and need an elbow into the roof).
+    let mut nbrs: [Option<RoomKind>; 4] = [None; 4];
+    for s in 0..4usize {
+        nbrs[s] = placed.get(&nb(gx, gz, s)).map(|(_, rk)| *rk);
+    }
+
     match room {
-        RoomKind::Open        => build_open(statics, lights, props, items, enemies, cx, cz, ports, is_start, is_extraction, rng, depth),
-        RoomKind::SewerTunnel => build_sewer(statics, lights, props, items, enemies, cx, cz, ports, false, rng, depth),
-        RoomKind::SewerDouble => build_sewer(statics, lights, props, items, enemies, cx, cz, ports, true,  rng, depth),
-        RoomKind::SewerCross  => build_sewer_cross(statics, lights, props, items, enemies, cx, cz, ports, rng, depth),
+        RoomKind::Open        => build_open(statics, lights, props, items, enemies, cx, cz, ports, nbrs, is_start, is_extraction, rng, depth),
+        RoomKind::SewerTunnel => build_sewer(statics, lights, props, items, enemies, cx, cz, ports, nbrs, false, rng, depth),
+        RoomKind::SewerDouble => build_sewer(statics, lights, props, items, enemies, cx, cz, ports, nbrs, true,  rng, depth),
+        RoomKind::SewerCross  => build_sewer_cross(statics, lights, props, items, enemies, cx, cz, ports, nbrs, rng, depth),
     }
 }
 
@@ -577,7 +1378,7 @@ fn build_module(
 fn build_open(
     statics: &mut Vec<StaticDef>, lights: &mut Vec<LightDef>,
     props: &mut Vec<PropDef>, items: &mut Vec<Vec3>, enemies: &mut Vec<Vec3>,
-    cx: f32, cz: f32, ports: [ConnType; 4],
+    cx: f32, cz: f32, ports: [ConnType; 4], nbrs: [Option<RoomKind>; 4],
     is_start: bool, is_extraction: bool, rng: &mut Rng, depth: u32,
 ) {
     use StaticKind::*;
@@ -687,18 +1488,30 @@ fn build_open(
         return;
     }
 
-    // Ceiling pipes
-    if has_z { sa_v(statics, SewerPipe, Vec3::new(cx-0.9, CELL_H+0.15, cz), Vec3::new(0.35, 0.35, GRID)); }
-    if has_x { sa_v(statics, SewerPipe, Vec3::new(cx, CELL_H+0.15, cz-0.9), Vec3::new(0.35, GRID, 0.35)); }
+    // Ceiling pipes — hang just below the roof (visible/attached, not buried in
+    // the slab) and bend up into it where they'd otherwise end in mid-air.
+    let pipe_y = CELL_H - 0.30;
+    let ceil_b = CELL_H;
+    let open_bend = |s: usize| ports[s] != ConnType::None && nbrs[s] != Some(RoomKind::Open);
+    if has_z {
+        ceiling_pipe(statics, Vec3::new(cx-0.9, pipe_y, cz-GHALF), Vec3::new(cx-0.9, pipe_y, cz+GHALF), ceil_b, 0.26, open_bend(1), open_bend(0));
+    }
+    if has_x {
+        ceiling_pipe(statics, Vec3::new(cx-GHALF, pipe_y, cz-0.9), Vec3::new(cx+GHALF, pipe_y, cz-0.9), ceil_b, 0.26, open_bend(3), open_bend(2));
+    }
 
-    // Wall neon strips
+    // Wall neon strips — only on SOLID walls. Putting a strip on a wall that has
+    // a doorway makes the light stretch across the opening (unrealistic, and you'd
+    // clip it walking through).
     let neon_y  = CELL_H * 0.72;
     let wall_in = GHALF - WALL_T * 0.5 - 0.04;
     if has_z {
-        for s in [-1.0_f32, 1.0] { sa_v(statics, Neon, Vec3::new(cx+s*wall_in, neon_y, cz), Vec3::new(0.06, 0.06, GRID*0.88)); }
+        if ports[2] == ConnType::None { sa_v(statics, Neon, Vec3::new(cx+wall_in, neon_y, cz), Vec3::new(0.06, 0.06, GRID*0.88)); }
+        if ports[3] == ConnType::None { sa_v(statics, Neon, Vec3::new(cx-wall_in, neon_y, cz), Vec3::new(0.06, 0.06, GRID*0.88)); }
     }
     if has_x {
-        for s in [-1.0_f32, 1.0] { sa_v(statics, Neon, Vec3::new(cx, neon_y, cz+s*wall_in), Vec3::new(GRID*0.88, 0.06, 0.06)); }
+        if ports[0] == ConnType::None { sa_v(statics, Neon, Vec3::new(cx, neon_y, cz+wall_in), Vec3::new(GRID*0.88, 0.06, 0.06)); }
+        if ports[1] == ConnType::None { sa_v(statics, Neon, Vec3::new(cx, neon_y, cz-wall_in), Vec3::new(GRID*0.88, 0.06, 0.06)); }
     }
 
     let open_count = ports.iter().filter(|&&c| c != ConnType::None).count();
@@ -758,7 +1571,8 @@ fn corner_pos(side: usize, cx: f32, cz: f32, rng: &mut Rng) -> (f32, f32) {
 fn build_sewer(
     statics: &mut Vec<StaticDef>, lights: &mut Vec<LightDef>,
     _props: &mut Vec<PropDef>, items: &mut Vec<Vec3>, enemies: &mut Vec<Vec3>,
-    cx: f32, cz: f32, ports: [ConnType; 4], double_channel: bool, rng: &mut Rng, depth: u32,
+    cx: f32, cz: f32, ports: [ConnType; 4], nbrs: [Option<RoomKind>; 4],
+    double_channel: bool, rng: &mut Rng, depth: u32,
 ) {
     use StaticKind::*;
 
@@ -829,12 +1643,41 @@ fn build_sewer(
     }
 
     // ── Ceiling pipe ──────────────────────────────────────────────────────
-    if along_z { sa_v(statics, SewerPipe, Vec3::new(cx, SEWER_H-0.22, cz), Vec3::new(0.28, 0.28, GRID)); }
-    else        { sa_v(statics, SewerPipe, Vec3::new(cx, SEWER_H-0.22, cz), Vec3::new(GRID,  0.28, 0.28)); }
+    // Runs the tunnel axis, hanging just below the roof. Where the run continues
+    // into another sewer cell it stays straight; where it would dead-end into
+    // mid-air (e.g. a gateway into an open room) it curves up into the roof.
+    let pipe_y = SEWER_H - 0.30;
+    let pd = 0.24_f32;
+    let ceil_bottom = SEWER_H;
+    // A tunnel-axis side terminates the pipe when it opens onto a non-sewer room.
+    let pipe_ends = |s: usize| {
+        ports[s] == ConnType::Sewer
+            && !matches!(
+                nbrs[s],
+                Some(RoomKind::SewerTunnel | RoomKind::SewerDouble | RoomKind::SewerCross)
+            )
+    };
+    if along_z {
+        ceiling_pipe(
+            statics,
+            Vec3::new(cx, pipe_y, cz - GHALF),
+            Vec3::new(cx, pipe_y, cz + GHALF),
+            ceil_bottom, pd, pipe_ends(1), pipe_ends(0),
+        );
+    } else {
+        ceiling_pipe(
+            statics,
+            Vec3::new(cx - GHALF, pipe_y, cz),
+            Vec3::new(cx + GHALF, pipe_y, cz),
+            ceil_bottom, pd, pipe_ends(3), pipe_ends(2),
+        );
+    }
 
     // ── Arch ribs (4 per tunnel, evenly spaced) ───────────────────────────
     let rib_t = 0.12_f32;
-    let rib_h = SEWER_H - SEWER_W * 0.5;  // vertical post height (floor→arch spring)
+    // Posts run the FULL height from floor to the top bar — stopping short looked
+    // structurally unsound (bars floating, not reaching the roof).
+    let rib_h = SEWER_H - rib_t;
     for i in 0..4usize {
         let t = -0.4 + i as f32 * 0.27;   // evenly spread: -0.4, -0.13, +0.13, +0.40
         let (rx, rz) = if along_z { (cx, cz + GRID*t) } else { (cx + GRID*t, cz) };
@@ -858,47 +1701,24 @@ fn build_sewer(
     }
 
     // ── Neon edge strips ──────────────────────────────────────────────────
+    // Kept short of the cell edges so they don't reach across the tunnel
+    // openings at either end.
     for s in [-1.0_f32, 1.0] {
-        if along_z { sa_v(statics, Neon, Vec3::new(cx + s*(SEWER_W*0.5+0.04), SEWER_H-0.08, cz), Vec3::new(0.06, 0.06, GRID*0.9)); }
-        else        { sa_v(statics, Neon, Vec3::new(cx, SEWER_H-0.08, cz + s*(SEWER_W*0.5+0.04)), Vec3::new(GRID*0.9, 0.06, 0.06)); }
+        if along_z { sa_v(statics, Neon, Vec3::new(cx + s*(SEWER_W*0.5+0.04), SEWER_H-0.08, cz), Vec3::new(0.06, 0.06, GRID*0.6)); }
+        else        { sa_v(statics, Neon, Vec3::new(cx, SEWER_H-0.08, cz + s*(SEWER_W*0.5+0.04)), Vec3::new(GRID*0.6, 0.06, 0.06)); }
     }
 
-    // ── Pipe grate at dead-end sides ──────────────────────────────────────
-    // Emit a pipe-end disc + crosshatch bars when a sewer axis side has no connection.
-    let sewer_end = |st: &mut Vec<StaticDef>, li: &mut Vec<LightDef>, side: usize| {
-        let gw = SEWER_W;
-        let gh = SEWER_H;
-        // Position the grate just inside the cell wall at each dead-end.
-        let (gx, gz, disc_size, bars_along_x) = match side {
-            0 => (cx,            cz + GHALF - 0.11, Vec3::new(gw, gh, 0.22), true),
-            1 => (cx,            cz - GHALF + 0.11, Vec3::new(gw, gh, 0.22), true),
-            2 => (cx + GHALF - 0.11, cz,            Vec3::new(0.22, gh, gw), false),
-            _ => (cx - GHALF + 0.11, cz,            Vec3::new(0.22, gh, gw), false),
-        };
-        // Pipe surround (thin slab at tunnel opening height)
-        sa_v(st, SewerPipe, Vec3::new(gx, gh*0.5, gz), disc_size);
-        // Grate bars (3 horizontal + 3 vertical, Neon material)
-        for k in 0..3usize {
-            let bar_off = gh * (-0.3 + k as f32 * 0.3);
-            let bar_h   = gh * 0.5 + bar_off;
-            if bars_along_x {
-                sa_v(st, Neon, Vec3::new(gx, bar_h, gz), Vec3::new(gw*0.9, 0.06, 0.06));
-                sa_v(st, Neon, Vec3::new(gx + gw * (-0.3 + k as f32*0.3), gh*0.5, gz), Vec3::new(0.06, gh*0.9, 0.06));
-            } else {
-                sa_v(st, Neon, Vec3::new(gx, bar_h, gz), Vec3::new(0.06, 0.06, gw*0.9));
-                sa_v(st, Neon, Vec3::new(gx, gh*0.5, gz + gw * (-0.3 + k as f32*0.3)), Vec3::new(0.06, gh*0.9, 0.06));
-            }
-        }
-        // Faint green glow from grate
-        li.push(LightDef { position: Vec3::new(gx, gh*0.5, gz), color: Color::srgb(0.1, 0.7, 0.3), intensity: 200.0, range: 3.0 });
-    };
-
+    // ── Culvert mouths at dead-end sides ───────────────────────────────────
+    // Where a tunnel axis dead-ends, the water channel meets the wall through a
+    // grated round culvert mouth (a "stream under a road" pipe), one per stream.
+    let chan_off = SEWER_W * 0.5 - cw * 0.5;
+    let lats: Vec<f32> = if double_channel { vec![-chan_off, chan_off] } else { vec![0.0] };
     if along_z {
-        if ports[0] == ConnType::None { sewer_end(statics, lights, 0); }
-        if ports[1] == ConnType::None { sewer_end(statics, lights, 1); }
+        if ports[0] == ConnType::None { culvert(statics, lights, 0, cx, cz, &lats, cw); }
+        if ports[1] == ConnType::None { culvert(statics, lights, 1, cx, cz, &lats, cw); }
     } else {
-        if ports[2] == ConnType::None { sewer_end(statics, lights, 2); }
-        if ports[3] == ConnType::None { sewer_end(statics, lights, 3); }
+        if ports[2] == ConnType::None { culvert(statics, lights, 2, cx, cz, &lats, cw); }
+        if ports[3] == ConnType::None { culvert(statics, lights, 3, cx, cz, &lats, cw); }
     }
 
     if ports.iter().filter(|&&c| c != ConnType::None).count() == 1 {
@@ -917,7 +1737,7 @@ fn build_sewer(
 fn build_sewer_cross(
     statics: &mut Vec<StaticDef>, lights: &mut Vec<LightDef>,
     _props: &mut Vec<PropDef>, items: &mut Vec<Vec3>, enemies: &mut Vec<Vec3>,
-    cx: f32, cz: f32, ports: [ConnType; 4], rng: &mut Rng, depth: u32,
+    cx: f32, cz: f32, ports: [ConnType; 4], nbrs: [Option<RoomKind>; 4], rng: &mut Rng, depth: u32,
 ) {
     use StaticKind::*;
 
@@ -960,9 +1780,16 @@ fn build_sewer_cross(
         }
     }
 
-    // Cross water channels — planes sit above floor so they are visible
-    sa_v(statics, SewerWater, Vec3::new(cx, 0.01, cz), Vec3::new(cw, 0.04, GRID));  // N-S stream
-    sa_v(statics, SewerWater, Vec3::new(cx, 0.01, cz), Vec3::new(GRID, 0.04, cw));  // E-W stream
+    // Cross water channels. The N-S plane runs full length; the E-W stream is
+    // split into two arms that ABUT the N-S channel rather than crossing it, so
+    // no two translucent water planes ever overlap (which used to double the
+    // opacity into a dense block at the junction).
+    sa_v(statics, SewerWater, Vec3::new(cx, 0.01, cz), Vec3::new(cw, 0.04, GRID)); // N-S stream
+    let arm_len = GHALF - cw * 0.5;
+    let arm_off = cw * 0.5 + arm_len * 0.5;
+    for s in [-1.0_f32, 1.0] {
+        sa_v(statics, SewerWater, Vec3::new(cx + s * arm_off, 0.01, cz), Vec3::new(arm_len, 0.04, cw));
+    }
 
     // Walkways in the four corners of the intersection
     let ww = (SEWER_W - cw) * 0.5;
@@ -970,9 +1797,30 @@ fn build_sewer_cross(
         sa_v(statics, SewerFloor, Vec3::new(cx + sx*(cw*0.5+ww*0.5), 0.01, cz + sz*(cw*0.5+ww*0.5)), Vec3::new(ww, 0.02, ww));
     }
 
-    // Ceiling pipe cross
-    sa_v(statics, SewerPipe, Vec3::new(cx, SEWER_H-0.22, cz), Vec3::new(0.28, 0.28, GRID));
-    sa_v(statics, SewerPipe, Vec3::new(cx, SEWER_H-0.22, cz), Vec3::new(GRID,  0.28, 0.28));
+    // Ceiling pipe cross — each arm hangs just below the roof, bending up into
+    // it where it opens onto a non-sewer room instead of stopping in mid-air.
+    let pipe_y = SEWER_H - 0.30;
+    let pd = 0.24_f32;
+    let ceil_bottom = SEWER_H;
+    let pipe_ends = |s: usize| {
+        ports[s] == ConnType::Sewer
+            && !matches!(
+                nbrs[s],
+                Some(RoomKind::SewerTunnel | RoomKind::SewerDouble | RoomKind::SewerCross)
+            )
+    };
+    ceiling_pipe(
+        statics,
+        Vec3::new(cx, pipe_y, cz - GHALF),
+        Vec3::new(cx, pipe_y, cz + GHALF),
+        ceil_bottom, pd, pipe_ends(1), pipe_ends(0),
+    );
+    ceiling_pipe(
+        statics,
+        Vec3::new(cx - GHALF, pipe_y, cz),
+        Vec3::new(cx + GHALF, pipe_y, cz),
+        ceil_bottom, pd, pipe_ends(3), pipe_ends(2),
+    );
 
     // Corner neon strips and central light
     pt_v(lights, Vec3::new(cx, SEWER_H-0.4, cz), Color::srgb(0.1, 0.8, 0.5), 600.0, 6.0);
@@ -982,30 +1830,10 @@ fn build_sewer_cross(
         pt_v(lights, Vec3::new(cx, SEWER_H-0.5, cz + GRID*t), Color::srgb(0.05, 0.65, 0.85), 260.0, 4.0);
     }
 
-    // Grate caps on any dead-end sides of the junction
-    let gw = SEWER_W;
-    let gh = SEWER_H;
+    // Culvert mouths on any dead-end sides of the junction (single centre stream).
     for side in 0..4usize {
         if ports[side] != ConnType::None { continue; }
-        let (gx, gz, disc_size, bars_along_x) = match side {
-            0 => (cx,            cz + GHALF - 0.11, Vec3::new(gw, gh, 0.22), true),
-            1 => (cx,            cz - GHALF + 0.11, Vec3::new(gw, gh, 0.22), true),
-            2 => (cx + GHALF - 0.11, cz,            Vec3::new(0.22, gh, gw), false),
-            _ => (cx - GHALF + 0.11, cz,            Vec3::new(0.22, gh, gw), false),
-        };
-        sa_v(statics, SewerPipe, Vec3::new(gx, gh * 0.5, gz), disc_size);
-        for k in 0..3usize {
-            let bar_off = gh * (-0.3 + k as f32 * 0.3);
-            let bar_h   = gh * 0.5 + bar_off;
-            if bars_along_x {
-                sa_v(statics, Neon, Vec3::new(gx, bar_h, gz), Vec3::new(gw * 0.9, 0.06, 0.06));
-                sa_v(statics, Neon, Vec3::new(gx + gw * (-0.3 + k as f32 * 0.3), gh * 0.5, gz), Vec3::new(0.06, gh * 0.9, 0.06));
-            } else {
-                sa_v(statics, Neon, Vec3::new(gx, bar_h, gz), Vec3::new(0.06, 0.06, gw * 0.9));
-                sa_v(statics, Neon, Vec3::new(gx, gh * 0.5, gz + gw * (-0.3 + k as f32 * 0.3)), Vec3::new(0.06, gh * 0.9, 0.06));
-            }
-        }
-        lights.push(LightDef { position: Vec3::new(gx, gh * 0.5, gz), color: Color::srgb(0.1, 0.7, 0.3), intensity: 200.0, range: 3.0 });
+        culvert(statics, lights, side, cx, cz, &[0.0], cw);
     }
 
     if depth > 0 && rng.coin(0.45) {

@@ -4,7 +4,7 @@
 
 use std::collections::VecDeque;
 
-use bevy::ecs::schedule::common_conditions::any_with_component;
+use bevy::ecs::schedule::common_conditions::{any_with_component, not, resource_exists};
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
@@ -14,6 +14,7 @@ use shared::config;
 use shared::protocol::{NetTransform, Player, PlayerClass, PlayerInput, PlayerName, YouAre};
 
 use crate::class_select::SelectState;
+use crate::editor_playtest::EditorPlaytestActive;
 use crate::fly_camera::FlyCamera;
 
 /// Preloaded character GLTF scenes keyed by class index.
@@ -46,16 +47,22 @@ impl Plugin for NetPlayPlugin {
                     // doesn't fight physics interpolation on the listen server host
                     // (where ClientState is Disconnected and physics owns the transform).
                     sync_own_player_transform.run_if(in_state(ClientState::Connected)),
-                    (look_input, send_input, drive_first_person_camera)
+                    (look_input, send_input)
                         .chain()
                         .run_if(
                             any_with_component::<OwnPlayer>
                                 .and(in_state(SelectState::Playing)),
                         ),
+                    drive_first_person_camera
+                        .run_if(
+                            any_with_component::<OwnPlayer>
+                                .and(in_state(SelectState::Playing))
+                                .and(not(resource_exists::<EditorPlaytestActive>)),
+                        ),
                     attach_remote_player_visuals,
                     update_class_model,
                     remove_own_player_model,
-                    position_name_tags,
+                    position_name_tags.run_if(any_with_component::<FlyCamera>),
                     cleanup_name_tags,
                 ),
             );
@@ -212,9 +219,15 @@ fn drive_first_person_camera(
     look: Res<LookAngles>,
     third_person: Res<crate::fly_camera::ThirdPersonMode>,
     mut eye_height: ResMut<SmoothEyeHeight>,
-    player: Single<&Transform, (With<OwnPlayer>, Without<FlyCamera>)>,
-    mut camera: Single<&mut Transform, With<FlyCamera>>,
+    player: Query<&Transform, (With<OwnPlayer>, Without<FlyCamera>)>,
+    mut camera: Query<&mut Transform, With<FlyCamera>>,
 ) {
+    let Ok(player) = player.single() else {
+        return;
+    };
+    let Ok(mut cam) = camera.single_mut() else {
+        return;
+    };
     let crouching =
         keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
     let target = if crouching {
@@ -229,11 +242,11 @@ fn drive_first_person_camera(
     if third_person.0 {
         // Position camera behind and above the player, looking at head height.
         let behind = Quat::from_rotation_y(look.yaw) * Vec3::new(0.0, 0.0, 3.5);
-        camera.translation = player.translation + Vec3::Y * 1.8 + behind;
-        camera.look_to(-behind.normalize(), Vec3::Y);
+        cam.translation = player.translation + Vec3::Y * 1.8 + behind;
+        cam.look_to(-behind.normalize(), Vec3::Y);
     } else {
-        camera.translation = player.translation + Vec3::Y * eye_height.0;
-        camera.rotation = Quat::from_euler(EulerRot::YXZ, look.yaw, look.pitch, 0.0);
+        cam.translation = player.translation + Vec3::Y * eye_height.0;
+        cam.rotation = Quat::from_euler(EulerRot::YXZ, look.yaw, look.pitch, 0.0);
     }
 }
 
@@ -394,11 +407,13 @@ fn attach_remote_player_visuals(
 
 
 fn position_name_tags(
-    camera: Single<(&Camera, &GlobalTransform), With<FlyCamera>>,
+    camera: Query<(&Camera, &GlobalTransform), With<FlyCamera>>,
     players: Query<&GlobalTransform, With<Player>>,
     mut tags: Query<(&NameTag, &mut Node, &mut Visibility)>,
 ) {
-    let (camera, cam_transform) = *camera;
+    let Ok((camera, cam_transform)) = camera.single() else {
+        return;
+    };
     for (tag, mut node, mut visibility) in &mut tags {
         let Ok(player) = players.get(tag.0) else {
             continue;

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "name": "module_06",
+  "pool": "default",
+  "floor_mask": {
+    "cells_x": 5,
+    "cells_z": 5,
+    "cells": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "pieces": [
+    {
+      "stem": "corridor-wide",
+      "x": 0.0,
+      "z": 6.0,
+      "yaw": 4.712389,
+      "floor_level": 0,
+      "scale": 1.0
+    },
+    {
+      "stem": "corridor-wide",
+      "x": 0.0,
+      "z": 0.0,
+      "yaw": 4.712389,
+      "floor_level": 0,
+      "scale": 1.0
+    },
+    {
+      "stem": "corridor-wide",
+      "x": 0.0,
+      "z": -6.0,
+      "yaw": 4.712389,
+      "floor_level": 0,
+      "scale": 1.0
+    }
+  ]
+}

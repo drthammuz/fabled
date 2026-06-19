@@ -43,6 +43,61 @@ impl CampKind {
     }
 }
 
+/// One player's physical exit commit in the hub.
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+pub struct PlayerExitCommit {
+    pub player: String,
+    pub exit: u8,
+}
+
+/// Physical hub exit state (Kenney branch levels L2–L4).
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct HubCommitState {
+    /// Party-locked exit once the first player commits (2, 3, or 4).
+    pub chosen_exit: Option<u8>,
+    #[serde(default)]
+    pub player_exits: Vec<PlayerExitCommit>,
+    /// Floor-0 stretch geometry culled after all alive players committed.
+    pub l1_unloaded: bool,
+}
+
+impl HubCommitState {
+    pub fn is_exit_closed(&self, exit: u8) -> bool {
+        self.chosen_exit.is_some_and(|chosen| chosen != exit)
+    }
+
+    pub fn player_committed(&self, name: &str) -> bool {
+        self.player_exits.iter().any(|p| p.player == name)
+    }
+
+    pub fn all_alive_committed(&self, alive_names: &[String]) -> bool {
+        let Some(chosen) = self.chosen_exit else {
+            return false;
+        };
+        !alive_names.is_empty()
+            && alive_names.iter().all(|name| {
+                self.player_exits
+                    .iter()
+                    .any(|p| &p.player == name && p.exit == chosen)
+            })
+    }
+}
+
+/// Streaming map pool state (Kenney test / production procedural runs).
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct MapStreamState {
+    pub active_pool_id: String,
+    /// Hub exit (2|3|4) → candidate pool map id mounted under that drop hole.
+    #[serde(default)]
+    pub candidates: std::collections::HashMap<u8, String>,
+    /// Pool maps already visited this run (never remounted).
+    #[serde(default)]
+    pub used_pool_ids: Vec<String>,
+    /// Bumped when instances spawn/despawn so clients rebuild geometry.
+    #[serde(default)]
+    pub epoch: u32,
+}
+
 /// Replicated summary of the current run (lives on a marker entity).
 #[derive(Component, Serialize, Deserialize, Clone, PartialEq, Default)]
 pub struct RunState {
@@ -59,6 +114,12 @@ pub struct RunState {
     pub map_holder: Option<String>,
     /// Route choices offered at the hub (empty outside hub phase).
     pub route_options: Vec<RouteOption>,
+    /// Physical exit commits for embedded Kenney branch levels.
+    #[serde(default)]
+    pub hub_commit: HubCommitState,
+    /// Kenney map pool streaming (5×5 maps mounted under hub drop holes).
+    #[serde(default)]
+    pub map_stream: MapStreamState,
     /// Seed for this run's procedural level generation. Replicated so
     /// client generates identical geometry from the same seed.
     pub run_seed: u64,

@@ -1,8 +1,47 @@
 # Known Bugs & Visual Issues
 
+> **Hub / extraction (2026-06):** Editor G playtest pit → hub → stairs area has unresolved visual/physics mismatches after multiple agent iterations. **Do not hotfix without reading [docs/hub-extraction-agent-failures.md](docs/hub-extraction-agent-failures.md).** Bugbot should review related diffs — see [AGENTS.md](AGENTS.md).
+
 Status legend: [VERIFIED] = root cause proven + fix confirmed in data/build.
 [NEEDS EYES] = correct fix applied + compiles, but only the user can confirm
 the on-screen result (no GUI/headless way to verify rendering here).
+
+---
+
+## ACTIVE — pipe / water / dev-map iteration (remove each line once confirmed in-game)
+
+Run with `host.bat` (passes `--host --test`) or `cargo run -- --test`. Remove
+`--test` from host.bat to restore the real game (class-select + procgen + hub).
+Bypass itself is CONFIRMED working (log shows `level 'testmap'` + auto Soldier).
+
+- **KENNEY-VIS** [NEEDS EYES]: models invisible. TWO bugs: (1) the GLBs reference
+  `Textures/colormap.png` (a subfolder) — it was placed next to the glb, so the
+  texture 404'd and the whole glTF load failed → empty scene. FIX: texture now at
+  `assets/models/space/Textures/colormap.png`. (2) The player spawns looking +Z
+  (`LookAngles` default yaw=π) but the showcase was at −Z (behind them), AND
+  `spawn_player` used the hardcoded sewer_entry spawns, ignoring the testmap's.
+  FIX: testmap flipped to the +Z side; `spawn_player` takes the testmap spawns
+  when in TestMode.
+- **GRATE** [NEEDS EYES]: bars overshot the wall by sub-cm. FIX: chord clip
+  radius reduced by half a bar-thickness (`rc = r - bar_d/2`) so the square bar's
+  corner sits flush. Pipes now share the grate's rusted-steel material.
+- **WATER** [NEEDS EYES]: looked like a dark static surface with a separate light
+  wavy one under it. Real cause: bevy_water does its OWN depth-based see-through
+  via `clarity` and IGNORES `AlphaMode::Opaque` — so the dark channel bed showed
+  through under the slime surface. FIX: `clarity = 0.0` (truly opaque) on both the
+  per-tile material AND `sewer_water_settings`, plus one uniform slime colour
+  (all colours equal, edge_scale 0). Waves are geometry, so it still ripples.
+- **PIPE-THICKNESS** [NEEDS EYES]: culvert pipe was a zero-thickness single
+  surface. FIX: `pipe_tube_mesh` (inner wall + outer wall + rim annulus); inner
+  radius unchanged (= stream width), 5 cm thickness added OUTSIDE, visible rim at
+  the opening.
+- **BEND** [VERIFY]: replaced the segmented elbow (gaps between pieces) with a
+  single gap-free SWEPT-TUBE mesh per `bentpipe.txt` (circular profile swept
+  along the quarter-arc + stub) — `PipeElbow` kind + `pipe_elbow_mesh`. Done
+  procedurally in Rust (not a baked Blender asset) so it adapts to each bend's
+  radius without distorting the circle.
+- **WALLBARS** [NEEDS EYES]: bars stopped short of the roof. FIX: sewer arch
+  side-posts run full height to the top bar; test-map bars span floor→ceiling.
 
 ---
 
@@ -47,16 +86,23 @@ graph wiring matches unchanged.
 
 ---
 
-## WALLS-01: Walls render as uniform shade, no texture [NEEDS EYES]
+## WALLS-01: Walls invisible / "5-10% visible, see-through" [FIXED — root cause found via runtime log]
 
-**Root cause:** `metallic: 0.35` made the wall surface respond mostly specularly.
-Under the sewer's scattered point lights, the diffuse component (which carries the
-texture) was near-zero → texture washed out to a flat shade. (Confirmed the JPEGs
-are valid and Bevy's `jpeg` feature is enabled, so the textures *do* decode.)
+**Actual root cause (proven by running the game and logging panel offsets):**
+`panel_jitter` in `tunnel_mesh.rs` was missing a 20-bit mask. It computed
+`(hash >> 12) as f32 / 1048576.0` — but `hash >> 12` is still a ~52-bit number,
+so dividing by 2^20 produced values in the HUNDREDS OF MILLIONS instead of [0,1).
+Every multi-panel (large) wall got a jitter offset of ~251,000,000 m and was
+flung off the map → invisible. Only small walls that fit in ONE panel (early
+return with `Vec3::ZERO` offset, no jitter) rendered — that was the "5-10%".
 
-**Fix:** `metallic: 0.0` (full diffuse → texture shows), white tint (no color
-loss), warm `emissive` floor so walls read even in unlit gaps, removed the normal
-map (one fewer binding), tighter tile spacing.
+Material/metallic/lighting were red herrings; months of those tweaks couldn't fix
+a geometry-position bug.
+
+**Fix:** mask to 20 bits before the float divide:
+`((hash >> 12) & 0xF_FFFF) as f32 / 1048576.0`. Verified jitter is now ±0.04 m.
+Also gave walls a modest texture-modulated `emissive` self-glow so they read in
+the dark sewer (metallic 0, no normal map).
 
 ---
 
