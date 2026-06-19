@@ -65,6 +65,8 @@ pub struct EditorWorkspace {
     pub pending_load_picker: bool,
     /// Set to Some(path) when the user picks a map file in the load picker.
     pub pending_load_map: Option<std::path::PathBuf>,
+    /// After loading a procedural preview, apply hub patches + export layout.
+    pub pending_map_gen_load: bool,
     /// Accumulated scroll-wheel cycles for the module picker (PlaceModule tool).
     pub module_cycle_delta: i32,
     /// Set when the naming modal is opened via "New Module" (not "Save As").
@@ -123,6 +125,7 @@ impl Default for EditorWorkspace {
             pointer_over_ui: false,
             pending_load_picker: false,
             pending_load_map: None,
+            pending_map_gen_load: false,
             module_cycle_delta: 0,
             new_module_requested: false,
             gallery_pool: "generated".into(),

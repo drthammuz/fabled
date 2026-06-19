@@ -13,6 +13,8 @@ pub const MAPS_DIR: &str = "userinput/maps";
 pub const MODULES_DIR: &str = "userinput/modules";
 pub const DEFAULT_POOL: &str = "default";
 pub const PLAYTEST_LAYOUT_PATH: &str = "userinput/kenney_layout.json";
+/// Fixed path written by `gen_maps.py --preview` for live editor regeneration.
+pub const MAP_GEN_PREVIEW_PATH: &str = "userinput/maps/_editor_preview.json";
 
 fn userinput_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../userinput")
@@ -381,7 +383,85 @@ impl MapDocument {
     }
 
     pub fn load(path: &Path) -> Option<Self> {
-        read_json(path)
+        read_json(path).or_else(|| Self::load_generated(path))
+    }
+
+    /// Load a map emitted by `tools/gen_maps.py` (string floor keys, hub fields).
+    pub fn load_generated(path: &Path) -> Option<Self> {
+        let raw = std::fs::read_to_string(path).ok()?;
+        let v: serde_json::Value = serde_json::from_str(&raw).ok()?;
+
+        let mut floors: HashMap<i32, FloorMask> = HashMap::new();
+        if let Some(obj) = v.get("floors").and_then(|f| f.as_object()) {
+            for (k, mask) in obj {
+                if let Ok(level) = k.parse::<i32>() {
+                    if let Ok(m) = serde_json::from_value(mask.clone()) {
+                        floors.insert(level, m);
+                    }
+                }
+            }
+        }
+
+        let pieces: Vec<PieceRecord> = v
+            .get("pieces")
+            .and_then(|p| p.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|p| {
+                        Some(PieceRecord {
+                            stem: p.get("stem")?.as_str()?.to_string(),
+                            x: p.get("x")?.as_f64()? as f32,
+                            z: p.get("z")?.as_f64()? as f32,
+                            yaw: p.get("yaw")?.as_f64()? as f32,
+                            floor_level: p
+                                .get("floor_level")
+                                .or_else(|| p.get("floor"))
+                                .and_then(|x| x.as_i64())
+                                .unwrap_or(0) as i32,
+                            scale: p
+                                .get("scale")
+                                .and_then(|x| x.as_f64())
+                                .map(|x| x as f32)
+                                .unwrap_or(1.0),
+                            group_id: p.get("group_id").and_then(|x| x.as_u64()).map(|x| x as u32),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let branch_levels: HashMap<String, BranchLevel> = v
+            .get("branch_levels")
+            .and_then(|b| serde_json::from_value(b.clone()).ok())
+            .unwrap_or_default();
+
+        Some(Self {
+            version: v.get("version").and_then(|x| x.as_u64()).unwrap_or(1) as u32,
+            name: v
+                .get("name")
+                .and_then(|x| x.as_str())
+                .unwrap_or("generated")
+                .to_string(),
+            modules_x: v
+                .get("modules_x")
+                .and_then(|x| x.as_u64())
+                .map(|x| x as u32)
+                .unwrap_or(5),
+            modules_z: v
+                .get("modules_z")
+                .and_then(|x| x.as_u64())
+                .map(|x| x as u32)
+                .unwrap_or(5),
+            floors,
+            pieces,
+            spawn_xz: v
+                .get("spawn_xz")
+                .and_then(|s| serde_json::from_value(s.clone()).ok()),
+            extraction_xz: v
+                .get("extraction_xz")
+                .and_then(|s| serde_json::from_value(s.clone()).ok()),
+            branch_levels,
+        })
     }
 
     pub fn export_playtest_layout(&self) -> std::io::Result<()> {

@@ -4,7 +4,8 @@
 //!   1. `PM_GroundTrace` — short downward cast, no body teleport
 //!   2. Ground/air acceleration, friction, jump
 //!   3. Gravity when airborne
-//!   4. `PM_StepSlideMove` — slide; step-up **only when blocked**
+//!   4. `PM_StepSlideMove` — slide; on **any bump**, retry from step height with
+//!      original velocity so horizontal travel matches flat ground (Y adjusts only)
 //!   5. `PM_GroundTrace` again — refresh grounded flag, still no teleport
 //!
 //! Uses an AABB hull (not a capsule) so stair treads and trap-door lips do not
@@ -140,6 +141,10 @@ impl Default for GroundDetection {
 
 /// Quake `PM_GroundTrace`: short downward cast. Does **not** move the body —
 /// only reports whether walkable ground is directly under the hull.
+///
+/// Intentionally strict (8 cm, normal ≥ 0.7). Do **not** extend this for stairs —
+/// a longer “glue” probe here hits trap-door rim geometry when the hull is over
+/// the hole and falsely keeps the player grounded (blocking descent).
 fn ground_trace(
     spatial: &SpatialQuery,
     collider: &Collider,
@@ -154,28 +159,110 @@ fn ground_trace(
 
     let up = (rot * Vector::Y).normalize_or_zero();
     let filter = SpatialQueryFilter::from_excluded_entities(exclude.to_vec());
-    let Some(hit) = spatial.cast_shape(
+    let Some((_, normal)) = probe_walkable_ground(
+        spatial,
         collider,
         pos,
         rot,
-        Dir3::NEG_Y,
-        &ShapeCastConfig::from_max_distance(config::PLAYER_GROUND_TRACE_DIST),
+        up,
+        config::PLAYER_GROUND_TRACE_DIST.adjust_precision(),
+        config::PLAYER_MIN_WALK_NORMAL,
         &filter,
     ) else {
         return false;
     };
 
+    !(velocity.y > 0.0 && velocity.dot(normal) > config::PLAYER_GROUND_KICKOFF_SPEED)
+}
+
+/// Downward shape cast; returns (hit distance, world normal) when walkable.
+fn probe_walkable_ground(
+    spatial: &SpatialQuery,
+    collider: &Collider,
+    pos: Vector,
+    rot: Quat,
+    up: Vector,
+    max_dist: Scalar,
+    min_normal: Scalar,
+    filter: &SpatialQueryFilter,
+) -> Option<(Scalar, Vector)> {
+    let hit = spatial.cast_shape(
+        collider,
+        pos,
+        rot,
+        Dir3::NEG_Y,
+        &ShapeCastConfig::from_max_distance(max_dist),
+        filter,
+    )?;
     let normal = (rot * hit.normal1).normalize_or_zero();
-    if normal.dot(up) < config::PLAYER_MIN_WALK_NORMAL {
-        return false;
+    if normal.dot(up) < min_normal {
+        return None;
     }
+    Some((hit.distance, normal))
+}
 
-    // Quake kickoff: moving up and away from the surface → leave the ground.
-    if velocity.y > 0.0 && velocity.dot(normal) > config::PLAYER_GROUND_KICKOFF_SPEED {
-        return false;
+/// Quake step gate: allow stepping while rising only when still over walkable ground.
+fn quake_step_allowed(
+    vel_y: Scalar,
+    spatial: &SpatialQuery,
+    collider: &Collider,
+    start: Vector,
+    rot: Quat,
+    up: Vector,
+    step: Scalar,
+    filter: &SpatialQueryFilter,
+) -> bool {
+    if vel_y <= 0.0 {
+        return true;
     }
+    probe_walkable_ground(
+        spatial,
+        collider,
+        start,
+        rot,
+        up,
+        step,
+        config::PLAYER_MIN_WALK_NORMAL,
+        filter,
+    )
+    .is_some()
+}
 
-    true
+/// Drop `pos` onto walkable ground for **climbing only** — rejects downward snaps
+/// (pyramid far side, trap descent) while still gluing to the next tread up/ahead.
+fn snap_to_climb_tread(
+    spatial: &SpatialQuery,
+    collider: &Collider,
+    pos: Vector,
+    start: Vector,
+    landed: Vector,
+    rot: Quat,
+    up: Vector,
+    max_dist: Scalar,
+    max_step: Scalar,
+    filter: &SpatialQueryFilter,
+) -> Option<Vector> {
+    let (dist, _) = probe_walkable_ground(
+        spatial,
+        collider,
+        pos,
+        rot,
+        up,
+        max_dist,
+        config::PLAYER_STAIR_WALK_NORMAL,
+        filter,
+    )?;
+    let snapped = pos - up * dist;
+    let rise_from_start = up.dot(snapped - start);
+    let drop_from_landed = up.dot(landed - snapped);
+    if rise_from_start > 0.001
+        && rise_from_start <= max_step + 0.02
+        && drop_from_landed > -0.03
+    {
+        Some(snapped)
+    } else {
+        None
+    }
 }
 
 fn update_ground_contact(
@@ -367,12 +454,11 @@ fn apply_player_inputs(
         };
         for (owner, mut latest) in &mut players {
             if owner.0 == *client_id {
-                let jump = latest.0.jump || message.jump;
+                // Jump is edge-triggered only — do not OR with previous ticks (no air buffer).
                 let throw_action = latest.0.throw_action || message.throw_action;
                 let interact = latest.0.interact || message.interact;
                 let drop_slot = message.drop_slot.or(latest.0.drop_slot);
                 latest.0 = message;
-                latest.0.jump = jump;
                 latest.0.throw_action = throw_action;
                 latest.0.interact = interact;
                 latest.0.drop_slot = drop_slot;
@@ -468,11 +554,14 @@ fn player_movement(
         }
 
         let can_jump = on_ground || coyote.0 > 0.0;
-        if intent.jump && can_jump && !intent.crouch {
-            velocity.y = config::PLAYER_JUMP_IMPULSE;
+        if intent.jump {
+            if can_jump && !intent.crouch {
+                velocity.y = config::PLAYER_JUMP_IMPULSE;
+                contact.on_ground = false;
+                coyote.0 = 0.0;
+            }
+            // Consume the press whether or not we left the ground (no buffered air jumps).
             input.0.jump = false;
-            contact.on_ground = false;
-            coyote.0 = 0.0;
         }
     }
 }
@@ -497,28 +586,34 @@ fn apply_gravity(
     }
 }
 
-/// Horizontal (up-plane) length of a displacement vector.
-fn horizontal_len(v: Vector, up: Vector) -> Scalar {
-    (v - up * v.dot(up)).length()
+/// Horizontal displacement for a velocity over `dt`, projected onto the walk plane.
+fn horizontal_delta(v: Vector, dt: Scalar, up: Vector) -> Vector {
+    let d = v * dt;
+    d - up * d.dot(up)
 }
 
-/// Horizontal wish velocity from player input (same basis as [`player_movement`]).
-fn wish_horizontal(input: &PlayerInput, speed: f32) -> Vector {
-    let move_dir = if input.move_dir.length_squared() > 1.0 {
-        input.move_dir.normalize()
-    } else {
-        input.move_dir
-    };
-    let wish = Quat::from_rotation_y(input.yaw) * Vec3::new(move_dir.x, 0.0, -move_dir.y);
-    wish.try_normalize()
-        .map(|d| d.adjust_precision() * speed)
-        .unwrap_or(Vector::ZERO)
+/// Keep landed height, but replace horizontal position with the unobstructed move.
+fn position_with_intended_horizontal(landed: Vector, start: Vector, h_delta: Vector, up: Vector) -> Vector {
+    start + h_delta + up * up.dot(landed - start)
 }
 
-/// Quake `PM_StepSlideMove`: slide first; if horizontal travel is blocked, lift by
-/// [`config::PLAYER_STEP_HEIGHT`], slide again, then drop back down. Step-up runs
-/// **only when blocked**, not every grounded frame. No post-move Y snap — position
-/// comes entirely from slide + step-down planting (like Q3 `bg_slidemove.c`).
+/// True when the hull fits at `pos` without penetrating geometry.
+fn position_is_clear(
+    move_and_slide: &MoveAndSlide,
+    collider: &Collider,
+    pos: Vector,
+    rot: Quat,
+    filter: &SpatialQueryFilter,
+    cfg: &MoveAndSlideConfig,
+) -> bool {
+    let offset = move_and_slide.depenetrate(collider, pos, rot, &cfg.into(), filter);
+    offset.length_squared() < 1e-8
+}
+
+/// Quake `PM_StepSlideMove`: slide first; on **any collision**, lift by
+/// [`config::PLAYER_STEP_HEIGHT`], re-slide with **original velocity**, drop down.
+/// Successful steps preserve intended horizontal displacement so climbable height
+/// changes are invisible from above — only Y adjusts.
 fn step_slide_move(
     mut query: Query<
         (
@@ -527,9 +622,6 @@ fn step_slide_move(
             &mut Transform,
             &mut LinearVelocity,
             &Collider,
-            &GroundContact,
-            &LatestInput,
-            &SpeedMultiplier,
         ),
         With<CharacterController>,
     >,
@@ -537,12 +629,12 @@ fn step_slide_move(
     time: Res<Time>,
 ) {
     let dt = time.delta();
+    let dt_s = time.delta_secs_f64().adjust_precision();
     let mut cfg = MoveAndSlideConfig::default();
     cfg.skin_width = 0.02;
     let step = config::PLAYER_STEP_HEIGHT;
 
-    for (entity, mut collisions, mut transform, mut lin_vel, collider, contact, input, speed_mult) in
-        &mut query
+    for (entity, mut collisions, mut transform, mut lin_vel, collider) in &mut query
     {
         collisions.0.clear();
         let up = transform.up().adjust_precision();
@@ -550,8 +642,13 @@ fn step_slide_move(
         let start_vel = lin_vel.0;
         let rot = transform.rotation.adjust_precision();
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
+        let intended_h = horizontal_delta(start_vel, dt_s, up);
+        let spatial = &move_and_slide.spatial_query;
+        let stair_probe = (step + 0.05).adjust_precision();
 
+        let mut bumped = false;
         let on_hit = |hit: MoveAndSlideHitData<'_>| {
+            bumped = true;
             collisions.0.push(CharacterCollision {
                 collider: hit.entity,
                 point: hit.point,
@@ -576,32 +673,10 @@ fn step_slide_move(
         let mut final_pos = flat.position;
         let mut final_vel = flat.projected_velocity;
 
-        let intent = input.0;
-        let wish_speed = (if intent.crouch {
-            config::PLAYER_CROUCH_SPEED
-        } else if intent.sprint {
-            config::PLAYER_SPRINT_SPEED
-        } else {
-            config::PLAYER_MOVE_SPEED
-        }) * speed_mult.0;
-        let horizontal_vel = Vector::new(start_vel.x, 0.0, start_vel.z);
-        let mut step_vel = if horizontal_vel.length() > 0.05 {
-            horizontal_vel
-        } else {
-            wish_horizontal(&intent, wish_speed)
-        };
-
-        let dt_s = time.delta_secs_f64().adjust_precision();
-        let intended_h = horizontal_len(start_vel * dt_s, up);
-        let actual_h = horizontal_len(flat.position - start, up);
-        let blocked = intended_h > 0.02
-            && actual_h < intended_h * config::PLAYER_STEP_BLOCKED_FRAC;
-
-        // 2. Step-up only when the first slide did not reach its destination.
-        if contact.on_ground && blocked && start_vel.y <= 0.0 && step_vel.length() > 0.05 {
-            // Quake: never step while moving up (jump / kickoff).
-            let headroom = move_and_slide
-                .spatial_query
+        // 2. Quake: any bump → retry from step height (kickoff check only).
+        if bumped && quake_step_allowed(start_vel.y, spatial, collider, start, rot, up, step, &filter)
+        {
+            let headroom = spatial
                 .cast_shape(
                     collider,
                     start,
@@ -621,14 +696,14 @@ fn step_slide_move(
                     collider,
                     elevated,
                     rot,
-                    step_vel,
+                    start_vel,
                     dt,
                     &cfg,
                     &filter,
                     |_| MoveAndSlideHitResponse::Accept,
                 );
 
-                if let Some(down) = move_and_slide.spatial_query.cast_shape(
+                if let Some(down) = spatial.cast_shape(
                     collider,
                     stepped.position,
                     rot,
@@ -636,14 +711,50 @@ fn step_slide_move(
                     &ShapeCastConfig::from_max_distance(lift + 0.05),
                     &filter,
                 ) {
-                    let normal = (rot * down.normal1).normalize_or_zero();
-                    if normal.dot(up) >= config::PLAYER_MIN_WALK_NORMAL {
-                        final_pos = stepped.position - up * down.distance;
-                        final_vel = Vector::new(
-                            stepped.projected_velocity.x,
-                            flat.projected_velocity.y,
-                            stepped.projected_velocity.z,
-                        );
+                    let mut landed = stepped.position - up * down.distance;
+                    let rise = up.dot(landed - start);
+
+                    // Only commit a step that actually climbs (riser). Flat / downward
+                    // bumps (trap rim, pyramid crest) keep the primary slide so drops work.
+                    if rise <= 0.001 {
+                        // step rejected — keep flat slide result
+                    } else {
+                        // Within climb height: horizontal path matches unobstructed move,
+                        // then glue Y to the tread at that XZ (avoids floating over rounded nosing).
+                        if rise <= step + 0.02 {
+                            let ideal =
+                                position_with_intended_horizontal(landed, start, intended_h, up);
+                            if position_is_clear(&move_and_slide, collider, ideal, rot, &filter, &cfg)
+                            {
+                                if let Some(snapped) = snap_to_climb_tread(
+                                    spatial,
+                                    collider,
+                                    ideal,
+                                    start,
+                                    landed,
+                                    rot,
+                                    up,
+                                    stair_probe,
+                                    step,
+                                    &filter,
+                                ) {
+                                    landed = snapped;
+                                }
+                            }
+                        }
+
+                        final_pos = landed;
+                        final_vel = Vector::new(start_vel.x, 0.0, start_vel.z);
+
+                        if down.distance > 0.0 {
+                            let normal = (rot * down.normal1).normalize_or_zero();
+                            if normal.dot(up) >= config::PLAYER_MIN_WALK_NORMAL {
+                                final_vel = MoveAndSlide::project_velocity(
+                                    final_vel,
+                                    &[Dir3::new_unchecked(normal.f32())],
+                                );
+                            }
+                        }
                     }
                 }
             }

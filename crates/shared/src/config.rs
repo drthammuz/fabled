@@ -54,7 +54,7 @@ pub const PLAYER_AIR_ACCEL_RATE: f32 = 1.8;
 pub const PLAYER_PUSH_STRENGTH: f32 = 0.5;
 /// Character body width (full X/Z extent). Quake-style controllers use an AABB
 /// hull; a box avoids capsule “rolling” off stair treads and trap-door lips.
-pub const PLAYER_BODY_WIDTH: f32 = 0.8;
+pub const PLAYER_BODY_WIDTH: f32 = 0.6;
 /// Standing body height (full Y extent).
 pub const PLAYER_BODY_HEIGHT: f32 = 1.8;
 /// Legacy capsule radius — kept for camera / spawn height math on the client.
@@ -83,6 +83,8 @@ pub const PLAYER_STEP_HEIGHT: f32 = 0.65;
 /// Must stay small — a large value causes “suck to ground” while falling and pulls
 /// players off narrow ledges.
 pub const PLAYER_GROUND_TRACE_DIST: f32 = 0.08;
+/// Relaxed walkable normal for stair tread snap during step-up only (not global ground).
+pub const PLAYER_STAIR_WALK_NORMAL: f32 = 0.55;
 /// Minimum surface normal Y for walkable ground (Quake `MIN_WALK_NORMAL` = 0.7).
 pub const PLAYER_MIN_WALK_NORMAL: f32 = 0.7;
 /// When moving up, ignore ground if velocity pushes away from the surface this fast
@@ -94,8 +96,6 @@ pub const PLAYER_JUMP_GROUND_CUTOFF: f32 = 4.0;
 pub const PLAYER_COYOTE_TIME: f32 = 0.1;
 /// Wading: only count as grounded when feet are this close to the bed (not swimming).
 pub const PLAYER_WADE_GROUND_PROBE: f32 = 0.12;
-/// Fraction of intended horizontal travel required before we skip step-up.
-pub const PLAYER_STEP_BLOCKED_FRAC: f32 = 0.65;
 /// Max look pitch the server accepts, radians (just under straight up/down).
 pub const PLAYER_MAX_PITCH: f32 = 1.55;
 

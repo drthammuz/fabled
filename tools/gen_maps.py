@@ -8,14 +8,16 @@ Two-phase generation (similar in spirit to strat_planned in gen_modules.py):
      opposite corners; spanning connected graph over all 25 slots; target ~2.25
      average connections per module).
 
-  2. Module placement – pick real modules from a pool whose boundary openings
-     match the painted graph, including tile alignment on the shared 5-cell
-     face.  Modules may be rotated; unused exits are closed with template-wall.
-     Backtracks when a placement dead-ends.
+  2. Tile synthesis – for each module slot, route corridors and place 1×1
+     pieces (template-floor, template-wall, corridor-*) to match the painted
+     graph and neighbour tile alignment.  No room GLBs or pre-authored modules.
+
+     Legacy: pass --use-pool to pick modules from userinput/modules/ instead.
 
 Usage:
     python tools/gen_maps.py
-    python tools/gen_maps.py --pool space_rooms --seed 42 --attempts 50
+    python tools/gen_maps.py --seed 42 --attempts 50
+    python tools/gen_maps.py --use-pool space_rooms --seed 42
     python tools/gen_maps.py --pool-batch 10 --seed 1
 
 Output:
@@ -102,6 +104,7 @@ GID_L4 = 94
 # Shared-face openings must land on the same of the 5 boundary tiles.
 # Kenney room-large / most generated corridors use the centre tile (index 2).
 CENTER_TILE = 2
+SYNTH_RETRIES = 12  # corridor routing randomness per slot
 # Grid-aligned stair opening offset from west module centre (cell ix=3 → +4 m).
 # Must be a multiple of CELL_M to land exactly on a 4 m cell centre.
 STAIR_CELL_DX = 4.0
@@ -452,6 +455,61 @@ class ModuleVariant:
     floor_mask: List[bool]
 
 
+SYNTHETIC_VARIANT = ModuleVariant(
+    Path("<synthesized>"),
+    "synthesized",
+    0,
+    [],
+    CellGrid(),
+    set(),
+    {s: set() for s in SIDES},
+    [False] * (CELLS * CELLS),
+)
+
+
+def exit_cells_from_tile_req(
+    required: Set[str],
+    tile_req: Dict[str, int],
+) -> Dict[str, Tuple[int, int]]:
+    """Map boundary tile index (0..4) to module-local (ix, iz) exit cell."""
+    exit_cells: Dict[str, Tuple[int, int]] = {}
+    for side in required:
+        tile = tile_req.get(side, CENTER_TILE)
+        if side == 'N':
+            exit_cells[side] = (tile, 0)
+        elif side == 'S':
+            exit_cells[side] = (tile, CELLS - 1)
+        elif side == 'E':
+            exit_cells[side] = (CELLS - 1, tile)
+        else:
+            exit_cells[side] = (0, tile)
+    return exit_cells
+
+
+def floor_mask_from_grid(grid: CellGrid) -> List[bool]:
+    return [
+        grid.c(ix, iz).walkable
+        for iz in range(CELLS)
+        for ix in range(CELLS)
+    ]
+
+
+def synthesize_module(
+    required: Set[str],
+    tile_req: Dict[str, int],
+    rng: random.Random,
+) -> Tuple[List[PlacedPiece], CellGrid, List[bool]]:
+    """Build one 20×20 m slot from 1×1 corridor/floor pieces only."""
+    exit_cells = exit_cells_from_tile_req(required, tile_req)
+    pieces, grid = gm.strat_planned(
+        rng,
+        set(required),
+        fixed_exit_cells=exit_cells,
+        no_rooms=True,
+    )
+    return pieces, grid, floor_mask_from_grid(grid)
+
+
 # ─── phase 1: high-level connectivity paint ──────────────────────────────────
 
 Slot = Tuple[int, int]
@@ -511,12 +569,15 @@ def _add_edge(connections: Dict[Slot, Set[Side]], a: Slot, b: Slot) -> None:
         connections[b].add('E')
 
 
-def design_high_level(rng: random.Random) -> HighLevelDesign:
+def design_high_level(
+    rng: random.Random,
+    target_avg_degree: float = TARGET_AVG_DEGREE,
+) -> HighLevelDesign:
     """
     Build a connected graph on all module slots.
 
     Spawn and end sit in opposite corners.  Start from a random spanning tree,
-    then add chords until the average degree approaches TARGET_AVG_DEGREE.
+    then add chords until the average degree approaches target_avg_degree.
     """
     last = MAP_MODULES - 1
     corners = [
@@ -561,7 +622,7 @@ def design_high_level(rng: random.Random) -> HighLevelDesign:
     assert end in filled
 
     # Add extra adjacency edges to approach target average degree.
-    target_edges = int(round(len(all_slots) * TARGET_AVG_DEGREE / 2))
+    target_edges = int(round(len(all_slots) * target_avg_degree / 2))
     adjacency: List[Tuple[Slot, Slot]] = []
     for c in range(MAP_MODULES):
         for r in range(MAP_MODULES):
@@ -605,9 +666,14 @@ class PlacedModule:
 @dataclass
 class PlacementState:
     design: HighLevelDesign
-    pool: List[ModuleVariant]
+    pool: Optional[List[ModuleVariant]]
     rng: random.Random
     placed: Dict[Slot, PlacedModule] = field(default_factory=dict)
+    synth_retries: int = SYNTH_RETRIES
+
+    @property
+    def use_synthesis(self) -> bool:
+        return not self.pool
 
     def required_sides(self, slot: Slot) -> Set[Side]:
         return set(self.design.connections.get(slot, set()))
@@ -706,6 +772,23 @@ class PlacementState:
 
         required = self.required_sides(slot)
         tile_req = self.neighbor_tile_constraints(slot)
+
+        if self.use_synthesis:
+            col, row = slot
+            placed_ok = False
+            for _ in range(self.synth_retries):
+                pieces, grid, floor_mask = synthesize_module(required, tile_req, self.rng)
+                slot_errs = self._verify_slot(slot, pieces, required, tile_req)
+                if slot_errs:
+                    continue
+                self.placed[slot] = PlacedModule(
+                    col, row, SYNTHETIC_VARIANT, pieces, grid, floor_mask,
+                )
+                if self._place_from(idx + 1, order):
+                    return True
+                del self.placed[slot]
+            return False
+
         candidates = self.compatible_variants(slot)
         self.rng.shuffle(candidates)
 
@@ -1493,7 +1576,11 @@ def audit_map(
     return errors
 
 
-def validate_map(design: HighLevelDesign, placed: Dict[Slot, PlacedModule]) -> Tuple[bool, str]:
+def validate_map(
+    design: HighLevelDesign,
+    placed: Dict[Slot, PlacedModule],
+    target_avg_degree: float = TARGET_AVG_DEGREE,
+) -> Tuple[bool, str]:
     if len(placed) != MAP_MODULES * MAP_MODULES:
         return False, f"only {len(placed)}/{MAP_MODULES * MAP_MODULES} modules placed"
 
@@ -1517,8 +1604,8 @@ def validate_map(design: HighLevelDesign, placed: Dict[Slot, PlacedModule]) -> T
         return False, f"module graph reachability {len(seen)}/{MAP_MODULES * MAP_MODULES}"
 
     avg_deg = design.avg_degree()
-    if abs(avg_deg - TARGET_AVG_DEGREE) > 0.6:
-        return False, f"avg degree {avg_deg:.2f} far from target {TARGET_AVG_DEGREE}"
+    if abs(avg_deg - target_avg_degree) > 0.6:
+        return False, f"avg degree {avg_deg:.2f} far from target {target_avg_degree}"
 
     errors = audit_map(design, placed)
     if errors:
@@ -1653,16 +1740,21 @@ def export_pool_index(entries: List[dict]) -> None:
 
 def try_generate_map(
     rng: random.Random,
-    pool: List[ModuleVariant],
+    pool: Optional[List[ModuleVariant]],
     max_attempts: int,
+    *,
+    target_avg_degree: float = TARGET_AVG_DEGREE,
+    synth_retries: int = SYNTH_RETRIES,
 ) -> Optional[Tuple[HighLevelDesign, Dict[Slot, PlacedModule], dict]]:
     """Try up to `max_attempts` designs; return (design, placed, doc) on success."""
     for attempt in range(1, max_attempts + 1):
-        design = design_high_level(rng)
-        state = PlacementState(design=design, pool=pool, rng=rng)
+        design = design_high_level(rng, target_avg_degree)
+        state = PlacementState(
+            design=design, pool=pool, rng=rng, synth_retries=synth_retries,
+        )
         if not state.try_place_all():
             continue
-        ok, _msg = validate_map(design, state.placed)
+        ok, _msg = validate_map(design, state.placed, target_avg_degree)
         if not ok:
             continue
         doc = build_map_json(f"gen_{attempt}", design, state.placed)
@@ -1670,10 +1762,60 @@ def try_generate_map(
     return None
 
 
+def generate_map_report(
+    *,
+    seed: Optional[int],
+    attempts: int,
+    target_avg_degree: float,
+    synth_retries: int,
+    pool: Optional[List[ModuleVariant]],
+    out_path: Path,
+    export_layout: bool,
+    name: str = "preview",
+) -> dict:
+    """Generate one map; return a JSON-serializable report for the editor."""
+    t0 = time.time()
+    rng = random.Random(seed)
+    result = try_generate_map(
+        rng,
+        pool,
+        attempts,
+        target_avg_degree=target_avg_degree,
+        synth_retries=synth_retries,
+    )
+    if result is None:
+        return {
+            "ok": False,
+            "seed": seed,
+            "error": f"no valid map in {attempts} attempts",
+            "elapsed_s": round(time.time() - t0, 2),
+        }
+
+    design, _placed, doc = result
+    doc["name"] = name
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    if export_layout:
+        export_kenney_layout(doc)
+
+    avg_deg = design.avg_degree()
+    return {
+        "ok": True,
+        "path": str(out_path).replace("\\", "/"),
+        "seed": seed if seed is not None else rng.randint(0, 2**31 - 1),
+        "spawn": list(design.spawn),
+        "end": list(design.end),
+        "avg_degree": round(avg_deg, 2),
+        "pieces": len(doc.get("pieces", [])),
+        "paint": design.ascii(),
+        "elapsed_s": round(time.time() - t0, 2),
+    }
+
+
 def generate_pool_batch(
     count: int,
     rng: random.Random,
-    pool: List[ModuleVariant],
+    pool: Optional[List[ModuleVariant]],
     attempts_per_map: int,
 ) -> List[dict]:
     """Generate `count` full maps into userinput/maps/pool/."""
@@ -1713,10 +1855,10 @@ def generate_pool_batch(
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--pool', default='space_rooms',
-                    help='Module pool (default: space_rooms — verified room-large modules)')
+    ap.add_argument('--use-pool', default=None, metavar='NAME',
+                    help='Legacy: pick modules from userinput/modules/NAME instead of tile synthesis')
     ap.add_argument('--min-score', type=float, default=0.85,
-                    help='Minimum module score from gen_index.json (default: 0.85)')
+                    help='Minimum module score from gen_index.json (default: 0.85, --use-pool only)')
     ap.add_argument('--seed', type=int, default=None)
     ap.add_argument('--pool-batch', type=int, default=None, metavar='N',
                     help='Generate N full 5×5 maps into userinput/maps/pool/')
@@ -1724,7 +1866,15 @@ def main() -> None:
                     help='Max high-level designs to try per map (default: 50)')
     ap.add_argument('--out', default=None, help='Output map path')
     ap.add_argument('--corridors-only', action='store_true',
-                    help='Exclude room-* GLBs (only for generated pool; limits junction variety)')
+                    help='With --use-pool: exclude room-* GLBs from the module pool')
+    ap.add_argument('--target-degree', type=float, default=TARGET_AVG_DEGREE,
+                    help=f'Target average module connections (default: {TARGET_AVG_DEGREE})')
+    ap.add_argument('--synth-retries', type=int, default=SYNTH_RETRIES,
+                    help=f'Corridor routing retries per slot (default: {SYNTH_RETRIES})')
+    ap.add_argument('--preview', action='store_true',
+                    help='Editor mode: write map and print JSON report on stdout')
+    ap.add_argument('--no-layout-export', action='store_true',
+                    help='Skip kenney_layout.json export (preview default)')
     ap.add_argument('--probe', action='store_true',
                     help='After generation, run catalog mesh probe on output')
     ap.add_argument('--audit', default=None, metavar='MAP.json',
@@ -1751,12 +1901,33 @@ def main() -> None:
         return
 
     rng = random.Random(args.seed)
-    pool = load_pool(args.pool, args.min_score, corridors_only=args.corridors_only)
-    if not pool:
-        print(f"No modules found in userinput/modules/{args.pool} (min_score={args.min_score})")
-        sys.exit(1)
+    pool: Optional[List[ModuleVariant]] = None
+    if args.use_pool:
+        pool = load_pool(args.use_pool, args.min_score, corridors_only=args.corridors_only)
+        if not pool:
+            print(
+                f"No modules found in userinput/modules/{args.use_pool} "
+                f"(min_score={args.min_score})"
+            )
+            sys.exit(1)
+        print(f"Loaded {len(pool)} module variants from pool '{args.use_pool}'")
+    else:
+        print("Tile synthesis mode (corridors + template-floor/wall, no room GLBs)")
 
-    print(f"Loaded {len(pool)} module variants from pool '{args.pool}'")
+    if args.preview:
+        out_path = Path(args.out) if args.out else MAP_DIR / "_editor_preview.json"
+        report = generate_map_report(
+            seed=args.seed,
+            attempts=args.attempts,
+            target_avg_degree=args.target_degree,
+            synth_retries=args.synth_retries,
+            pool=pool,
+            out_path=out_path,
+            export_layout=not args.no_layout_export,
+            name=out_path.stem,
+        )
+        print(json.dumps(report))
+        sys.exit(0 if report.get("ok") else 1)
 
     if args.pool_batch:
         entries = generate_pool_batch(args.pool_batch, rng, pool, args.attempts)
@@ -1769,54 +1940,34 @@ def main() -> None:
         return
 
     MAP_DIR.mkdir(parents=True, exist_ok=True)
-    t0 = time.time()
+    report = generate_map_report(
+        seed=args.seed,
+        attempts=args.attempts,
+        target_avg_degree=args.target_degree,
+        synth_retries=args.synth_retries,
+        pool=pool,
+        out_path=Path(args.out) if args.out else MAP_DIR / f"gen_map_{time.strftime('%m%d%H%M%S')}.json",
+        export_layout=True,
+    )
+    if not report.get("ok"):
+        print(f"Failed: {report.get('error', 'unknown')}")
+        sys.exit(1)
 
-    for attempt in range(1, args.attempts + 1):
-        design = design_high_level(rng)
-        state = PlacementState(design=design, pool=pool, rng=rng)
-
-        if not state.try_place_all():
-            print(f"  attempt {attempt}: placement failed  "
-                  f"(spawn={design.spawn} end={design.end} avg_deg={design.avg_degree():.2f})")
-            continue
-
-        ok, msg = validate_map(design, state.placed)
-        if not ok:
-            issues = audit_map(design, state.placed)
-            print(f"  attempt {attempt}: validation failed – {msg}")
-            for line in issues[:12]:
+    out_path = Path(report["path"])
+    print(f"Generated map in {report['elapsed_s']}s")
+    print(f"  spawn={report['spawn']}  end={report['end']}  avg_deg={report['avg_degree']}")
+    print(f"  high-level paint (S=spawn E=end, digit=connection count):\n{report.get('paint', '')}")
+    print(f"  wrote {out_path.resolve()}")
+    print(f"  exported {LAYOUT_PATH.resolve()}")
+    print(f"  pieces={report['pieces']}")
+    if args.probe:
+        issues = probe.probe_map(out_path, verbose=False)
+        if issues:
+            print(f"  probe: {len(issues)} mismatch(es) — run probe_map_geometry.py -v")
+            for line in issues[:8]:
                 print(f"    · {line}")
-            if len(issues) > 12:
-                print(f"    · … and {len(issues) - 12} more")
-            continue
-
-        ts = time.strftime("%m%d%H%M%S")
-        out_path = Path(args.out) if args.out else MAP_DIR / f"gen_map_{ts}.json"
-        name = out_path.stem
-        doc = build_map_json(name, design, state.placed)
-        out_path.write_text(json.dumps(doc, indent=2), encoding='utf-8')
-        export_kenney_layout(doc)
-
-        elapsed = time.time() - t0
-        print(f"Generated map in {elapsed:.1f}s (attempt {attempt})")
-        print(f"  spawn={design.spawn}  end={design.end}  {msg}")
-        print(f"  high-level paint (S=spawn E=end, digit=connection count):\n{design.ascii()}")
-        print(f"  wrote {out_path.resolve()}")
-        print(f"  exported {LAYOUT_PATH.resolve()}")
-        print(f"  pieces={len(doc['pieces'])}  spawn_xz={doc['spawn_xz']}"
-              f"  extraction_xz={doc['extraction_xz']}")
-        if args.probe:
-            issues = probe.probe_map(out_path, verbose=False)
-            if issues:
-                print(f"  probe: {len(issues)} mismatch(es) — run probe_map_geometry.py -v")
-                for line in issues[:8]:
-                    print(f"    · {line}")
-            else:
-                print("  probe: OK (mesh borders match expected + adjacent)")
-        return
-
-    print(f"Failed to generate a valid map in {args.attempts} attempts.")
-    sys.exit(1)
+        else:
+            print("  probe: OK (mesh borders match expected + adjacent)")
 
 
 if __name__ == '__main__':

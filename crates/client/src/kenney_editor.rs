@@ -73,6 +73,8 @@ impl Plugin for KenneyEditorPlugin {
             .init_resource::<PendingHistoryApply>()
             .init_resource::<FloorPaintSession>()
             .init_resource::<KenneyPlaytestGeneration>()
+            .init_resource::<crate::editor_map_gen::MapGenSettings>()
+            .init_resource::<crate::editor_map_gen::MapGenRuntime>()
             .init_resource::<SkipPlaytestExit>()
             .init_resource::<EditorCamState>()
             .add_systems(Startup, (editor_startup, spawn_editor_sun, set_editor_window_title))
@@ -114,6 +116,15 @@ impl Plugin for KenneyEditorPlugin {
             .add_systems(
                 Update,
                 (gallery_button_input, gallery_controller_input).run_if(editor_active),
+            )
+            .add_systems(
+                Update,
+                (
+                    crate::editor_map_gen::map_gen_button_input,
+                    crate::editor_map_gen::map_gen_poll,
+                    crate::editor_map_gen::map_gen_debounce,
+                )
+                    .run_if(editor_active),
             )
             .add_systems(
                 Update,
@@ -1281,7 +1292,13 @@ fn file_menu_actions(
     }
 
     if let Some(path) = ws.pending_load_map.take() {
-        if let Some(map) = shared::editor_map::MapDocument::load(&path) {
+        let gen_load = ws.pending_map_gen_load;
+        ws.pending_map_gen_load = false;
+        if let Some(mut map) = shared::editor_map::MapDocument::load(&path) {
+            if gen_load {
+                map.apply_hub_playtest_patches();
+                let _ = map.export_playtest_layout();
+            }
             ws.map = map;
             ws.active.path = Some(path);
             for (e, ep) in &map_placed {
@@ -1304,7 +1321,11 @@ fn file_menu_actions(
             ws.floor_dirty = true;
             ws.refocus_camera = true;
             ws.spawn_marker_dirty = true;
-            save_fb.message = "Map loaded".into();
+            save_fb.message = if gen_load {
+                "Procedural map loaded".into()
+            } else {
+                "Map loaded".into()
+            };
             save_fb.ok = true;
             save_fb.hide_after = time.elapsed_secs() + 3.0;
         }

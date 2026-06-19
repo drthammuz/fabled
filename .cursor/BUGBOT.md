@@ -20,3 +20,16 @@ Key paths:
 4. **Probe false PASS** — `tools/probe_hub_tile_audit.py` passing does not prove G playtest matches.
 
 Do not treat hub/extraction as fixed unless probes **and** stated user acceptance agree.
+
+## Procedural Kenney map gen
+
+Before reviewing `tools/gen_maps.py`, tile synthesis, or editor Proc regen:
+
+**[docs/procgen-faction-manifest.md](../docs/procgen-faction-manifest.md)** (§0 handoff)
+
+Flag:
+
+1. **Reintroducing room GLBs** (`room-large`, etc.) as default procgen shells.
+2. **Random graph only** — new work should move toward mission graph (spine + branches + roles), not more avg-degree tuning alone.
+3. **Duplicate floors** — run `python tools/probe_layout_decor.py` on exported layout.
+4. **Scope creep** — faction profiles / industrial merge belong in Phase 2+, not mixed into Phase 1 PRs.

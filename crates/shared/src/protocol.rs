@@ -38,7 +38,7 @@ pub struct PlayerInput {
     pub yaw: f32,
     /// Look pitch in radians (negative = look down).
     pub pitch: f32,
-    /// True if jump was pressed since the last input message.
+    /// True on the client tick where jump was pressed (`just_pressed`), not while held.
     pub jump: bool,
     /// Hold Shift to sprint.
     pub sprint: bool,

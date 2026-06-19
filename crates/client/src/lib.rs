@@ -20,6 +20,7 @@ pub mod sewer_atmosphere;
 pub mod editor_floor;
 pub mod editor_ops;
 pub mod editor_history;
+pub mod editor_map_gen;
 pub mod editor_playtest;
 pub mod editor_selection;
 pub mod editor_sidebar;

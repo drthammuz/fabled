@@ -7,12 +7,14 @@ use shared::editor_map::{EditorTool, EditorWorkflow};
 
 use crate::editor_workspace::{EditorSidebarRoot, EditorWorkspace, SidebarScrollContent};
 use crate::editor_state::EditorState;
+use crate::editor_map_gen::SidebarTabGenerate;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SidebarTab {
     #[default]
     Glb,
     Module,
+    Generate,
     Gallery,
 }
 
@@ -274,7 +276,26 @@ pub fn spawn_sidebar(commands: &mut Commands, ws: &EditorWorkspace) {
                         TextFont { font_size: 13.0, ..default() },
                         TextColor(Color::srgb(0.85, 0.92, 1.0)),
                     ));
-                    tabs.spawn((SidebarTabGallery, tab_btn("\u{2605} Gen", ws.sidebar_tab == SidebarTab::Gallery)));
+                    tabs.spawn((SidebarTabGallery, tab_btn("\u{2605} Pool", ws.sidebar_tab == SidebarTab::Gallery)));
+                    tabs.spawn((
+                        SidebarTabGenerate,
+                        Node {
+                            display: if is_map { Display::Flex } else { Display::None },
+                            padding: UiRect::axes(Val::Px(8.0), Val::Px(5.0)),
+                            flex_grow: 1.0,
+                            justify_content: JustifyContent::Center,
+                            ..default()
+                        },
+                        Button,
+                        BackgroundColor(if ws.sidebar_tab == SidebarTab::Generate {
+                            Color::srgba(0.14, 0.32, 0.28, 0.98)
+                        } else {
+                            Color::srgba(0.08, 0.14, 0.22, 0.95)
+                        }),
+                        Text::new("Proc"),
+                        TextFont { font_size: 13.0, ..default() },
+                        TextColor(Color::srgb(0.85, 0.92, 1.0)),
+                    ));
                 });
                 root.spawn((
                     SidebarContent,
@@ -496,18 +517,24 @@ pub fn rebuild_sidebar(
     mut cache: ResMut<SidebarCache>,
     state: Res<EditorState>,
     ratings: Res<GalleryRatings>,
+    map_gen_settings: Res<crate::editor_map_gen::MapGenSettings>,
+    map_gen_runtime: Res<crate::editor_map_gen::MapGenRuntime>,
     content: Query<Entity, With<SidebarScrollContent>>,
     mut tab_glb: Query<
         &mut BackgroundColor,
-        (With<SidebarTabGlb>, Without<SidebarTabModule>, Without<SidebarTabGallery>),
+        (With<SidebarTabGlb>, Without<SidebarTabModule>, Without<SidebarTabGallery>, Without<SidebarTabGenerate>),
     >,
     mut tab_mod: Query<
         &mut BackgroundColor,
-        (With<SidebarTabModule>, Without<SidebarTabGlb>, Without<SidebarTabGallery>),
+        (With<SidebarTabModule>, Without<SidebarTabGlb>, Without<SidebarTabGallery>, Without<SidebarTabGenerate>),
     >,
     mut tab_gal: Query<
         &mut BackgroundColor,
-        (With<SidebarTabGallery>, Without<SidebarTabGlb>, Without<SidebarTabModule>),
+        (With<SidebarTabGallery>, Without<SidebarTabGlb>, Without<SidebarTabModule>, Without<SidebarTabGenerate>),
+    >,
+    mut tab_gen: Query<
+        &mut BackgroundColor,
+        (With<SidebarTabGenerate>, Without<SidebarTabGlb>, Without<SidebarTabModule>, Without<SidebarTabGallery>),
     >,
     mut mod_tab_node: Query<&mut Node, (With<SidebarTabModule>, Without<SidebarSpawnBtn>)>,
     mut spawn_btn_node: Query<&mut Node, (With<SidebarSpawnBtn>, Without<SidebarTabModule>)>,
@@ -564,8 +591,18 @@ pub fn rebuild_sidebar(
             Color::srgba(0.08, 0.14, 0.22, 0.95)
         });
     }
+    if let Ok(mut bg) = tab_gen.single_mut() {
+        *bg = BackgroundColor(if ws.sidebar_tab == SidebarTab::Generate {
+            Color::srgba(0.14, 0.32, 0.28, 0.98)
+        } else {
+            Color::srgba(0.08, 0.14, 0.22, 0.95)
+        });
+    }
 
     if ws.workflow == EditorWorkflow::ModuleMaker && ws.sidebar_tab == SidebarTab::Module {
+        ws.sidebar_tab = SidebarTab::Glb;
+    }
+    if ws.workflow == EditorWorkflow::ModuleMaker && ws.sidebar_tab == SidebarTab::Generate {
         ws.sidebar_tab = SidebarTab::Glb;
     }
 
@@ -588,6 +625,13 @@ pub fn rebuild_sidebar(
                 // Store names in cache so gallery_controller_input can use them
                 cache.gallery_names = entries.iter().map(|e| e.name.clone()).collect();
                 spawn_gallery_panel(parent, &gallery_pool, &entries, &ratings, gallery_cursor);
+            }
+            SidebarTab::Generate => {
+                crate::editor_map_gen::spawn_map_gen_panel(
+                    parent,
+                    &map_gen_settings,
+                    &map_gen_runtime,
+                );
             }
         }
     });
@@ -614,6 +658,9 @@ pub fn select_first_on_tab(ws: &mut EditorWorkspace, state: &mut EditorState, ca
         }
         SidebarTab::Gallery => {
             // Gallery is browse-only; no placement tool switch
+        }
+        SidebarTab::Generate => {
+            ws.tool = EditorTool::GalleryPreview;
         }
     }
 }
@@ -727,7 +774,7 @@ fn enter_gallery_mode(ws: &mut EditorWorkspace, cache: &SidebarCache) {
 }
 
 /// Restore the workflow that was active before gallery mode.
-fn exit_gallery_mode(ws: &mut EditorWorkspace) {
+pub fn exit_gallery_mode(ws: &mut EditorWorkspace) {
     if ws.sidebar_tab != SidebarTab::Gallery {
         return;
     }

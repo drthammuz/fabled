@@ -58,6 +58,24 @@ def cell_cz(iz: int) -> float:
     return -8.0 + iz * 4.0
 
 
+def gate_on_boundary(side: str, tile: int = 2) -> Tuple[float, float, float]:
+    """Gate on the module outer wall plane (±10 m), not the door-tile centre (±8 m).
+
+    Matches hub west exit placement in ``gen_maps.apply_hub_exits`` (``mcx - 10``).
+    ``tile`` is the boundary door cell index (0–4) on that face — usually ``2`` (centre).
+    """
+    half_cell = CELL_M * 0.5
+    if side == 'W':
+        return (cell_cx(0) - half_cell, cell_cz(tile), PI32)
+    if side == 'E':
+        return (cell_cx(CELLS - 1) + half_cell, cell_cz(tile), PI32)
+    if side == 'N':
+        return (cell_cx(tile), cell_cz(0) - half_cell, 0.0)
+    if side == 'S':
+        return (cell_cx(tile), cell_cz(CELLS - 1) + half_cell, 0.0)
+    raise ValueError(f"unknown side {side!r}")
+
+
 # ─── piece catalogue ──────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -906,14 +924,11 @@ def strat_corridor_hub(rng: random.Random, open_sides: Set[str]) -> Tuple[List[P
         # Skip if not enough space.
         pass  # placeholder for future enhancement
 
-    # Add gate frames at a random entrance for visual interest
+    # Gate on the module boundary wall (between tiles), not one cell inward.
     for side in open_sides:
         if rng.random() < 0.35:
-            dx, dz = DELTA[side]
-            gix, giz = 2 + dx, 2 + dz
-            if grid.in_bounds(gix, giz) and grid.c(gix, giz).walkable:
-                yaw_g = PI32 if side in ('N','S') else 0.0
-                pieces.append(pp('gate', cell_cx(gix), cell_cz(giz), yaw_g))
+            gx, gz, gyaw = gate_on_boundary(side, 2)
+            pieces.append(pp('gate', gx, gz, gyaw))
 
     return pieces, grid
 
@@ -1008,11 +1023,13 @@ def strat_free_placement(rng: random.Random, open_sides: Set[str]) -> Tuple[List
 def add_deco(rng: random.Random, pieces: List[PlacedPiece], grid: CellGrid,
              n_min: int = 0, n_max: int = 4):
     """
-    Add random decorative floor/wall pieces to walkable cells.
+    Add random decorative trim to walkable cells.
     Called after every strategy to increase fingerprint variety.
+
+    Do **not** add ``template-floor-*`` here — room/corridor GLBs already include
+    floor meshes; extra floor tiles z-fight and read as duplicate textures.
     """
     deco = [
-        'template-floor-detail-a', 'template-floor-big',
         'template-wall-detail-a', 'cables',
     ]
     walkable_cells = [
@@ -1330,16 +1347,26 @@ ROOMS_DB: List[Dict] = [
 ]
 
 
-def strat_planned(rng: random.Random, open_sides: Set[str]) -> Tuple[List[PlacedPiece], CellGrid]:
+def strat_planned(
+    rng: random.Random,
+    open_sides: Set[str],
+    *,
+    fixed_exit_cells: Optional[Dict[str, Tuple[int, int]]] = None,
+    no_rooms: bool = False,
+) -> Tuple[List[PlacedPiece], CellGrid]:
     """
     Planning-based strategy with optional room placement:
 
-    1. Choose exit cell positions (center-weighted 1-4-12-4-1).
+    1. Choose exit cell positions (center-weighted 1-4-12-4-1), or use
+       fixed_exit_cells when supplied (map generator tile alignment).
     2. Optionally place a room whose footprint becomes the initial paint.
     3. Route L-shaped corridors from each exit to the room (or exit-to-exit).
     4. Select corridor piece per cell (straight / corner / junction / intersection).
     5. Place room GLB at anchor.  Room cells never get corridor pieces.
     6. Close unused boundary opens with template-wall.
+
+    When no_rooms=True, step 2 and 5 are skipped — corridors + template-floor
+    only (used by gen_maps tile synthesis).
     """
     pieces   = []
     cell_grd = CellGrid()
@@ -1347,12 +1374,15 @@ def strat_planned(rng: random.Random, open_sides: Set[str]) -> Tuple[List[Placed
     # ── 1. Exit cell positions ────────────────────────────────────────────────
     EXIT_WEIGHTS = [1, 4, 12, 4, 1]
     exit_cells: Dict[str, Tuple[int, int]] = {}
-    for side in open_sides:
-        col = rng.choices(range(CELLS), weights=EXIT_WEIGHTS, k=1)[0]
-        if side == 'N':   exit_cells[side] = (col, 0)
-        elif side == 'S': exit_cells[side] = (col, CELLS - 1)
-        elif side == 'E': exit_cells[side] = (CELLS - 1, col)
-        else:             exit_cells[side] = (0, col)
+    if fixed_exit_cells is not None:
+        exit_cells = dict(fixed_exit_cells)
+    else:
+        for side in open_sides:
+            col = rng.choices(range(CELLS), weights=EXIT_WEIGHTS, k=1)[0]
+            if side == 'N':   exit_cells[side] = (col, 0)
+            elif side == 'S': exit_cells[side] = (col, CELLS - 1)
+            elif side == 'E': exit_cells[side] = (CELLS - 1, col)
+            else:             exit_cells[side] = (0, col)
 
     # ── 2. Optionally place a room ────────────────────────────────────────────
     room_cells:         Set[Tuple[int, int]]        = set()
@@ -1364,7 +1394,7 @@ def strat_planned(rng: random.Random, open_sides: Set[str]) -> Tuple[List[Placed
     # connector_target[exit_side] = (cx, cz) — the corridor cell that leads into the room
     connector_target: Dict[str, Tuple[int, int]] = {}
 
-    if rng.random() < 0.70:
+    if not no_rooms and rng.random() < 0.70:
         candidates = []
         for rdef in ROOMS_DB:
             fp      = rdef['footprint']
