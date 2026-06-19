@@ -6,6 +6,9 @@ use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use shared::classes::ALL_CLASSES;
 use shared::protocol::ClassPick;
+use shared::TestMode;
+use shared::CityViewMode;
+use shared::EditorMode;
 
 pub struct ClassSelectPlugin;
 
@@ -24,16 +27,42 @@ impl Plugin for ClassSelectPlugin {
             .add_systems(Startup, setup_select_screen)
             .add_systems(
                 Update,
-                pick_class.run_if(in_state(SelectState::Choosing)),
+                (auto_select_test, pick_class).run_if(in_state(SelectState::Choosing)),
             )
-            .add_systems(OnEnter(SelectState::Playing), (hide_select_screen, lock_cursor));
+            .add_systems(OnEnter(SelectState::Playing), (hide_select_screen, lock_cursor_for_play));
     }
 }
 
 #[derive(Component)]
 struct ClassSelectRoot;
 
-fn setup_select_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
+/// In the developer test map the class screen is skipped: auto-pick the first
+/// class and drop straight into play. (Solo host picks Soldier; coordinating a
+/// distinct class per remote player would need server assignment — TODO.)
+fn auto_select_test(
+    test: Option<Res<TestMode>>,
+    city: Option<Res<CityViewMode>>,
+    mut writer: MessageWriter<ClassPick>,
+    mut next: ResMut<NextState<SelectState>>,
+    mut done: Local<bool>,
+) {
+    if (test.is_none() && city.is_none()) || *done {
+        return;
+    }
+    *done = true;
+    writer.write(ClassPick(shared::classes::ClassKind::Soldier));
+    next.set(SelectState::Playing);
+}
+
+fn setup_select_screen(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    test: Option<Res<TestMode>>,
+    city: Option<Res<CityViewMode>>,
+) {
+    if test.is_some() || city.is_some() {
+        return; // test / city bypasses the overlay
+    }
     commands
         .spawn((
             ClassSelectRoot,
@@ -145,7 +174,16 @@ fn hide_select_screen(
     }
 }
 
-fn lock_cursor(mut window: Single<&mut CursorOptions, With<PrimaryWindow>>) {
+fn lock_cursor_for_play(
+    editor: Option<Res<EditorMode>>,
+    playtest: Option<Res<crate::editor_playtest::EditorPlaytestActive>>,
+    mut window: Single<&mut CursorOptions, With<PrimaryWindow>>,
+) {
+    if editor.is_some() && playtest.is_none() {
+        window.grab_mode = CursorGrabMode::None;
+        window.visible = true;
+        return;
+    }
     window.grab_mode = CursorGrabMode::Locked;
     window.visible = false;
 }

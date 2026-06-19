@@ -5,23 +5,24 @@ use std::collections::HashMap;
 use bevy::prelude::Vec3;
 
 use crate::kenney_layout::{BranchLevel, KenneyLayout, KenneyPlacement};
-use crate::kenney_pit::{self, HUB_FLOOR_LEVEL, PIT_DROP_HALF, PIT_SHAFT_BOTTOM_Y};
+use crate::kenney_pit::{self, HUB_FLOOR_LEVEL, PIT_DROP_HALF};
 use crate::level::MOD_H;
 
 /// Hub branch module spacing (5 cells × 4 m).
 pub const HUB_MODULE_SPAN: f32 = crate::kenney_pit::HUB_MODULE_SPAN;
 
-pub const DEPTH_FLOOR_LEVEL: i32 = -2;
+pub use crate::kenney_pit::DEPTH_FLOOR_LEVEL;
 
 pub fn west_module_center(ex: f32, ez: f32) -> (f32, f32) {
     crate::kenney_pit::hub_west_module_center(ex, ez)
 }
 
 /// L2 stairs in the west module east antechamber — on floor -2, entry faces the hub door.
+/// Aligned to the same 4 m cell as `hub_stairs_opening` so the hole sits over the stairs.
 pub fn l2_stairs_placement(west_mcx: f32, west_mcz: f32) -> (f32, f32, f32, i32) {
     const PI2: f32 = std::f32::consts::FRAC_PI_2;
     (
-        west_mcx + 6.0,
+        west_mcx + 4.0,
         west_mcz,
         PI2,
         DEPTH_FLOOR_LEVEL,
@@ -71,17 +72,19 @@ pub fn in_branch_destination(pos: Vec3, branch: &BranchLevel) -> bool {
         && (pos.z - branch.z).abs() < PIT_DROP_HALF
 }
 
-/// Pit drop (L3): past the shaft floor while inside the open column.
+/// Pit drop (L3): falling through the dedicated hub-floor L3 opening (not the landing tile).
 pub fn in_pit_exit_commit(pos: Vec3, ex: f32, ez: f32) -> bool {
-    pos.y < PIT_SHAFT_BOTTOM_Y && kenney_pit::in_extraction_drop_zone(pos.x, pos.z, ex, ez)
+    let c = kenney_pit::hub_l3_drop_centre(ex, ez);
+    (pos.x - c.x).abs() < PIT_DROP_HALF
+        && (pos.z - c.y).abs() < PIT_DROP_HALF
+        && pos.y < kenney_pit::pit_floor_plane_y(HUB_FLOOR_LEVEL) - 0.5
 }
 
 /// West corridor hole (L4): falling through the corridor drop above L4.
 pub fn in_west_drop_commit(pos: Vec3, ex: f32, ez: f32) -> bool {
-    let hole_x = ex - 8.0;
-    let hole_z = ez;
-    (pos.x - hole_x).abs() < PIT_DROP_HALF
-        && (pos.z - hole_z).abs() < PIT_DROP_HALF
+    let hole = kenney_pit::hub_west_drop_centre(ex, ez);
+    (pos.x - hole.x).abs() < PIT_DROP_HALF
+        && (pos.z - hole.y).abs() < PIT_DROP_HALF
         && pos.y < 0.5
         && pos.y > -MOD_H * 2.5
 }
@@ -117,12 +120,15 @@ pub fn detects_branch_commit(
     }
 }
 
-fn has_room_shell(pieces: &[KenneyPlacement], x: f32, z: f32, floor: i32) -> bool {
+/// True when any floor-bearing piece (room shell, corridor, or a single-cell
+/// template-floor tile) covers `(x, z)` on `floor` — i.e. there is already a walkable
+/// surface there and no fallback shell is needed.
+fn has_floor_coverage(pieces: &[KenneyPlacement], x: f32, z: f32, floor: i32) -> bool {
     pieces.iter().any(|p| {
-        kenney_pit::is_room_shell(&p.stem)
-            && p.floor == floor
-            && (p.x - x).abs() < 0.5
-            && (p.z - z).abs() < 0.5
+        p.floor == floor
+            && kenney_pit::carves_floor(&p.stem)
+            && (p.x - x).abs() < 2.0
+            && (p.z - z).abs() < 2.0
     })
 }
 
@@ -133,7 +139,7 @@ pub fn default_branch_levels(ex: f32, ez: f32) -> HashMap<String, BranchLevel> {
         (
             "2".into(),
             BranchLevel {
-                x: wx + 6.0,
+                x: wx + 4.0,
                 z: wz,
                 floor: HUB_FLOOR_LEVEL,
                 label: "Stairs route".into(),
@@ -142,8 +148,8 @@ pub fn default_branch_levels(ex: f32, ez: f32) -> HashMap<String, BranchLevel> {
         (
             "3".into(),
             BranchLevel {
-                x: ex,
-                z: ez,
+                x: kenney_pit::hub_l3_drop_centre(ex, ez).x,
+                z: kenney_pit::hub_l3_drop_centre(ex, ez).y,
                 floor: DEPTH_FLOOR_LEVEL,
                 label: "Pit drop".into(),
             },
@@ -174,26 +180,6 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
         !(p.stem == "stairs" && p.floor == HUB_FLOOR_LEVEL && (p.x - sx).abs() < 1.0)
     });
 
-    // Hub drops are mesh-cut room floors — hatch props render a misleading diagonal wedge.
-    layout.pieces.retain(|p| {
-        !(p.stem == "template-floor-hole"
-            && p.floor == HUB_FLOOR_LEVEL
-            && layout.extraction_xz.is_some_and(|[ex, ez]| {
-                kenney_pit::hide_hub_floor_hatch_piece(&p.stem, p.floor, p.x, p.z, ex, ez)
-            }))
-    });
-    layout.pieces.retain(|p| {
-        !(matches!(
-            p.stem.as_str(),
-            "template-floor" | "template-floor-layer" | "template-floor-big"
-        ) && p.floor == HUB_FLOOR_LEVEL
-            && layout.extraction_xz.is_some_and(|[ex, ez]| {
-                kenney_pit::in_hub_l3_drop_zone(p.x, p.z, ex, ez)
-                    || kenney_pit::in_hub_west_drop_zone(p.x, p.z, ex, ez)
-                    || kenney_pit::in_hub_stairs_opening(p.x, p.z, ex, ez)
-            }))
-    });
-
     if let Some(stairs) = layout.pieces.iter_mut().find(|p| p.stem == "stairs" && (p.x - sx).abs() < 1.0) {
         stairs.x = sx;
         stairs.z = sz;
@@ -212,7 +198,10 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
         });
     }
 
-    if !has_room_shell(&layout.pieces, ex, ez, DEPTH_FLOOR_LEVEL) {
+    // Only add a fallback shell if L3 has NO floor coverage at all. When L3 is a tiled
+    // room (template-floor at the centre), adding a room-large here would be an invisible
+    // double collider overlapping the tiles.
+    if !has_floor_coverage(&layout.pieces, ex, ez, DEPTH_FLOOR_LEVEL) {
         layout.pieces.push(KenneyPlacement {
             stem: "room-large".into(),
             x: ex,
@@ -224,26 +213,106 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
         });
     }
 
-    let west_hole_x = ex - 8.0;
-    let stair_open = kenney_pit::hub_stairs_opening(ex, ez);
+    // --- Floor mask is the single source of truth for holes (visual + physics). ---
+    let west_hole = kenney_pit::hub_west_drop_centre(ex, ez);
+    let stair_cells = kenney_pit::hub_stairs_opening_cells(ex, ez);
+    let l3 = kenney_pit::hub_l3_drop_centre(ex, ez);
 
     let cell = layout.grid_unit_m;
+    let cells_x = layout.modules_x * crate::editor_map::CELLS_PER_MODULE;
+    let cells_z = layout.modules_z * crate::editor_map::CELLS_PER_MODULE;
+
+    // Sub-floor masks aren't authored in the editor; derive them from floor-piece coverage
+    // so the mask is a faithful single source for both visuals and physics. Floor 0 is the
+    // solid ground level (filled), holes are cut afterwards.
+    layout
+        .floors
+        .entry(0)
+        .or_insert_with(|| crate::editor_map::FloorMask::filled(cells_x, cells_z));
+    for lvl in [HUB_FLOOR_LEVEL, DEPTH_FLOOR_LEVEL] {
+        let mask = subfloor_mask_from_coverage(&layout, lvl, cells_x, cells_z, cell);
+        layout.floors.insert(lvl, mask);
+    }
+
+    // Floor 0: the extraction trap. You drop through here onto the hub floor.
     if let Some(mask) = layout.floors.get_mut(&0) {
         cut_floor_mask_at(mask, cell, ex, ez);
     }
+    // Hub floor (-1): three SEPARATE openings; the (ex,ez) landing tile stays SOLID.
     if let Some(mask) = layout.floors.get_mut(&HUB_FLOOR_LEVEL) {
-        cut_floor_mask_at(mask, cell, stair_open.x, stair_open.y);
-        cut_floor_mask_at(mask, cell, ex, ez);
-        cut_floor_mask_at(mask, cell, west_hole_x, ez);
+        // Force the landing solid first, overriding any stale hole from older exports.
+        set_floor_mask_at(mask, cell, ex, ez, true);
+        for s in stair_cells {
+            cut_floor_mask_at(mask, cell, s.x, s.y); // L2 stairs (2 cells along the run)
+        }
+        cut_floor_mask_at(mask, cell, west_hole.x, west_hole.y); // L4 west drop
+        cut_floor_mask_at(mask, cell, l3.x, l3.y); // L3 pit drop
     }
+    // Depth floor (-2): omit floor under the stair footprint (stair mesh is the surface).
+    if let Some(mask) = layout.floors.get_mut(&DEPTH_FLOOR_LEVEL) {
+        for s in stair_cells {
+            cut_floor_mask_at(mask, cell, s.x, s.y);
+        }
+    }
+
+    // Remove any floor prop that now sits over a hole (legacy hatch wedges included).
+    let floors_snapshot = layout.floors.clone();
+    layout.pieces.retain(|p| {
+        !kenney_pit::floor_prop_on_hole(&p.stem, p.x, p.z, floors_snapshot.get(&p.floor))
+    });
 
     layout
 }
 
-fn cut_floor_mask_at(mask: &mut crate::editor_map::FloorMask, cell: f32, wx: f32, wz: f32) {
+/// Build a floor mask for a sub-ground level by marking every cell covered by a
+/// floor-bearing piece (room shells, corridors, explicit floor tiles). This makes the
+/// mask the single source of truth even though sub-floors are not authored in the editor.
+fn subfloor_mask_from_coverage(
+    layout: &KenneyLayout,
+    floor: i32,
+    cells_x: u32,
+    cells_z: u32,
+    cell: f32,
+) -> crate::editor_map::FloorMask {
+    use crate::kenney_catalog::{self, quantize_yaw};
+    let mut mask = crate::editor_map::FloorMask {
+        cells_x,
+        cells_z,
+        cells: vec![false; (cells_x * cells_z) as usize],
+    };
+    let x0 = mask.world_x0();
+    let z0 = mask.world_z0();
+    for p in &layout.pieces {
+        if p.floor != floor || !kenney_pit::carves_floor(&p.stem) {
+            continue;
+        }
+        let (nx, nz) = kenney_catalog::piece_grid_size(&p.stem);
+        let (wx, wz) = kenney_catalog::rotated_grid_size(nx, nz, quantize_yaw(p.yaw));
+        let sw_x = p.x - wx * cell * 0.5;
+        let sw_z = p.z - wz * cell * 0.5;
+        for j in 0..wz.round() as i32 {
+            for i in 0..wx.round() as i32 {
+                let cx = sw_x + (i as f32 + 0.5) * cell;
+                let cz = sw_z + (j as f32 + 0.5) * cell;
+                let ix = ((cx - x0) / cell).floor();
+                let iz = ((cz - z0) / cell).floor();
+                if ix >= 0.0 && iz >= 0.0 {
+                    mask.set(ix as u32, iz as u32, true);
+                }
+            }
+        }
+    }
+    mask
+}
+
+fn set_floor_mask_at(mask: &mut crate::editor_map::FloorMask, cell: f32, wx: f32, wz: f32, on: bool) {
     let x0 = mask.world_x0();
     let z0 = mask.world_z0();
     let ix = ((wx - x0) / cell - 0.5).round().max(0.0) as u32;
     let iz = ((wz - z0) / cell - 0.5).round().max(0.0) as u32;
-    mask.set(ix, iz, false);
+    mask.set(ix, iz, on);
+}
+
+fn cut_floor_mask_at(mask: &mut crate::editor_map::FloorMask, cell: f32, wx: f32, wz: f32) {
+    set_floor_mask_at(mask, cell, wx, wz, false);
 }

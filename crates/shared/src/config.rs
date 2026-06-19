@@ -49,13 +49,17 @@ pub const PLAYER_FRICTION: f32 = 9.0;
 pub const PLAYER_ACCEL_RATE: f32 = 10.0;
 /// Air acceleration multiple — low: some steering, momentum preserved.
 pub const PLAYER_AIR_ACCEL_RATE: f32 = 1.8;
-/// Light horizontal braking in air when no move input (kills wall-jump ghost run).
-pub const PLAYER_AIR_STOP_FRICTION: f32 = 5.0;
 /// Scale on the impulse players impart when walking into dynamic bodies
 /// (applied on top of the physically-correct reduced-mass impulse).
 pub const PLAYER_PUSH_STRENGTH: f32 = 0.5;
-/// Capsule dimensions: radius and cylinder length (total height = length + 2r).
+/// Character body width (full X/Z extent). Quake-style controllers use an AABB
+/// hull; a box avoids capsule “rolling” off stair treads and trap-door lips.
+pub const PLAYER_BODY_WIDTH: f32 = 0.8;
+/// Standing body height (full Y extent).
+pub const PLAYER_BODY_HEIGHT: f32 = 1.8;
+/// Legacy capsule radius — kept for camera / spawn height math on the client.
 pub const PLAYER_CAPSULE_RADIUS: f32 = 0.4;
+/// Legacy capsule cylinder length — kept for camera / spawn height math.
 pub const PLAYER_CAPSULE_LENGTH: f32 = 1.0;
 
 /// `--city` player spawn (capsule centre). Colliders load async — may take a moment.
@@ -72,24 +76,26 @@ pub const PLAYER_CROUCH_EYE_HEIGHT: f32 = 0.25;
 pub const PLAYER_CROUCH_SPEED: f32 = 4.5;
 /// Upward cast distance required before standing up from crouch.
 pub const PLAYER_STAND_UP_CLEARANCE: f32 = 0.55;
-/// Max distance below the capsule bottom that still counts as grounded.
-pub const PLAYER_GROUND_PROBE: f32 = 0.12;
-/// Max distance to pull the capsule down onto walkable ground after movement.
-pub const PLAYER_SNAP_TO_GROUND: f32 = 0.08;
-/// Upward speed above which ground traces are skipped (Quake: 180 ups).
+/// Max height of a step/ledge the player climbs automatically (no jump).
+/// Kenney `stairs` rise ~0.29 m per tread; 0.65 m matches Quake STEPSIZE headroom.
+pub const PLAYER_STEP_HEIGHT: f32 = 0.65;
+/// Short downward trace for grounded tests (Quake `PM_GroundTrace` ≈ 0.25 units).
+/// Must stay small — a large value causes “suck to ground” while falling and pulls
+/// players off narrow ledges.
+pub const PLAYER_GROUND_TRACE_DIST: f32 = 0.08;
+/// Minimum surface normal Y for walkable ground (Quake `MIN_WALK_NORMAL` = 0.7).
+pub const PLAYER_MIN_WALK_NORMAL: f32 = 0.7;
+/// When moving up, ignore ground if velocity pushes away from the surface this fast
+/// (Quake kickoff check, scaled to m/s).
+pub const PLAYER_GROUND_KICKOFF_SPEED: f32 = 2.5;
+/// Upward speed above which ground traces are skipped entirely (Quake: 180 ups).
 pub const PLAYER_JUMP_GROUND_CUTOFF: f32 = 4.0;
 /// Grace period after leaving the ground where a jump still counts as grounded.
 pub const PLAYER_COYOTE_TIME: f32 = 0.1;
-/// Max height of a step/ledge the player climbs automatically (no jump).
-/// The character controller lifts the body up onto obstacles up to this tall
-/// when they're a near-vertical face with a walkable surface on top — this is
-/// what makes stairs and small ledges traversable without a helper ramp.
-/// 4.35 m landing / 7 steps = 0.62 m per step.  Set slightly above that.
-pub const PLAYER_STEP_HEIGHT: f32 = 0.65;
-/// Ignore automatic step-up for ledges smaller than this (floor tile lips, mesh seams).
-pub const PLAYER_STEP_MIN_CLIMB: f32 = 0.12;
-/// Only treat near-vertical faces as risers (~77° from up); shallow bevels are not stairs.
-pub const PLAYER_STEP_MIN_RISER_ANGLE: f32 = 1.35;
+/// Wading: only count as grounded when feet are this close to the bed (not swimming).
+pub const PLAYER_WADE_GROUND_PROBE: f32 = 0.12;
+/// Fraction of intended horizontal travel required before we skip step-up.
+pub const PLAYER_STEP_BLOCKED_FRAC: f32 = 0.65;
 /// Max look pitch the server accepts, radians (just under straight up/down).
 pub const PLAYER_MAX_PITCH: f32 = 1.55;
 

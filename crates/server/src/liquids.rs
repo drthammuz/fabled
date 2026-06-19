@@ -53,10 +53,6 @@ impl Plugin for LiquidsPlugin {
             )
                 .chain()
                 .in_set(PhysicsStepSystems::First),
-        )
-        .add_systems(
-            FixedUpdate,
-            apply_player_water_drag.in_set(PhysicsStepSystems::First),
         );
     }
 }
@@ -255,21 +251,6 @@ fn apply_buoyancy(
 
         let buoyancy = liquid_density.0 * submerged.estimated_volume;
         forces.apply_force(Vector::from(-gravity.0) * buoyancy);
-    }
-}
-
-fn apply_player_water_drag(
-    time: Res<Time>,
-    mut players: Query<(&mut LinearVelocity, &PlayerWaterContact), With<CharacterController>>,
-) {
-    let dt = time.delta_secs();
-    let drag = (config::PLAYER_WATER_HORIZ_DRAG * dt).clamp(0.0, 0.95);
-    for (mut velocity, contact) in &mut players {
-        if contact.0 == 0 {
-            continue;
-        }
-        velocity.x *= 1.0 - drag;
-        velocity.z *= 1.0 - drag;
     }
 }
 

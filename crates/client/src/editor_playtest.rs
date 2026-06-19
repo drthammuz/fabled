@@ -139,16 +139,13 @@ fn sync_playtest_patched_pieces(
     let extraction = patched.extraction_xz;
 
     for (entity, module, gt, ..) in &placed {
-        if extraction.is_some_and(|[ex, ez]| {
-            kenney_pit::hide_extraction_hatch_piece(
-                module.name,
-                module.floor,
-                gt.translation().x,
-                gt.translation().z,
-                ex,
-                ez,
-            )
-        }) {
+        if kenney_pit::hide_extraction_hatch_piece(
+            module.name,
+            module.floor,
+            gt.translation().x,
+            gt.translation().z,
+            patched.floors.get(&module.floor),
+        ) {
             commands.entity(entity).despawn();
         }
     }
@@ -192,9 +189,11 @@ fn sync_playtest_mesh_cutouts(
     children_q: Query<&Children>,
     mesh_q: Query<(&Mesh3d, &GlobalTransform)>,
 ) {
-    let Some([ex, ez]) = map_pool::play_layout(true).extraction_xz else {
+    let layout = map_pool::play_layout(true);
+    let Some([ex, ez]) = layout.extraction_xz else {
         return;
     };
+    let extraction = Some(Vec2::new(ex, ez));
 
     for (entity, module, gt, placed) in &placed {
         if !kenney_pit::is_room_shell(module.name) {
@@ -209,8 +208,8 @@ fn sync_playtest_mesh_cutouts(
             module.name,
             placed.floor_level,
             gt,
-            ex,
-            ez,
+            extraction,
+            layout.floors.get(&placed.floor_level),
             &mut meshes,
             &children_q,
             &mesh_q,

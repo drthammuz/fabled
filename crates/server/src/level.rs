@@ -184,31 +184,16 @@ pub fn kenney_mesh_covers_cell(
     let cell = layout.grid_unit_m;
     let cx = layout.map_world_x0() + (map_ix as f32 + 0.5) * cell;
     let cz = layout.map_world_z0() + (map_iz as f32 + 0.5) * cell;
-    if floor_level < 0 && layout.extraction_xz.is_some() {
-        if let Some([ex, ez]) = layout.extraction_xz {
-            if floor_level == shared::kenney_pit::HUB_FLOOR_LEVEL
-                && (shared::kenney_pit::in_hub_l3_drop_zone(cx, cz, ex, ez)
-                    || shared::kenney_pit::in_hub_west_drop_zone(cx, cz, ex, ez)
-                    || shared::kenney_hub::in_hub_stairs_opening(cx, cz, ex, ez))
-            {
-                return true;
-            }
-        }
-        if layout.pieces.iter().any(|p| {
-            if p.floor as i32 != floor_level {
-                return false;
-            }
-            if kenney_skip_piece_collider(p, layout) {
-                return false;
-            }
-            if !shared::kenney_pit::is_room_shell(&p.stem) {
-                return false;
-            }
-            kenney_piece_contains_xz(p, cx, cz)
-        }) {
-            return true;
-        }
-        return false;
+    // Below ground, any floor-bearing piece (room shell or template-floor tile) counts as
+    // coverage. This prevents spawn_kenney_floor_cells from spawning a redundant cuboid
+    // on top of a template-floor tile's own trimesh collider.
+    if floor_level < 0 {
+        return layout.pieces.iter().any(|p| {
+            p.floor as i32 == floor_level
+                && !kenney_skip_piece_collider(p, layout)
+                && shared::kenney_pit::carves_floor(&p.stem)
+                && kenney_piece_contains_xz(p, cx, cz)
+        });
     }
     layout.pieces.iter().any(|p| {
         if p.floor as i32 != floor_level {
@@ -262,19 +247,6 @@ fn spawn_kenney_floor_cells(commands: &mut Commands, test: Option<&TestMode>, ed
                 }
                 let cx = x0 + (ix as f32 + 0.5) * cell;
                 let cz = z0 + (iz as f32 + 0.5) * cell;
-                if let Some([ex, ez]) = layout.extraction_xz {
-                    if *level == 0 && shared::kenney_pit::in_hub_drop_column(cx, cz, ex, ez) {
-                        continue;
-                    }
-                    if *level == shared::kenney_pit::HUB_FLOOR_LEVEL {
-                        if shared::kenney_pit::in_hub_l3_drop_zone(cx, cz, ex, ez)
-                            || shared::kenney_pit::in_hub_west_drop_zone(cx, cz, ex, ez)
-                            || shared::kenney_hub::in_hub_stairs_opening(cx, cz, ex, ez)
-                        {
-                            continue;
-                        }
-                    }
-                }
                 commands.spawn((
                     LevelEntity,
                     KenneyFloorCell,
@@ -346,9 +318,15 @@ fn spawn_kenney_piece_scenes(
         let floor_y = p.floor as f32 * MOD_H + 0.002;
         let path = shared::editor_catalog::glb_asset_path(&p.stem);
         let scale = p.scale.max(0.01);
-        let mesh_cutouts = layout.extraction_xz.map(|[ex, ez]| {
-            shared::kenney_pit::mesh_cutouts_for_piece(&p.stem, p.floor, p.x, p.z, p.yaw, ex, ez)
-        }).unwrap_or_default();
+        let mesh_cutouts = shared::kenney_pit::mesh_cutouts_for_piece(
+            &p.stem,
+            p.floor,
+            p.x,
+            p.z,
+            p.yaw,
+            layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
+            layout.floors.get(&p.floor),
+        );
         commands.spawn((
             LevelEntity,
             KenneyColliderScene {
@@ -377,21 +355,28 @@ pub fn kenney_skip_piece_collider(
     p: &shared::kenney_layout::KenneyPlacement,
     layout: &KenneyLayout,
 ) -> bool {
+    // The hole frame (template-floor-hole) is a raised rim with an open centre: it
+    // SHOULD collide so you stand on the rim and fall through the middle. Never skip it.
     if matches!(
         p.stem.as_str(),
         "template-floor-hole" | "template-floor-layer-hole"
     ) {
-        if p.floor < 0 {
-            return true;
-        }
-        if let Some([ex, ez]) = layout.extraction_xz {
-            if (p.x - ex).abs() < 0.5 && (p.z - ez).abs() < 0.5 {
-                return true;
-            }
-        }
+        return false;
     }
-    if let Some([ex, ez]) = layout.extraction_xz {
-        if shared::kenney_pit::skip_hub_passage_collider(&p.stem, p.floor, p.x, p.z, ex, ez) {
+    {
+        let (ex, ez) = layout
+            .extraction_xz
+            .map(|[a, b]| (a, b))
+            .unwrap_or((f32::INFINITY, f32::INFINITY));
+        if shared::kenney_pit::skip_hub_passage_collider(
+            &p.stem,
+            p.floor,
+            p.x,
+            p.z,
+            ex,
+            ez,
+            layout.floors.get(&p.floor),
+        ) {
             return true;
         }
     }

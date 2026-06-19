@@ -102,6 +102,61 @@ GID_L4 = 94
 # Shared-face openings must land on the same of the 5 boundary tiles.
 # Kenney room-large / most generated corridors use the centre tile (index 2).
 CENTER_TILE = 2
+# Grid-aligned stair opening offset from west module centre (cell ix=3 → +4 m).
+# Must be a multiple of CELL_M to land exactly on a 4 m cell centre.
+STAIR_CELL_DX = 4.0
+# Hub floor-1 hole offsets from hub module centre (must be multiples of CELL_M).
+# West drop sits in the SW corner (ix=0, iz=4) so it is OFF the centre row that the
+# player walks along from the landing to the west gate / stairs.
+WEST_DROP_DX = -8.0   # west drop tile (ix=0)
+WEST_DROP_DZ = 8.0    # west drop tile (iz=4) — off the gate path
+L3_DROP_DZ  = -8.0    # L3 pit drop tile (iz=0)
+
+
+# ─── floor transition rules (mirrors `shared/kenney_transitions.rs`) ─────────
+#
+# Module-local tile grid: NW corner = (0, 0), ix increases east, iz increases south.
+#   stair up (bottom)->(top) from floor a to b:
+#     lowest step on `bottom`, run ends on `top`; omit template-floor on BOTH tiles
+#     on BOTH floor bands (no double texture under/over the stair mesh).
+#   trap down (tile) from floor a to b:
+#     omit floor on `a` only; landing on `b` at the same tile stays solid.
+
+
+@dataclass(frozen=True)
+class ModuleTile:
+    ix: int
+    iz: int
+
+    def offset_m(self) -> Tuple[float, float]:
+        """Metres from module centre (matches gen_modules.cell_cx/cz)."""
+        return cell_cx(self.ix), cell_cz(self.iz)
+
+
+@dataclass(frozen=True)
+class StairUp:
+    bottom: ModuleTile
+    top: ModuleTile
+    from_floor: int
+    to_floor: int
+
+    def module_holes(self) -> List[Tuple[float, float]]:
+        """Offsets from module centre where template-floor must be absent."""
+        return [self.bottom.offset_m(), self.top.offset_m()]
+
+
+@dataclass(frozen=True)
+class TrapDown:
+    tile: ModuleTile
+    from_floor: int
+    to_floor: int
+
+    def module_hole(self) -> Tuple[float, float]:
+        return self.tile.offset_m()
+
+
+# Hub L2: (2,2)->(3,2) west module, depth -2 up to hub -1.
+HUB_L2_STAIR = StairUp(ModuleTile(2, 2), ModuleTile(3, 2), DEPTH_FLOOR_LEVEL, HUB_FLOOR_LEVEL)
 
 
 # ─── coordinate helpers ──────────────────────────────────────────────────────
@@ -749,6 +804,82 @@ def end_module_tile_constraints(
     return constraints
 
 
+def build_tiled_floor_room(
+    mcx: float,
+    mcz: float,
+    floor_level: int,
+    required: Set[str],
+    group_id: int,
+    tile_req: Optional[Dict[str, int]] = None,
+    floor_holes: Optional[List[Tuple[float, float]]] = None,
+    frame_holes: Optional[List[Tuple[float, float]]] = None,
+) -> List[dict]:
+    """Room built from single-cell template-floor tiles instead of a room-large shell.
+
+    A full perimeter ring of single-cell template-wall pieces is placed (all 5
+    boundary tiles per side), leaving the required door tile open on each
+    required side.  This replaces the room-large shell, which previously supplied
+    both the floor and the perimeter walls — close_for_placement_mesh only walls
+    the shell's *door openings*, so without the full ring the rooms had no walls.
+
+    Each cell in the 5×5 footprint gets a template-floor except cells listed in
+    floor_holes, which are (dx, dz) offsets from the module centre.  Absent
+    tiles == absent floor == absent physics — no carving or mask patching needed.
+    """
+    keep = tile_req or {}
+    out: List[dict] = []
+    # Full perimeter wall ring — one template-wall per boundary tile per side,
+    # minus the kept door tile on each required side.
+    for side in SIDES:
+        door_tile = keep.get(side, CENTER_TILE) if side in required else None
+        for tile in range(CELLS):
+            if tile == door_tile:
+                continue
+            w = wall_for_opening(side, tile)
+            out.append({
+                "stem": w.stem,
+                "x": mcx + w.x,
+                "z": mcz + w.z,
+                "yaw": w.yaw,
+                "floor_level": floor_level,
+                "scale": 1.0,
+                "group_id": group_id,
+            })
+    # Per-cell floor tiles — skip hole cells.
+    hole_cells: Set[Tuple[int, int]] = set()
+    for dx, dz in (floor_holes or []):
+        ix = CENTER_TILE + round(dx / CELL_M)
+        iz = CENTER_TILE + round(dz / CELL_M)
+        hole_cells.add((ix, iz))
+    for iz in range(CELLS):
+        for ix in range(CELLS):
+            if (ix, iz) in hole_cells:
+                continue
+            out.append({
+                "stem": "template-floor",
+                "x": mcx + cell_cx(ix),
+                "z": mcz + cell_cz(iz),
+                "yaw": 0.0,
+                "floor_level": floor_level,
+                "scale": 1.0,
+                "group_id": group_id,
+            })
+    # Decorative hole frame (raised rim, open centre) over drop holes. Its collider is
+    # skipped (floor < 0 / extraction tile) so the hole stays physically open; this is
+    # purely the visual ring the player sees around the pit.
+    for dx, dz in (frame_holes or []):
+        out.append({
+            "stem": EXTRACTION_HOLE_STEM,
+            "x": mcx + cell_cx(CENTER_TILE + round(dx / CELL_M)),
+            "z": mcz + cell_cz(CENTER_TILE + round(dz / CELL_M)),
+            "yaw": 0.0,
+            "floor_level": floor_level,
+            "scale": 1.0,
+            "group_id": group_id,
+        })
+    return out
+
+
 def build_end_extraction_room(
     mcx: float,
     mcz: float,
@@ -756,21 +887,13 @@ def build_end_extraction_room(
     tile_req: Dict[str, int],
     group_id: int,
 ) -> List[dict]:
-    """Finish module: room-large with walls closed except painted connections."""
-    base = [pp(EXTRACTION_ROOM_STEM, 0.0, 0.0, 0.0)]
-    closed = probe.close_for_placement_mesh(base, required, tile_req)
-    out: List[dict] = []
-    for p in closed:
-        out.append({
-            "stem": p.stem,
-            "x": mcx + p.x,
-            "z": mcz + p.z,
-            "yaw": p.yaw,
-            "floor_level": 0,
-            "scale": 1.0,
-            "group_id": group_id,
-        })
-    return out
+    """Finish module: tiled floor with walls closed except painted connections.
+
+    The trap cell (module centre) is intentionally skipped; the caller places
+    template-floor-hole there instead.
+    """
+    trap_hole = [(0.0, 0.0)]   # centre tile = extraction trap
+    return build_tiled_floor_room(mcx, mcz, 0, required, group_id, tile_req, trap_hole)
 
 
 def apply_extraction_and_hub(
@@ -828,15 +951,10 @@ def apply_extraction_and_hub(
             miz = er * CELLS + iz
             hub_floor[miz * cells_total + mix] = True
 
-    pieces_out.append({
-        "stem": HUB_ROOM_STEM,
-        "x": mcx,
-        "z": mcz,
-        "yaw": 0.0,
-        "floor_level": HUB_FLOOR_LEVEL,
-        "scale": 1.0,
-        "group_id": end_gid,
-    })
+    # Initial hub room (fully solid — holes added by apply_hub_exits / apply_hub_branches).
+    pieces_out.extend(
+        build_tiled_floor_room(mcx, mcz, HUB_FLOOR_LEVEL, set(), end_gid)
+    )
 
     return extraction, hub_floor
 
@@ -862,22 +980,13 @@ def build_branch_room(
     required: Set[str],
     group_id: int,
     tile_req: Optional[Dict[str, int]] = None,
+    floor_holes: Optional[List[Tuple[float, float]]] = None,
+    frame_holes: Optional[List[Tuple[float, float]]] = None,
 ) -> List[dict]:
-    """Single-module branch room with mesh-closed walls except required openings."""
-    base = [pp(HUB_ROOM_STEM, 0.0, 0.0, 0.0)]
-    closed = probe.close_for_placement_mesh(base, required, tile_req or {})
-    return [
-        {
-            "stem": p.stem,
-            "x": mcx + p.x,
-            "z": mcz + p.z,
-            "yaw": p.yaw,
-            "floor_level": floor_level,
-            "scale": 1.0,
-            "group_id": group_id,
-        }
-        for p in closed
-    ]
+    """Single-module branch room using per-cell floor tiles instead of a room shell."""
+    return build_tiled_floor_room(
+        mcx, mcz, floor_level, required, group_id, tile_req, floor_holes, frame_holes
+    )
 
 
 BRANCH_GIDS = frozenset({GID_L2, GID_L3, GID_L4})
@@ -955,7 +1064,8 @@ def apply_hub_exits(
     mcx_hub, mcz_hub = module_center(*hub_slot)
     mcx_w, mcz_w = module_center(wc, wr)
     hole_x, hole_z = extraction[0], extraction[1]
-    west_hole_x = hole_x - 8.0
+    west_hole_x = hole_x + WEST_DROP_DX
+    west_hole_z = hole_z + WEST_DROP_DZ
 
     hub_gid = max(
         (
@@ -968,19 +1078,17 @@ def apply_hub_exits(
         default=9,
     )
 
-    # Rebuild hub shell with west opening toward the branch corridor.
-    pieces_out[:] = [
-        p for p in pieces_out
-        if not (
-            p.get('stem') == HUB_ROOM_STEM
-            and int(p.get('floor_level', 0)) == HUB_FLOOR_LEVEL
-            and abs(float(p['x']) - mcx_hub) < 0.1
-            and abs(float(p['z']) - mcz_hub) < 0.1
-        )
-    ]
+    # Strip any prior hub floor pieces before rebuilding with tiled floors.
+    strip_module_floor_pieces(pieces_out, mcx_hub, mcz_hub, {HUB_FLOOR_LEVEL})
+
+    # Rebuild hub with west opening toward the branch corridor.
+    # Holes: west drop (SW corner, off the gate path) and L3 pit drop (iz=0);
+    # landing tile is solid. Both drop holes get a visible template-floor-hole frame.
+    hub_holes = [(WEST_DROP_DX, WEST_DROP_DZ), (0.0, L3_DROP_DZ)]
     pieces_out.extend(
         build_branch_room(
-            mcx_hub, mcz_hub, HUB_FLOOR_LEVEL, {'W'}, hub_gid, {'W': CENTER_TILE},
+            mcx_hub, mcz_hub, HUB_FLOOR_LEVEL, {'W'}, hub_gid,
+            {'W': CENTER_TILE}, hub_holes, frame_holes=hub_holes,
         )
     )
     pieces_out.append({
@@ -1004,9 +1112,16 @@ def apply_hub_exits(
     set_slot_floor_mask(hub_mask, hub_slot, cells_total)
     set_slot_floor_mask(hub_mask, (wc, wr), cells_total)
 
-    # Cut drop tiles on the hub floor mask (openings come from room-shell mesh cutouts).
-    stairs_open_x = mcx_w + 6.0
-    for hx, hz in ((hole_x, hole_z), (west_hole_x, hole_z), (stairs_open_x, mcz_w)):
+    # Cut hole cells in mask to match absent floor tiles.
+    # Landing tile (hole_x, hole_z) is kept SOLID — do NOT cut it.
+    # Stairs span two cells (stair-top at +4 and one cell west at +0).
+    holes = [
+        (west_hole_x, west_hole_z),
+        (mcx_hub, mcz_hub + L3_DROP_DZ),
+        (mcx_w + STAIR_CELL_DX, mcz_w),
+        (mcx_w, mcz_w),
+    ]
+    for hx, hz in holes:
         cut_floor_cell(hub_mask, cells_total, hx, hz)
 
     return {
@@ -1026,7 +1141,7 @@ def apply_hub_exits(
         },
         "4": {
             "x": west_hole_x,
-            "z": hole_z,
+            "z": west_hole_z,
             "floor": HUB_FLOOR_LEVEL,
             "label": "West drop",
             "kind": "drop",
@@ -1072,7 +1187,12 @@ def apply_hub_branches(
     pieces_out[:] = [
         p for p in pieces_out if int(p.get("group_id", 0)) not in BRANCH_GIDS
     ]
-    strip_module_floor_pieces(pieces_out, mcx_hub, mcz_hub, {HUB_FLOOR_LEVEL})
+    # Strip BOTH the hub band (-1) AND the depth band (-2) under the hub: L3 is now a
+    # tiled room, so any leftover room-large shell at -2 here would be an invisible
+    # double collider overlapping the tiled floor/walls.
+    strip_module_floor_pieces(
+        pieces_out, mcx_hub, mcz_hub, {HUB_FLOOR_LEVEL, DEPTH_FLOOR_LEVEL},
+    )
     strip_module_floor_pieces(
         pieces_out, mcx_w, mcz_w, {HUB_FLOOR_LEVEL, DEPTH_FLOOR_LEVEL},
     )
@@ -1081,18 +1201,13 @@ def apply_hub_branches(
     hole_z = mcz_hub + cell_cz(CENTER_TILE)
 
     # Rebuild hub with a west opening toward the branch corridor.
-    pieces_out[:] = [
-        p for p in pieces_out
-        if not (
-            p.get('stem') == HUB_ROOM_STEM
-            and int(p.get('floor_level', 0)) == HUB_FLOOR_LEVEL
-            and abs(float(p['x']) - mcx_hub) < 0.1
-            and abs(float(p['z']) - mcz_hub) < 0.1
-        )
-    ]
+    # Holes: west drop (SW corner, off the gate path) and L3 pit drop (iz=0);
+    # landing tile at centre is solid. Both drop holes get a template-floor-hole frame.
+    hub_holes = [(WEST_DROP_DX, WEST_DROP_DZ), (0.0, L3_DROP_DZ)]
     pieces_out.extend(
         build_branch_room(
-            mcx_hub, mcz_hub, HUB_FLOOR_LEVEL, {'W'}, hub_gid, {'W': CENTER_TILE},
+            mcx_hub, mcz_hub, HUB_FLOOR_LEVEL, {'W'}, hub_gid,
+            {'W': CENTER_TILE}, hub_holes, frame_holes=hub_holes,
         )
     )
     # Open west exit frame (no closed door panel).
@@ -1106,17 +1221,19 @@ def apply_hub_branches(
         "group_id": hub_gid,
     })
 
-    # L2 — stairs route destination (floor -2, west module east antechamber).
+    # L2 — stairs antechamber (floor -1, west module east opening).
+    # StairUp (2,2)->(3,2): omit floor on both footprint tiles (see HUB_L2_STAIR).
+    stair_holes = HUB_L2_STAIR.module_holes()
     pieces_out.extend(
         build_branch_room(
-            mcx_w, mcz_w, HUB_FLOOR_LEVEL, {'E'}, GID_L2, {'E': CENTER_TILE},
+            mcx_w, mcz_w, HUB_FLOOR_LEVEL, {'E'}, GID_L2, {'E': CENTER_TILE}, stair_holes,
         )
     )
     append_branch_props(pieces_out, mcx_w, mcz_w, HUB_FLOOR_LEVEL, GID_L2)
-    # Stairs inside L2 module (east antechamber — separate from L4 west-corridor drop).
+    # Stairs piece (no floor contribution — single mesh, floor -2).
     pieces_out.append({
         "stem": "stairs",
-        "x": mcx_w + 6.0,
+        "x": mcx_w + STAIR_CELL_DX,
         "z": mcz_w,
         "yaw": PI2,
         "floor_level": DEPTH_FLOOR_LEVEL,
@@ -1124,16 +1241,17 @@ def apply_hub_branches(
         "group_id": GID_L2,
     })
 
-    # L3 — pit drop target (floor -2, under extraction).
+    # L3 — pit drop target (floor -2, under extraction). All cells solid.
     pieces_out.extend(
         build_branch_room(mcx_hub, mcz_hub, DEPTH_FLOOR_LEVEL, set(), GID_L3),
     )
     append_branch_props(pieces_out, mcx_hub, mcz_hub, DEPTH_FLOOR_LEVEL, GID_L3)
 
-    # L4 — west drop target (floor -2).
+    # L4 — west drop target (floor -2). Same stair footprint: no floor under stairs.
     pieces_out.extend(
         build_branch_room(
             mcx_w, mcz_w, DEPTH_FLOOR_LEVEL, {'E'}, GID_L4, {'E': CENTER_TILE},
+            stair_holes,
         )
     )
 
@@ -1158,7 +1276,13 @@ def apply_hub_branches(
     set_slot_floor_mask(hub_mask, (wc, wr), cells_total)
     set_slot_floor_mask(depth_mask, hub_slot, cells_total)
     set_slot_floor_mask(depth_mask, (wc, wr), cells_total)
-    cut_floor_cell(hub_mask, cells_total, mcx_w + 6.0, mcz_w)
+    # Cut mask cells that match absent floor tiles (holes).
+    cut_floor_cell(hub_mask, cells_total, mcx_hub + WEST_DROP_DX, mcz_hub + WEST_DROP_DZ)
+    cut_floor_cell(hub_mask, cells_total, mcx_hub, mcz_hub + L3_DROP_DZ)
+    # StairUp footprint on hub band and depth band (no template-floor under treads).
+    for dx, dz in HUB_L2_STAIR.module_holes():
+        cut_floor_cell(hub_mask, cells_total, mcx_w + dx, mcz_w + dz)
+        cut_floor_cell(depth_mask, cells_total, mcx_w + dx, mcz_w + dz)
 
 
 def apply_hub_exits_to_doc(doc: dict) -> bool:
@@ -1288,6 +1412,8 @@ def build_map_json(
         },
     }
     hub_exits = apply_hub_exits(design.end, extraction, pieces_out, floors, cells_total)
+    # Embed L2/L3/L4 branch content (strips and rebuilds hub, adds west-module rooms).
+    apply_hub_branches(design.end, pieces_out, floors, cells_total)
     module_exits: Dict[str, Dict[str, List[int]]] = {}
     for slot, sides in design.connections.items():
         exp = probe.expected_border_openings(sides)

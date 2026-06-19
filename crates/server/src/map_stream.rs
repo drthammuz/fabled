@@ -313,42 +313,29 @@ pub fn spawn_stream_geometries(
 }
 
 fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, inst: &MountedMap) {
-    let world_layout = inst.to_world_layout();
     for p in &inst.layout.pieces {
-        let wx = p.x + inst.offset.x;
-        let wz = p.z + inst.offset.z;
-        let world_piece = shared::kenney_layout::KenneyPlacement {
-            stem: p.stem.clone(),
-            x: wx,
-            z: wz,
-            yaw: p.yaw,
-            floor: p.floor,
-            scale: p.scale,
-            group_id: p.group_id,
-        };
         let collide = kenney_catalog::piece(&p.stem)
             .map(|x| x.collide_default)
             .unwrap_or(true);
-        if !collide || kenney_skip_piece_collider(&world_piece, &world_layout) {
+        // Decide skip in the instance-local frame (the mask is origin-centred, pre-offset).
+        if !collide || kenney_skip_piece_collider(p, &inst.layout) {
             continue;
         }
         let yaw = quantize_yaw(p.yaw);
         let path = shared::editor_catalog::glb_asset_path(&p.stem);
         let scale = p.scale.max(0.01);
-        let mesh_cutouts = world_layout
-            .extraction_xz
-            .map(|[ex, ez]| {
-                shared::kenney_pit::mesh_cutouts_for_piece(
-                    &p.stem,
-                    p.floor,
-                    wx,
-                    wz,
-                    p.yaw,
-                    ex,
-                    ez,
-                )
-            })
-            .unwrap_or_default();
+        // Compute cutouts in the local frame (local mask + local extraction), then translate
+        // the resulting world-space hole/opening centres by the instance offset.
+        let mesh_cutouts = shared::kenney_pit::mesh_cutouts_for_piece(
+            &p.stem,
+            p.floor,
+            p.x,
+            p.z,
+            p.yaw,
+            inst.layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
+            inst.layout.floors.get(&p.floor),
+        )
+        .translated(inst.offset.x, inst.offset.z);
         commands.spawn((
             LevelEntity,
             KenneyInstanceTag {
@@ -378,7 +365,6 @@ fn spawn_instance_floors(commands: &mut Commands, inst: &MountedMap) {
         return;
     }
     let cell = layout.grid_unit_m;
-    let extraction = inst.world_extraction();
     for (level, mask) in &layout.floors {
         let y = *level as f32 * MOD_H + inst.offset.y;
         let x0 = mask.world_x0() + inst.offset.x;
@@ -390,18 +376,7 @@ fn spawn_instance_floors(commands: &mut Commands, inst: &MountedMap) {
                 }
                 let cx = x0 + (ix as f32 + 0.5) * cell;
                 let cz = z0 + (iz as f32 + 0.5) * cell;
-                if let Some([ex, ez]) = extraction {
-                    if *level == shared::kenney_pit::HUB_FLOOR_LEVEL
-                        && (shared::kenney_pit::in_hub_l3_drop_zone(cx, cz, ex, ez)
-                            || shared::kenney_pit::in_hub_west_drop_zone(cx, cz, ex, ez)
-                            || shared::kenney_hub::in_hub_stairs_opening(cx, cz, ex, ez))
-                    {
-                        continue;
-                    }
-                }
-                if *level < 0
-                    && crate::level::kenney_mesh_covers_cell(layout, ix, iz, *level)
-                {
+                if *level < 0 && crate::level::kenney_mesh_covers_cell(layout, ix, iz, *level) {
                     continue;
                 }
                 commands.spawn((

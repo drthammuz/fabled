@@ -284,7 +284,11 @@ fn spawn_player(
                     translation: spawn_pos,
                     rotation: Quat::IDENTITY,
                 },
-                Collider::capsule(config::PLAYER_CAPSULE_RADIUS, config::PLAYER_CAPSULE_LENGTH),
+                Collider::cuboid(
+                    config::PLAYER_BODY_WIDTH,
+                    config::PLAYER_BODY_HEIGHT,
+                    config::PLAYER_BODY_WIDTH,
+                ),
                 Transform::from_translation(spawn_pos),
             ),
         ))

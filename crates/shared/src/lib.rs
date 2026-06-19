@@ -9,6 +9,7 @@ pub mod kenney_catalog;
 pub mod kenney_hub;
 pub mod kenney_layout;
 pub mod kenney_pit;
+pub mod kenney_transitions;
 pub mod level;
 pub mod props;
 pub mod protocol;

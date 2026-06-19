@@ -6,3 +6,6 @@
 /assets/downloads
 # Stray screenshots
 /1.png
+
+# Oversized local-only assets (GitHub 100MB limit)
+/assets/models/misc/cyberpunk_city.glb

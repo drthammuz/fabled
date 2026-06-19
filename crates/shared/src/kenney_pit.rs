@@ -2,7 +2,9 @@
 
 use bevy::prelude::{Vec2, Vec3};
 
+use crate::editor_map::FloorMask;
 use crate::kenney_catalog::{self, quantize_yaw};
+use crate::kenney_layout::KenneyLayout;
 use crate::level::MOD_H;
 
 /// Half-extent of one grid cell in world XZ for floor-hole cutouts (exact tile, no bleed).
@@ -18,6 +20,7 @@ pub const PIT_DROP_HALF: f32 = 1.25;
 pub const PIT_FLOOR_BAND: f32 = 0.5;
 /// Hub branch level (one MOD_H below stretch).
 pub const HUB_FLOOR_LEVEL: i32 = -1;
+pub const DEPTH_FLOOR_LEVEL: i32 = -2;
 /// Below this Y the extraction shaft ends and hub-floor grounding resumes.
 pub const PIT_SHAFT_BOTTOM_Y: f32 = HUB_FLOOR_LEVEL as f32 * MOD_H - 0.35;
 /// West module link opening half-width on Z.
@@ -25,11 +28,12 @@ pub const WEST_OPENING_HALF_Z: f32 = 2.05;
 /// Thickness of west wall triangles to remove around the link opening.
 pub const WEST_WALL_THICK: f32 = 1.6;
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct KenneyMeshCutouts {
     pub floor: i32,
-    pub floor_holes: [Option<Vec2>; 3],
-    pub floor_hole_count: u8,
+    /// Centres (world XZ) of grid cells under this piece whose floor mask is a hole.
+    /// Single source of truth: derived from `FloorMask`, never from hub geometry.
+    pub floor_holes: Vec<Vec2>,
     pub pit_shaft: Option<Vec2>,
     /// Room centre XZ for a west-face link opening (hub → corridor).
     pub west_opening: Option<Vec2>,
@@ -39,17 +43,28 @@ pub struct KenneyMeshCutouts {
 
 impl KenneyMeshCutouts {
     pub fn is_empty(&self) -> bool {
-        self.floor_hole_count == 0
+        self.floor_holes.is_empty()
             && self.pit_shaft.is_none()
             && self.west_opening.is_none()
             && self.east_opening.is_none()
     }
 
     pub fn floor_holes(&self) -> impl Iterator<Item = Vec2> + '_ {
-        self.floor_holes
-            .into_iter()
-            .take(self.floor_hole_count as usize)
-            .flatten()
+        self.floor_holes.iter().copied()
+    }
+
+    /// Shift every hole/opening centre by (dx,dz) — used to lift local-frame cutouts to world.
+    pub fn translated(mut self, dx: f32, dz: f32) -> Self {
+        let shift = Vec2::new(dx, dz);
+        for h in &mut self.floor_holes {
+            *h += shift;
+        }
+        for opt in [&mut self.pit_shaft, &mut self.west_opening, &mut self.east_opening] {
+            if let Some(v) = opt {
+                *v += shift;
+            }
+        }
+        self
     }
 }
 
@@ -83,77 +98,96 @@ pub fn piece_overlaps_pit_tile(px: f32, pz: f32, stem: &str, yaw: f32, ex: f32, 
     piece_overlaps_tile(px, pz, stem, yaw, ex, ez)
 }
 
-fn push_hole(holes: &mut [Option<Vec2>; 3], count: &mut u8, centre: Vec2) {
-    if (*count as usize) < holes.len() {
-        holes[*count as usize] = Some(centre);
-        *count += 1;
+/// Pieces that carry a baked walkable floor we must carve holes out of.
+pub fn carves_floor(stem: &str) -> bool {
+    is_room_shell(stem)
+        || stem.starts_with("corridor")
+        || (stem.starts_with("template-floor") && !stem.contains("hole"))
+}
+
+/// True when the floor mask reports a solid floor at world XZ (out of bounds = solid).
+pub fn mask_has_floor_world(mask: &FloorMask, x: f32, z: f32) -> bool {
+    let cell = kenney_catalog::KENNEY_CELL;
+    let ix = ((x - mask.world_x0()) / cell).floor();
+    let iz = ((z - mask.world_z0()) / cell).floor();
+    if ix < 0.0 || iz < 0.0 {
+        return true;
     }
+    mask.get(ix as u32, iz as u32)
+}
+
+/// World XZ centres of every cell under a piece footprint whose mask cell is a hole.
+fn footprint_hole_cells(stem: &str, px: f32, pz: f32, yaw: f32, mask: &FloorMask) -> Vec<Vec2> {
+    let (nx, nz) = kenney_catalog::piece_grid_size(stem);
+    let (wx, wz) = kenney_catalog::rotated_grid_size(nx, nz, quantize_yaw(yaw));
+    let cell = kenney_catalog::KENNEY_CELL;
+    let sw_x = px - wx * cell * 0.5;
+    let sw_z = pz - wz * cell * 0.5;
+    let mut out = Vec::new();
+    for j in 0..wz.round() as u32 {
+        for i in 0..wx.round() as u32 {
+            let cx = sw_x + (i as f32 + 0.5) * cell;
+            let cz = sw_z + (j as f32 + 0.5) * cell;
+            if !mask_has_floor_world(mask, cx, cz) {
+                out.push(Vec2::new(cx, cz));
+            }
+        }
+    }
+    out
 }
 
 /// All mesh surgery needed for a placed Kenney piece.
+///
+/// Floor holes come **only** from `mask` (single source of truth shared with physics).
+/// `ex`/`ez` drive the floor-0 extraction shaft clear and the hub door wall openings only.
 pub fn mesh_cutouts_for_piece(
     stem: &str,
     floor: i32,
     px: f32,
     pz: f32,
     yaw: f32,
-    ex: f32,
-    ez: f32,
+    extraction: Option<Vec2>,
+    mask: Option<&FloorMask>,
 ) -> KenneyMeshCutouts {
     let mut cutouts = KenneyMeshCutouts {
         floor,
         ..Default::default()
     };
+
+    // Floor holes: mask-driven, for any floor-bearing piece (works without a hub).
+    if carves_floor(stem) {
+        if let Some(mask) = mask {
+            cutouts.floor_holes = footprint_hole_cells(stem, px, pz, yaw, mask);
+        }
+    }
+
     if !is_room_shell(stem) {
         return cutouts;
     }
+    let Some(ext) = extraction else {
+        return cutouts;
+    };
+    let (ex, ez) = (ext.x, ext.y);
 
-    if (floor == 0) && piece_overlaps_tile(px, pz, stem, yaw, ex, ez) {
-        push_hole(
-            &mut cutouts.floor_holes,
-            &mut cutouts.floor_hole_count,
-            Vec2::new(ex, ez),
-        );
+    // Floor-0 extraction shaft: clear the room-interior tris under the open drop tile so
+    // the faller drops cleanly to the hub. Only when (ex,ez) is actually a hole in the mask.
+    let drop_is_hole = mask.is_some_and(|m| !mask_has_floor_world(m, ex, ez));
+    if floor == 0 && drop_is_hole && piece_overlaps_pit_tile(px, pz, stem, yaw, ex, ez) {
+        cutouts.pit_shaft = Some(Vec2::new(ex, ez));
     }
+
+    // Hub door wall openings (walls, not floor — kept geometric).
     if floor == HUB_FLOOR_LEVEL {
-        if piece_overlaps_tile(px, pz, stem, yaw, ex, ez) {
-            push_hole(
-                &mut cutouts.floor_holes,
-                &mut cutouts.floor_hole_count,
-                Vec2::new(ex, ez),
-            );
-        }
-        let west_drop = hub_west_drop_centre(ex, ez);
-        if piece_overlaps_tile(px, pz, stem, yaw, west_drop.x, west_drop.y) {
-            push_hole(
-                &mut cutouts.floor_holes,
-                &mut cutouts.floor_hole_count,
-                west_drop,
-            );
-        }
-        let stair = hub_stairs_opening(ex, ez);
-        if piece_overlaps_tile(px, pz, stem, yaw, stair.x, stair.y) {
-            push_hole(
-                &mut cutouts.floor_holes,
-                &mut cutouts.floor_hole_count,
-                stair,
-            );
-        }
-        // Hub floor stays solid under hatch props; only carve door link walls.
         if (px - ex).abs() < 0.5 && (pz - ez).abs() < 0.5 {
             cutouts.west_opening = Some(Vec2::new(px, pz));
         } else {
-            // L2 branch room on the west module — open the east link wall.
             cutouts.east_opening = Some(Vec2::new(px, pz));
         }
     }
     if floor == -2 && (px - ex).abs() > 5.0 {
-        // L4 west-module room — open east wall toward the corridor drop.
         cutouts.east_opening = Some(Vec2::new(px, pz));
     }
-    if floor == 0 && piece_overlaps_pit_tile(px, pz, stem, yaw, ex, ez) {
-        cutouts.pit_shaft = Some(Vec2::new(ex, ez));
-    }
+
     cutouts
 }
 
@@ -163,10 +197,10 @@ pub fn floor_cutout_centers(
     px: f32,
     pz: f32,
     yaw: f32,
-    ex: f32,
-    ez: f32,
+    extraction: Option<Vec2>,
+    mask: Option<&FloorMask>,
 ) -> Vec<Vec2> {
-    mesh_cutouts_for_piece(stem, floor, px, pz, yaw, ex, ez)
+    mesh_cutouts_for_piece(stem, floor, px, pz, yaw, extraction, mask)
         .floor_holes()
         .collect()
 }
@@ -177,16 +211,10 @@ pub fn needs_pit_floor_cutout(
     px: f32,
     pz: f32,
     yaw: f32,
-    ex: f32,
-    ez: f32,
+    extraction: Option<Vec2>,
+    mask: Option<&FloorMask>,
 ) -> bool {
-    !floor_cutout_centers(stem, floor, px, pz, yaw, ex, ez).is_empty()
-}
-
-pub fn needs_pit_shaft_cutout(stem: &str, floor: i32, px: f32, pz: f32, yaw: f32, ex: f32, ez: f32) -> bool {
-    mesh_cutouts_for_piece(stem, floor, px, pz, yaw, ex, ez)
-        .pit_shaft
-        .is_some()
+    !floor_cutout_centers(stem, floor, px, pz, yaw, extraction, mask).is_empty()
 }
 
 fn tri_centroid(v0: Vec3, v1: Vec3, v2: Vec3) -> Vec3 {
@@ -411,15 +439,24 @@ pub fn hub_west_module_center(ex: f32, ez: f32) -> (f32, f32) {
     (ex - HUB_MODULE_SPAN, ez)
 }
 
-/// World XZ of the hub-floor opening above the L2 stairs.
+/// World XZ of the hub-floor opening above the L2 stairs (the stair-top cell).
+/// Offset is a whole number of cells from the west-module centre so the opening lands
+/// exactly on a 4 m grid cell (mask cut and mesh carve must agree).
 pub fn hub_stairs_opening(ex: f32, ez: f32) -> Vec2 {
     let (wx, wz) = hub_west_module_center(ex, ez);
-    Vec2::new(wx + 6.0, wz)
+    Vec2::new(wx + 4.0, wz)
+}
+
+/// Both hub-floor cells above the L2 stairs. Derived from [`crate::kenney_transitions::hub_l2_stair_up`].
+pub fn hub_stairs_opening_cells(ex: f32, ez: f32) -> [Vec2; 2] {
+    let (wx, wz) = hub_west_module_center(ex, ez);
+    crate::kenney_transitions::hub_l2_stair_up().footprint_world(wx, wz)
 }
 
 pub fn in_hub_stairs_opening(x: f32, z: f32, ex: f32, ez: f32) -> bool {
-    let s = hub_stairs_opening(ex, ez);
-    in_hub_drop_column(x, z, s.x, s.y)
+    hub_stairs_opening_cells(ex, ez)
+        .iter()
+        .any(|s| in_hub_drop_column(x, z, s.x, s.y))
 }
 
 /// Hub branch module spacing (5 cells × 4 m).
@@ -429,9 +466,10 @@ pub fn in_extraction_drop_zone(x: f32, z: f32, ex: f32, ez: f32) -> bool {
     (x - ex).abs() < PIT_DROP_HALF && (z - ez).abs() < PIT_DROP_HALF
 }
 
-/// West-corridor drop hole on the hub band (floor -1).
+/// West drop hole on the hub band (floor -1). Sits in the SW corner (ex-8, ez+8) so it
+/// is off the centre row the player walks from the landing to the west gate / stairs.
 pub fn hub_west_drop_centre(ex: f32, ez: f32) -> Vec2 {
-    Vec2::new(ex - 8.0, ez)
+    Vec2::new(ex - 8.0, ez + 8.0)
 }
 
 pub fn in_hub_west_drop_zone(x: f32, z: f32, ex: f32, ez: f32) -> bool {
@@ -446,8 +484,15 @@ pub fn in_hub_drop_column(x: f32, z: f32, tx: f32, tz: f32) -> bool {
     (x - tx).abs() <= half && (z - tz).abs() <= half
 }
 
+/// L3 pit drop opening on the hub floor — a separate tile north of the landing,
+/// so dropping through the floor-0 trap lands on solid hub floor at (ex,ez).
+pub fn hub_l3_drop_centre(ex: f32, ez: f32) -> Vec2 {
+    Vec2::new(ex, ez - 8.0)
+}
+
 pub fn in_hub_l3_drop_zone(x: f32, z: f32, ex: f32, ez: f32) -> bool {
-    in_hub_drop_column(x, z, ex, ez)
+    let c = hub_l3_drop_centre(ex, ez);
+    in_hub_drop_column(x, z, c.x, c.y)
 }
 
 /// @deprecated use `in_hub_west_drop_zone` / `in_hub_l3_drop_zone`
@@ -470,7 +515,8 @@ pub fn in_hub_east_link(x: f32, z: f32, room_cx: f32, room_cz: f32) -> bool {
     (x - wall_x).abs() < WEST_WALL_THICK && (z - room_cz).abs() < WEST_OPENING_HALF_Z
 }
 
-/// Skip solid colliders on decorative door frames / link walls that should stay open.
+/// Skip solid colliders on decorative door frames / link walls that should stay open,
+/// and on any floor prop that sits over a mask hole.
 pub fn skip_hub_passage_collider(
     stem: &str,
     floor: i32,
@@ -478,7 +524,12 @@ pub fn skip_hub_passage_collider(
     pz: f32,
     ex: f32,
     ez: f32,
+    mask: Option<&FloorMask>,
 ) -> bool {
+    // Floor props over a hole carry no collider (any floor, mask-driven).
+    if floor_prop_on_hole(stem, px, pz, mask) {
+        return true;
+    }
     if floor != HUB_FLOOR_LEVEL {
         return false;
     }
@@ -490,70 +541,48 @@ pub fn skip_hub_passage_collider(
     {
         return true;
     }
-    if matches!(stem, "template-floor" | "template-floor-layer" | "template-floor-big")
-        && (in_hub_l3_drop_zone(px, pz, ex, ez)
-            || in_hub_west_drop_zone(px, pz, ex, ez)
-            || in_hub_stairs_opening(px, pz, ex, ez))
-    {
-        return true;
-    }
     false
 }
 
-/// While inside the open hole column, ignore rim/adjacent floor probes and coyote time.
-pub fn suppress_extraction_grounding(x: f32, y: f32, z: f32, ex: f32, ez: f32) -> bool {
-    if y <= PIT_SHAFT_BOTTOM_Y {
-        return false;
-    }
-    let hub_walk = pit_floor_top_y(HUB_FLOOR_LEVEL);
-    if y <= hub_walk + 0.25 {
-        let west = hub_west_drop_centre(ex, ez);
-        let stair = hub_stairs_opening(ex, ez);
-        return in_hub_drop_column(x, z, ex, ez)
-            || in_hub_drop_column(x, z, west.x, west.y)
-            || in_hub_drop_column(x, z, stair.x, stair.y);
-    }
-    in_hub_drop_column(x, z, ex, ez)
+/// Floor level whose walking surface is nearest a given world Y.
+pub fn floor_level_at_y(y: f32) -> i32 {
+    (y / MOD_H).round() as i32
 }
 
-/// Hide decorative hatch / patch floor tiles — hub drops use room-shell mesh cutouts.
-pub fn hide_extraction_hatch_piece(stem: &str, floor: i32, px: f32, pz: f32, ex: f32, ez: f32) -> bool {
-    if hide_hub_floor_hatch_piece(stem, floor, px, pz, ex, ez) {
-        return true;
-    }
-    if floor == HUB_FLOOR_LEVEL
-        && matches!(
-            stem,
-            "template-floor" | "template-floor-layer" | "template-floor-big"
-        )
-        && (in_hub_l3_drop_zone(px, pz, ex, ez)
-            || in_hub_west_drop_zone(px, pz, ex, ez)
-            || in_hub_stairs_opening(px, pz, ex, ez))
-    {
-        return true;
-    }
-    matches!(
-        stem,
-        "template-floor-hole" | "template-floor-layer-hole"
-    ) && floor == 0
-        && (px - ex).abs() < 0.5
-        && (pz - ez).abs() < 0.5
+/// True when the cell under (x,z) at the player's current floor band is a hole.
+/// Single rule that replaces every hub-specific grounding-suppression zone.
+pub fn over_open_hole(layout: &KenneyLayout, x: f32, y: f32, z: f32) -> bool {
+    let level = floor_level_at_y(y);
+    let Some(mask) = layout.floors.get(&level) else {
+        return false;
+    };
+    !mask_has_floor_world(mask, x, z)
 }
 
-/// Hub floor -1 hatches are mesh-cut openings; the GLB prop reads as a diagonal wedge.
-pub fn hide_hub_floor_hatch_piece(stem: &str, floor: i32, px: f32, pz: f32, ex: f32, ez: f32) -> bool {
-    if floor != HUB_FLOOR_LEVEL {
+/// A floor prop placed over a mask hole (its visual + collider must be suppressed).
+pub fn floor_prop_on_hole(stem: &str, px: f32, pz: f32, mask: Option<&FloorMask>) -> bool {
+    if !stem.starts_with("template-floor") {
         return false;
     }
-    if !matches!(
-        stem,
-        "template-floor-hole" | "template-floor-layer-hole"
-    ) {
+    // `template-floor-hole` is the intentional hole *frame* (a raised rim with an open
+    // centre): keep it rendered. Its collider is skipped separately (floor < 0 / the
+    // extraction tile in `kenney_skip_piece_collider`), so the hole stays physically open.
+    if stem.contains("hole") {
         return false;
     }
-    in_extraction_drop_zone(px, pz, ex, ez)
-        || in_hub_west_drop_zone(px, pz, ex, ez)
-        || in_hub_stairs_opening(px, pz, ex, ez)
+    // Only suppress a *solid* floor tile that happens to sit over a mask hole.
+    mask.is_some_and(|m| !mask_has_floor_world(m, px, pz))
+}
+
+/// Hide decorative hatch / patch floor tiles that sit over a mask hole.
+pub fn hide_extraction_hatch_piece(
+    stem: &str,
+    _floor: i32,
+    px: f32,
+    pz: f32,
+    mask: Option<&FloorMask>,
+) -> bool {
+    floor_prop_on_hole(stem, px, pz, mask)
 }
 
 #[cfg(test)]
@@ -564,34 +593,55 @@ mod tests {
     const EX: f32 = 20.0;
     const EZ: f32 = 20.0;
 
+    /// 15×15 cell map (3 modules) mask with a single hole punched at world (hx,hz).
+    fn mask_with_hole(hx: f32, hz: f32) -> FloorMask {
+        let mut mask = FloorMask::filled(15, 15);
+        let cell = kenney_catalog::KENNEY_CELL;
+        let ix = ((hx - mask.world_x0()) / cell).floor() as u32;
+        let iz = ((hz - mask.world_z0()) / cell).floor() as u32;
+        mask.set(ix, iz, false);
+        mask
+    }
+
     #[test]
-    fn floor_0_room_gets_pit_hole_and_shaft() {
-        let cut = mesh_cutouts_for_piece("room-large", 0, EX, EZ, 0.0, EX, EZ);
-        assert_eq!(cut.floor_hole_count, 1);
+    fn floor_holes_come_from_mask_only() {
+        let ext = Some(Vec2::new(EX, EZ));
+        // No mask -> no holes, even on the hub floor.
+        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, None);
+        assert!(cut.floor_holes.is_empty());
+
+        // A masked hole under the room footprint produces exactly one carved cell.
+        let mask = mask_with_hole(EX, EZ);
+        let cut =
+            mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, Some(&mask));
+        assert_eq!(cut.floor_holes.len(), 1);
+        let h = cut.floor_holes[0];
+        assert!((h.x - EX).abs() < 2.0 && (h.y - EZ).abs() < 2.0);
+    }
+
+    #[test]
+    fn floor_0_shaft_only_when_drop_is_masked_hole() {
+        let ext = Some(Vec2::new(EX, EZ));
+        let solid = FloorMask::filled(15, 15);
+        let cut = mesh_cutouts_for_piece("room-large", 0, EX, EZ, 0.0, ext, Some(&solid));
+        assert!(cut.pit_shaft.is_none());
+
+        let mask = mask_with_hole(EX, EZ);
+        let cut = mesh_cutouts_for_piece("room-large", 0, EX, EZ, 0.0, ext, Some(&mask));
         assert_eq!(cut.pit_shaft, Some(Vec2::new(EX, EZ)));
     }
 
     #[test]
-    fn hub_room_gets_centre_and_west_holes() {
-        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, EX, EZ);
-        assert_eq!(cut.floor_hole_count, 2);
+    fn hub_room_keeps_door_wall_opening() {
+        let ext = Some(Vec2::new(EX, EZ));
+        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, None);
         assert!(cut.west_opening.is_some());
     }
 
     #[test]
-    fn west_hub_room_gets_stair_hole() {
-        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, 0.0, EZ, 0.0, EX, EZ);
-        assert_eq!(cut.floor_hole_count, 1);
-        assert_eq!(cut.floor_holes[0], Some(hub_stairs_opening(EX, EZ)));
-    }
-
-    #[test]
-    fn hub_room_overlaps_west_drop_tile() {
-        assert!(piece_overlaps_tile(20.0, 20.0, "room-large", 0.0, 12.0, 20.0));
-    }
-
-    #[test]
-    fn west_room_overlaps_stair_opening() {
-        assert!(piece_overlaps_tile(0.0, 20.0, "room-large", 0.0, 6.0, 20.0));
+    fn l3_drop_is_separate_from_landing_tile() {
+        // The L3 opening must not be the (ex,ez) landing tile.
+        let l3 = hub_l3_drop_centre(EX, EZ);
+        assert!((l3.x - EX).abs() + (l3.y - EZ).abs() > 1.0);
     }
 }

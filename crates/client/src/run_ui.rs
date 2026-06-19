@@ -1,7 +1,10 @@
 //! Run HUD: credits, phase, shop and route prompts.
 
 use bevy::prelude::*;
+use shared::kenney_hub;
+use shared::kenney_layout::KenneyLayout;
 use shared::run::{RunPhase, RunState};
+use shared::EditorMode;
 
 pub struct RunUiPlugin;
 
@@ -15,7 +18,10 @@ impl Plugin for RunUiPlugin {
 #[derive(Component)]
 struct RunHud;
 
-fn spawn_hud(mut commands: Commands) {
+fn spawn_hud(mut commands: Commands, editor: Option<Res<EditorMode>>) {
+    if editor.is_some() {
+        return;
+    }
     commands.spawn((
         RunHud,
         Text::new(""),
@@ -34,9 +40,14 @@ fn spawn_hud(mut commands: Commands) {
     ));
 }
 
-fn update_hud(run: Query<&RunState>, mut hud: Query<&mut Text, With<RunHud>>) {
+fn update_hud(
+    run: Query<&RunState>,
+    player: Query<&Transform, With<crate::netplay::OwnPlayer>>,
+    mut hud: Query<&mut Text, With<RunHud>>,
+) {
     let Ok(state) = run.single() else { return };
     let Ok(mut text) = hud.single_mut() else { return };
+    let layout = KenneyLayout::load_from_disk();
     let phase = match state.phase {
         RunPhase::InStretch => "IN STRETCH".to_string(),
         RunPhase::InHub => state.hub_id.as_deref()
@@ -53,9 +64,41 @@ fn update_hud(run: Query<&RunState>, mut hud: Query<&mut Text, With<RunHud>>) {
         lines.push(format!("Map: {holder}"));
     }
     if state.phase == RunPhase::InHub {
-        lines.push("Shop: 1=Flashlight 2=Bat 3=Map | Routes: 7/8/9".to_string());
-        for (i, route) in state.route_options.iter().enumerate() {
-            lines.push(format!("  {} — {} ({}c)", i + 7, route.label, route.cost));
+        if let Some(exit) = state.hub_commit.chosen_exit {
+            let n = state.hub_commit.player_exits.len();
+            lines.push(format!("Exit locked: L{exit} — {n} committed"));
+            for e in [2u8, 3, 4] {
+                if state.hub_commit.is_exit_closed(e) {
+                    lines.push(format!("  L{e} closed"));
+                }
+            }
+            if state.hub_commit.l1_unloaded {
+                lines.push("L1 stretch unloaded — in branch".to_string());
+            } else {
+                lines.push("All operators must reach the same exit".to_string());
+            }
+        } else {
+            lines.push("Exits: centre pit | west corridor | west gate".to_string());
+            if !state.map_stream.candidates.is_empty() {
+                for (exit, id) in &state.map_stream.candidates {
+                    lines.push(format!("  exit {exit}: {id} mounted below"));
+                }
+            } else {
+                lines.push("Full maps stream in under hub holes (no loading screen)".to_string());
+            }
+        }
+        if let Ok(tf) = player.single() {
+            for (key, branch) in &layout.branch_levels {
+                if kenney_hub::in_branch_destination(tf.translation, branch) {
+                    lines.push(format!("Inside branch L{key}: {}", branch.label));
+                }
+            }
+        }
+        lines.push("Shop: 1=Flashlight 2=Bat 3=Map".to_string());
+        if state.hub_commit.chosen_exit.is_none() {
+            for (i, route) in state.route_options.iter().enumerate() {
+                lines.push(format!("  {} — {} ({}c)", i + 7, route.label, route.cost));
+            }
         }
     }
     if state.phase == RunPhase::InStretch {

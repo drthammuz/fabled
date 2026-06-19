@@ -20,11 +20,14 @@ impl Plugin for CharacterAnimationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CharacterAnimLib>()
             .add_systems(Startup, preload_anim_assets)
-            .add_systems(Update, (
-                build_anim_graphs,
+            // build_anim_graphs can stay in Update (mutates Assets, no entity commands).
+            .add_systems(Update, build_anim_graphs)
+            // Detection and wiring run in PostUpdate so that all Update command buffers
+            // (including remove_own_player_model's recursive despawn of the OwnPlayer rig)
+            // have been flushed before we query Added<AnimationPlayer>.  This prevents a
+            // panic when the rig entity is despawned and re-inserted in the same flush.
+            .add_systems(PostUpdate, (
                 detect_new_rigs,
-                // Flush commands so PendingRig is visible to wire_pending_rigs
-                // in the same frame (instead of waiting until next frame).
                 ApplyDeferred,
                 wire_pending_rigs,
                 drive_player_animations,
@@ -147,10 +150,12 @@ fn detect_new_rigs(
         loop {
             if let Ok(link) = scene_links.get(current) {
                 // Class is determined from the player entity inside wire_pending_rigs.
-                commands.entity(rig_entity).insert(PendingRig {
-                    player_entity: link.0,
-                });
-                warn!("ANIM: new rig {rig_entity:?} → player {:?}", link.0);
+                // Use get_entity to silently skip if the rig was concurrently despawned
+                // (e.g. remove_own_player_model fires the same frame as Added<AnimationPlayer>).
+                if let Ok(mut ec) = commands.get_entity(rig_entity) {
+                    ec.insert(PendingRig { player_entity: link.0 });
+                    warn!("ANIM: new rig {rig_entity:?} → player {:?}", link.0);
+                }
                 found = true;
                 break;
             }
@@ -195,15 +200,15 @@ fn wire_pending_rigs(
             .play(&mut anim_player, entry.idle, Duration::ZERO)
             .repeat();
 
-        commands.entity(rig_entity).insert((
-            AnimationGraphHandle(graph),
-            transitions,
-        ));
-        commands.entity(rig_entity).remove::<PendingRig>();
-        commands.entity(pending.player_entity).insert((
-            PlayerRig(rig_entity),
-            PlayerAnimClass(kind),
-        ));
+        if let Ok(mut ec) = commands.get_entity(rig_entity) {
+            ec.insert((AnimationGraphHandle(graph), transitions));
+            ec.remove::<PendingRig>();
+        } else {
+            continue;
+        }
+        if let Ok(mut ec) = commands.get_entity(pending.player_entity) {
+            ec.insert((PlayerRig(rig_entity), PlayerAnimClass(kind)));
+        }
         warn!("ANIM: rig {rig_entity:?} wired ({kind:?}) idle={:?} walk={:?}",
               entry.idle, entry.walk);
     }

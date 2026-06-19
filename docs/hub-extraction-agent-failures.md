@@ -90,6 +90,25 @@ This document summarizes the **last five user prompts** in the hub / extraction 
 
 ---
 
+## Resolution plan (locked with user, 2026-06-19)
+
+**Root cause:** open/closed of a tile was decided independently by ~6 functions across two pipelines (client visual carving vs server physics), using hub-specific geometric heuristics. They could not stay in sync.
+
+**Fix (single source of truth = `floor_mask` per level):**
+- A floor exists at a cell **iff `floor_mask.get(ix,iz)` is true**, for both visual mesh carving and physics.
+- Delete hub-specific geometric zone functions for floors (`in_hub_drop_column`, `hub_stairs_opening`, `in_hub_l3/west_drop_zone`, `pit_shaft`, geometric `suppress_extraction_grounding`). Replace with one mask lookup keyed by player floor level (`y/MOD_H` rounded).
+- Floor-hole carving on shells is uniform and mask-driven (remove floor tris whose cell is masked-false), identical code for client mesh and server trimesh.
+- Per-cell physics cuboids spawned for masked-true cells (unchanged), no geometric skips.
+
+**Locked hub vertical layout (user decisions):**
+- Floor-0 trap at `(ex,ez)` → **land on hub floor −1** (the `(ex,ez)` tile on −1 is **SOLID**).
+- Hub floor −1 has **three separate openings away from the landing tile**: stairs (L2), pit drop (L3), west drop (L4).
+- Floor visuals rendered from the mask (kit floor tiles acceptable); correctness over exact baked look.
+
+**Verification:** `probe_hub_tile_audit.py` asserts visual==physical==mask per tile, **and** an in-engine debug overlay shows per-tile floor state in G playtest (walking can't fall-test stairs due to step-up).
+
+---
+
 ## Cross-cutting technical themes (for Bugbot)
 
 1. **Two pipelines:** Client `EditorPlaced` meshes vs server `play_layout(true)` colliders — cutouts, hatch pieces, and generation bumps must stay in sync.
@@ -126,3 +145,64 @@ Editor: `--host --editor`, quicksave, **G** playtest — compare pit, hub −1 d
 **Stairs opening `(6, 20)`:** Do not rely on walking backwards off the stairs to test physical openness; step-up logic may leave you airborne at stair height. Use probes or explicit collider checks.
 
 **Do not declare fixed until in-game G playtest matches probes on all listed tiles** (except stairs physical open/closed, which requires probes or movement fix).
+
+---
+
+## 2026-06-19 follow-up (tiled-floor architecture + Quake controller)
+
+After the move to per-cell `template-floor` / `template-wall` rooms and a single `FloorMask`
+source of truth, the user reported two remaining issues. Root causes and fixes:
+
+1. **Missing `template-floor-hole` frames** (extraction trap + the two hub drop holes).
+   - *Cause:* `kenney_pit::floor_prop_on_hole` returned `true` for any `*hole*` stem, so the
+     frame was removed from the playtest layout (`patch_hub_branch_layout` retain) and hidden
+     by `hide_extraction_hatch_piece` — the "legacy diagonal wedge" decision. With carving gone
+     the raw GLB is a clean raised rim, so that suppression was no longer warranted.
+   - *Fix:* `floor_prop_on_hole` now returns `false` for the hole *frame* (renders it) and only
+     suppresses *solid* `template-floor` tiles over a mask hole. The frame's collider is still
+     skipped by `kenney_skip_piece_collider` (floor < 0 / the extraction tile), so the hole stays
+     physically open. `gen_maps.py` now places a `template-floor-hole` at the two hub drop holes
+     (`build_tiled_floor_room` `frame_holes`). Probe mirrors both in `floor_prop_on_hole` +
+     `skip_physics_collider`. Stair-opening cells get **no** frame (the stairs piece occupies them).
+
+2. **Can't walk up stairs / float at the top / can't jump there.**
+   - *Cause:* `over_open_hole` forced `on_ground=false` on any cell that is a mask hole at the
+     player's floor band. The stair-opening cells are holes in the `-1` mask (so you can descend),
+     and `floor_level_at_y` maps the **upper half** of the staircase to level `-1` — so the whole
+     top half of the stairs was grounding-suppressed: no step-up (walk), no jump at the top.
+   - *Fix:* removed the `over_open_hole` checks from `categorize_position` and `stay_on_ground`
+     (and the now-dead `extraction_xz` helper + imports). With tiled floors, real holes have **no
+     collider** (no tile, no cuboid), so the downward probe finds nothing and the body falls
+     naturally; stairs are a collider that passes *through* the mask hole, so they stay groundable.
+
+3. **West drop blocked the path to the stairs.** It sat on the hub centre row `(ex-8, ez)`
+   between the landing and the west gate, so you had to cross it to reach the stairs. Per the
+   user's choice it was relocated to the SW corner `hub_west_drop_centre = (ex-8, ez+8)`, which
+   still drops into the same room below; the centre-row cell `(ex-8, ez)` is now solid. Updated
+   in `kenney_pit::hub_west_drop_centre` (single source), `kenney_hub::in_west_drop_commit` /
+   mask cut, `gen_maps.py` (`WEST_DROP_DZ`), the `map_pool` test, and the probe (incl. a new
+   "gate path SOLID" expectation).
+
+Verified: `cargo build` (libs compile), `python tools/gen_maps.py --seed 42`,
+`python tools/probe_hub_tile_audit.py` → PASS on all tiles incl. framed holes and both stair cells.
+
+### 2026-06-19 round 2 (collision + step-up)
+
+1. **Hole frames had no collision.** The frame is a raised rim with an open centre and
+   should collide (stand on the rim, fall through the middle). `kenney_skip_piece_collider`
+   now never skips `template-floor-hole`; probe mirrors it. Centre stays open (probe still
+   PASS) because the rim only occupies the cell edges.
+2. **Invisible double collider in L3 (room below hub).** `apply_hub_branches` only stripped
+   the hub module's `-1` band, leaving a leftover `room-large` shell at `-2` overlapping the
+   tiled L3 room (visible as a phantom collider near the centre). Now strips `{-1, -2}` for
+   the hub module. The Rust fallback also no longer re-adds a `room-large` when L3 already has
+   floor coverage (`has_floor_coverage` replaces `has_room_shell`).
+3. **Couldn't walk up stairs (only jump).** The Kenney `stairs` mesh rises only **0.29 m per
+   step** (the old `0.62 m` comment was wrong), well under the 0.65 m step height — so this was
+   a step-up *logic* bug, not a height limit. A capsule's rounded base rolls partway up a low
+   step during the flat slide, inflating `flat_dist` so the `step_dist > flat_dist` gate never
+   fired. `move_character` now also takes the stepped path when it lands on a *higher* walkable
+   surface than the flat move (`climbed > min_climb`); walls are still excluded because their
+   down-trace finds no walkable top.
+4. **Stair-top ~0.3 m gap:** left for re-test — with walking step-up restored, the remaining
+   gap is one normal step; revisit stair Y/scale only if it still reads wrong in playtest.

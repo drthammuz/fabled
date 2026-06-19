@@ -1,6 +1,14 @@
-//! Kinematic character controller (Avian move-and-slide). Handles
-//! acceleration-based movement, gravity, wall sliding, and pushing
-//! dynamic props — all server-side.
+//! Quake III-style kinematic character controller (Avian move-and-slide).
+//!
+//! Pipeline each fixed tick (mirrors `PmoveSingle` in `bg_pmove.c`):
+//!   1. `PM_GroundTrace` — short downward cast, no body teleport
+//!   2. Ground/air acceleration, friction, jump
+//!   3. Gravity when airborne
+//!   4. `PM_StepSlideMove` — slide; step-up **only when blocked**
+//!   5. `PM_GroundTrace` again — refresh grounded flag, still no teleport
+//!
+//! Uses an AABB hull (not a capsule) so stair treads and trap-door lips do not
+//! “roll” the player off edges.
 
 use std::f32::consts::PI;
 
@@ -9,11 +17,8 @@ use bevy::ecs::query::Has;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use shared::config;
-use shared::kenney_pit;
 use shared::protocol::{PlayerGrounded, PlayerInput};
-use shared::run::RunState;
 
-use super::level::KenneyLayoutCache;
 use super::players::LatestInput;
 
 pub struct CharacterControllerPlugin;
@@ -31,11 +36,11 @@ impl Plugin for CharacterControllerPlugin {
                 apply_player_inputs,
                 enter_crouch,
                 try_stand_up,
-                ground_move,
+                categorize_position,
+                player_movement,
                 apply_gravity,
-                move_and_slide,
-                step_up,
-                resolve_ground,
+                step_slide_move,
+                ground_trace_after_move,
                 sync_grounded_component,
                 push_dynamic_bodies,
                 rotate_to_yaw,
@@ -99,21 +104,22 @@ pub struct CrouchState {
 #[derive(Component, Default, Debug)]
 pub struct PlayerWaterContact(pub u32);
 
-fn standing_capsule() -> Collider {
-    Collider::capsule(config::PLAYER_CAPSULE_RADIUS, config::PLAYER_CAPSULE_LENGTH)
+fn standing_collider() -> Collider {
+    Collider::cuboid(
+        config::PLAYER_BODY_WIDTH,
+        config::PLAYER_BODY_HEIGHT,
+        config::PLAYER_BODY_WIDTH,
+    )
 }
 
-fn crouch_capsule() -> Collider {
-    Collider::capsule(config::PLAYER_CAPSULE_RADIUS, config::PLAYER_CROUCH_LENGTH)
+fn crouch_collider() -> Collider {
+    let h = config::PLAYER_CROUCH_LENGTH + config::PLAYER_BODY_WIDTH;
+    Collider::cuboid(config::PLAYER_BODY_WIDTH, h, config::PLAYER_BODY_WIDTH)
 }
 
-/// Vertical body shift applied on each crouch/stand transition: half the
-/// capsule-length difference. The kinematic `move_and_slide` has no penetration
-/// recovery, so when the tall capsule is restored on standing it would be left
-/// embedded in the floor (body stuck low / model sunk). Shifting the body
-/// keeps the feet planted and reliably restores standing height.
+/// Vertical body shift on crouch/stand: half the collider height difference.
 const CROUCH_Y_SHIFT: f32 =
-    (config::PLAYER_CAPSULE_LENGTH - config::PLAYER_CROUCH_LENGTH) * 0.5;
+    (config::PLAYER_BODY_HEIGHT - (config::PLAYER_CROUCH_LENGTH + config::PLAYER_BODY_WIDTH)) * 0.5;
 
 #[derive(Component)]
 pub struct GroundDetection {
@@ -126,56 +132,120 @@ impl Default for GroundDetection {
     fn default() -> Self {
         Self {
             max_angle: PI / 6.0,
-            max_distance: config::PLAYER_GROUND_PROBE,
-            cast_shape: standing_capsule(),
+            max_distance: config::PLAYER_GROUND_TRACE_DIST,
+            cast_shape: standing_collider(),
         }
     }
 }
 
-/// Downward shape-cast: returns vertical gap to the nearest walkable floor.
-fn probe_floor_gap(
+/// Quake `PM_GroundTrace`: short downward cast. Does **not** move the body —
+/// only reports whether walkable ground is directly under the hull.
+fn ground_trace(
     spatial: &SpatialQuery,
     collider: &Collider,
     pos: Vector,
     rot: Quat,
-    ground: &GroundDetection,
+    velocity: Vector,
     exclude: &[Entity],
-) -> Option<Scalar> {
+) -> bool {
+    if velocity.y > config::PLAYER_JUMP_GROUND_CUTOFF {
+        return false;
+    }
+
     let up = (rot * Vector::Y).normalize_or_zero();
     let filter = SpatialQueryFilter::from_excluded_entities(exclude.to_vec());
-    let hit = spatial.cast_shape(
+    let Some(hit) = spatial.cast_shape(
         collider,
         pos,
         rot,
         Dir3::NEG_Y,
-        &ShapeCastConfig::from_max_distance(config::PLAYER_GROUND_PROBE),
+        &ShapeCastConfig::from_max_distance(config::PLAYER_GROUND_TRACE_DIST),
         &filter,
-    )?;
-    if (rot * hit.normal1).angle_between(up) > ground.max_angle {
-        return None;
-    }
-    Some(hit.distance)
-}
+    ) else {
+        return false;
+    };
 
-/// Whether floor contact should count this tick (jump, friction, snap).
-fn floor_contact_allowed(gap: Scalar, wading: bool) -> bool {
-    if gap > config::PLAYER_GROUND_PROBE {
+    let normal = (rot * hit.normal1).normalize_or_zero();
+    if normal.dot(up) < config::PLAYER_MIN_WALK_NORMAL {
         return false;
     }
-    // Straddling water + dry tile: only ground when feet are clearly on the floor.
-    if wading && gap > config::PLAYER_SNAP_TO_GROUND {
+
+    // Quake kickoff: moving up and away from the surface → leave the ground.
+    if velocity.y > 0.0 && velocity.dot(normal) > config::PLAYER_GROUND_KICKOFF_SPEED {
         return false;
     }
+
     true
 }
 
-fn extraction_xz(layout: &KenneyLayoutCache, run: Option<&RunState>) -> Option<[f32; 2]> {
-    if let Some(ex) = layout.0.extraction_xz {
-        return Some(ex);
+fn update_ground_contact(
+    on_ground: bool,
+    dt: f32,
+    contact: &mut GroundContact,
+    coyote: &mut CoyoteTime,
+) {
+    if on_ground {
+        contact.on_ground = true;
+        coyote.0 = config::PLAYER_COYOTE_TIME;
+    } else {
+        contact.on_ground = false;
+        coyote.0 = (coyote.0 - dt).max(0.0);
     }
-    let run = run?;
-    let def = shared::level::level_by_id(&run.level_id, run.run_seed);
-    def.extraction.map(|v| [v.x, v.z])
+}
+
+/// Pre-move ground trace (Quake calls `PM_GroundTrace` before `PM_WalkMove`).
+fn categorize_position(
+    spatial: SpatialQuery,
+    liquids: Query<Entity, With<crate::liquids::Liquid>>,
+    time: Res<Time>,
+    mut players: Query<
+        (
+            Entity,
+            &Collider,
+            &Transform,
+            &LinearVelocity,
+            &mut GroundContact,
+            &mut CoyoteTime,
+            &PlayerWaterContact,
+        ),
+        With<CharacterController>,
+    >,
+) {
+    let dt = time.delta_secs();
+    let liquid_ents: Vec<Entity> = liquids.iter().collect();
+
+    for (entity, collider, transform, velocity, mut contact, mut coyote, water) in &mut players
+    {
+        let pos = transform.translation.adjust_precision();
+        let rot = transform.rotation.adjust_precision();
+        let mut exclude = liquid_ents.clone();
+        exclude.push(entity);
+
+        let mut on_ground = ground_trace(
+            &spatial,
+            collider,
+            pos,
+            rot,
+            velocity.0,
+            &exclude,
+        );
+
+        // Wading: require feet near the bed, not just within trace distance of it.
+        if on_ground && water.0 > 0 {
+            on_ground = spatial
+                .cast_shape(
+                    collider,
+                    pos,
+                    rot,
+                    Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(config::PLAYER_WADE_GROUND_PROBE),
+                    &SpatialQueryFilter::from_excluded_entities(exclude),
+                )
+                .is_some();
+        }
+
+        update_ground_contact(on_ground, dt, &mut contact, &mut coyote);
+    }
 }
 
 fn enter_crouch(
@@ -193,8 +263,8 @@ fn enter_crouch(
     for (input, mut crouch, mut collider, mut ground, mut transform) in &mut players {
         if input.0.crouch && !crouch.crouching {
             crouch.crouching = true;
-            *collider = crouch_capsule();
-            ground.cast_shape = crouch_capsule();
+            *collider = crouch_collider();
+            ground.cast_shape = crouch_collider();
             transform.translation.y -= CROUCH_Y_SHIFT;
         }
     }
@@ -243,7 +313,7 @@ fn try_stand_up(
             .filter(|(entity, translation, rotation)| {
                 spatial
                     .cast_shape(
-                        &standing_capsule(),
+                        &standing_collider(),
                         translation.adjust_precision(),
                         rotation.adjust_precision(),
                         Dir3::Y,
@@ -259,8 +329,8 @@ fn try_stand_up(
     for (entity, mut crouch, mut collider, mut ground, mut transform) in param_set.p2().iter_mut() {
         if can_stand.contains(&entity) {
             crouch.crouching = false;
-            *collider = standing_capsule();
-            ground.cast_shape = standing_capsule();
+            *collider = standing_collider();
+            ground.cast_shape = standing_collider();
             transform.translation.y += CROUCH_Y_SHIFT;
         }
     }
@@ -327,23 +397,12 @@ fn sync_grounded_component(
     }
 }
 
-/// Quake order: categorize (trace + snap) → jump → friction → accelerate.
-///
-/// Ground is decided with a **live** floor probe each tick so jump and friction
-/// work while moving. (`Commands`-inserted `Grounded` is deferred and was the
-/// root cause of “jump only when standing still”.)
-fn ground_move(
-    spatial: SpatialQuery,
-    liquids: Query<Entity, With<crate::liquids::Liquid>>,
+/// Quake ground movement: friction (grounded) → accelerate → jump. Only shapes
+/// velocity; collision response happens in [`step_slide_move`].
+fn player_movement(
     time: Res<Time>,
-    layout: Res<KenneyLayoutCache>,
-    run: Query<&RunState>,
     mut players: Query<
         (
-            Entity,
-            &Collider,
-            &GroundDetection,
-            &Transform,
             &mut LatestInput,
             &mut LinearVelocity,
             &mut GroundContact,
@@ -355,52 +414,11 @@ fn ground_move(
     >,
 ) {
     let dt = time.delta_secs_f64().adjust_precision();
-    let liquid_ents: Vec<Entity> = liquids.iter().collect();
-    let extraction = extraction_xz(&layout, run.single().ok());
 
-    for (
-        entity,
-        collider,
-        ground,
-        transform,
-        mut input,
-        mut velocity,
-        mut contact,
-        mut coyote,
-        speed_mult,
-        water,
-    ) in &mut players
-    {
-        let intent = &input.0;
-        let world_pos = transform.translation;
-        let pos = world_pos.adjust_precision();
-        let rot = transform.rotation.adjust_precision();
-        let mut exclude = liquid_ents.clone();
-        exclude.push(entity);
-
-        let rising_fast = velocity.y > config::PLAYER_JUMP_GROUND_CUTOFF;
-        let gap = if rising_fast {
-            None
-        } else {
-            probe_floor_gap(&spatial, collider, pos, rot, ground, &exclude)
-        };
-
+    for (mut input, mut velocity, mut contact, mut coyote, speed_mult, water) in &mut players {
+        let intent = input.0;
+        let on_ground = contact.on_ground;
         let wading = water.0 > 0;
-        let mut on_ground = coyote.0 > 0.0;
-        if let Some(gap) = gap {
-            if floor_contact_allowed(gap, wading) {
-                on_ground = true;
-            }
-        }
-
-        if let Some([ex, ez]) = extraction {
-            if kenney_pit::suppress_extraction_grounding(world_pos.x, world_pos.y, world_pos.z, ex, ez) {
-                on_ground = false;
-                coyote.0 = 0.0;
-            }
-        }
-
-        contact.on_ground = on_ground;
 
         if on_ground && velocity.y <= 0.0 {
             velocity.y = 0.0;
@@ -411,8 +429,7 @@ fn ground_move(
         } else {
             intent.move_dir
         };
-        let wish_dir = Quat::from_rotation_y(intent.yaw)
-            * Vec3::new(move_dir.x, 0.0, -move_dir.y);
+        let wish_dir = Quat::from_rotation_y(intent.yaw) * Vec3::new(move_dir.x, 0.0, -move_dir.y);
         let wish_speed = (if intent.crouch {
             config::PLAYER_CROUCH_SPEED
         } else if intent.sprint {
@@ -435,17 +452,6 @@ fn ground_move(
                 velocity.x *= scale;
                 velocity.z *= scale;
             }
-        } else if intent.move_dir.length_squared() < 1e-4 {
-            // Bleed horizontal momentum in air with no input — stops "ghost run"
-            // after jumping into a wall and releasing keys.
-            let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
-            let speed = horizontal.length();
-            if speed > 1e-4 {
-                let drop = speed * config::PLAYER_AIR_STOP_FRICTION * dt;
-                let scale = ((speed - drop).max(0.0)) / speed;
-                velocity.x *= scale;
-                velocity.z *= scale;
-            }
         }
 
         if let Some(wish_dir) = wish_dir.try_normalize() {
@@ -456,19 +462,17 @@ fn ground_move(
             };
             let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
             let current = horizontal.dot(wish_dir.adjust_precision());
-            let add = (wish_speed - current)
-                .clamp(0.0, accel_rate * wish_speed * dt);
+            let add = (wish_speed - current).clamp(0.0, accel_rate * wish_speed * dt);
             velocity.x += wish_dir.x * add;
             velocity.z += wish_dir.z * add;
         }
 
-        if intent.jump && on_ground && !intent.crouch {
+        let can_jump = on_ground || coyote.0 > 0.0;
+        if intent.jump && can_jump && !intent.crouch {
             velocity.y = config::PLAYER_JUMP_IMPULSE;
             input.0.jump = false;
             contact.on_ground = false;
             coyote.0 = 0.0;
-        } else if on_ground {
-            coyote.0 = config::PLAYER_COYOTE_TIME;
         }
     }
 }
@@ -493,205 +497,174 @@ fn apply_gravity(
     }
 }
 
-fn clip_velocity_against_walls(
-    velocity: &mut Vector,
-    up: Vector,
-    max_ground_angle: Scalar,
-    collisions: &[CharacterCollision],
-) {
-    for hit in collisions {
-        let normal = hit.normal.adjust_precision();
-        if up.angle_between(normal) <= max_ground_angle {
-            continue;
-        }
-        let into = velocity.dot(normal);
-        if into < 0.0 {
-            *velocity -= normal * into;
-        }
-    }
+/// Horizontal (up-plane) length of a displacement vector.
+fn horizontal_len(v: Vector, up: Vector) -> Scalar {
+    (v - up * v.dot(up)).length()
 }
 
-fn move_and_slide(
+/// Horizontal wish velocity from player input (same basis as [`player_movement`]).
+fn wish_horizontal(input: &PlayerInput, speed: f32) -> Vector {
+    let move_dir = if input.move_dir.length_squared() > 1.0 {
+        input.move_dir.normalize()
+    } else {
+        input.move_dir
+    };
+    let wish = Quat::from_rotation_y(input.yaw) * Vec3::new(move_dir.x, 0.0, -move_dir.y);
+    wish.try_normalize()
+        .map(|d| d.adjust_precision() * speed)
+        .unwrap_or(Vector::ZERO)
+}
+
+/// Quake `PM_StepSlideMove`: slide first; if horizontal travel is blocked, lift by
+/// [`config::PLAYER_STEP_HEIGHT`], slide again, then drop back down. Step-up runs
+/// **only when blocked**, not every grounded frame. No post-move Y snap — position
+/// comes entirely from slide + step-down planting (like Q3 `bg_slidemove.c`).
+fn step_slide_move(
     mut query: Query<
         (
             Entity,
-            &GroundDetection,
             &mut CharacterCollisions,
             &mut Transform,
             &mut LinearVelocity,
             &Collider,
+            &GroundContact,
+            &LatestInput,
+            &SpeedMultiplier,
         ),
         With<CharacterController>,
     >,
     move_and_slide: MoveAndSlide,
     time: Res<Time>,
 ) {
-    for (entity, ground, mut collisions, mut transform, mut lin_vel, collider) in &mut query {
+    let dt = time.delta();
+    let mut cfg = MoveAndSlideConfig::default();
+    cfg.skin_width = 0.02;
+    let step = config::PLAYER_STEP_HEIGHT;
+
+    for (entity, mut collisions, mut transform, mut lin_vel, collider, contact, input, speed_mult) in
+        &mut query
+    {
         collisions.0.clear();
         let up = transform.up().adjust_precision();
-
-        let MoveAndSlideOutput {
-            position: new_position,
-            projected_velocity,
-        } = move_and_slide.move_and_slide(
-            collider,
-            transform.translation.adjust_precision(),
-            transform.rotation.adjust_precision(),
-            lin_vel.0,
-            time.delta(),
-            &MoveAndSlideConfig::default(),
-            &SpatialQueryFilter::from_excluded_entities([entity]),
-            |hit| {
-                let angle = up.angle_between(hit.normal.adjust_precision());
-                let is_ground = angle <= ground.max_angle;
-                let is_ceiling = is_ground && up.dot(hit.normal.adjust_precision()) < 0.0;
-                collisions.0.push(CharacterCollision {
-                    collider: hit.entity,
-                    point: hit.point,
-                    normal: *hit.normal,
-                    character_velocity: *hit.velocity,
-                });
-                let _ = is_ceiling;
-                MoveAndSlideHitResponse::Accept
-            },
-        );
-
-        transform.translation = new_position.f32();
-        // Use the solver's full slide-resolved velocity. The old code only copied
-        // the vertical component, leaving horizontal speed into walls untouched —
-        // that caused wall shake, sticking, and ghost running after landing.
-        lin_vel.0 = projected_velocity;
-        clip_velocity_against_walls(
-            &mut lin_vel.0,
-            up,
-            ground.max_angle,
-            &collisions.0,
-        );
-    }
-}
-
-fn step_up(
-    spatial: SpatialQuery,
-    mut players: Query<
-        (
-            Entity,
-            &Collider,
-            &mut Transform,
-            &mut LinearVelocity,
-            &GroundDetection,
-            &GroundContact,
-        ),
-        With<CharacterController>,
-    >,
-) {
-    let step = config::PLAYER_STEP_HEIGHT;
-    let min_climb = config::PLAYER_STEP_MIN_CLIMB;
-    let min_riser = config::PLAYER_STEP_MIN_RISER_ANGLE;
-    let front_probe: Scalar = 0.15;
-    let sample_dist: Scalar = 0.45;
-
-    for (entity, collider, mut transform, mut velocity, ground, contact) in &mut players {
-        if !contact.on_ground {
-            continue;
-        }
-        let horizontal = Vector::new(velocity.x, 0.0, velocity.z);
-        if horizontal.length() < 0.05 {
-            continue;
-        }
-        let Ok(dir) = Dir3::new(Vec3::new(velocity.x, 0.0, velocity.z)) else {
-            continue;
-        };
-        let fwd = dir.as_vec3().adjust_precision();
-        let pos = transform.translation.adjust_precision();
+        let start = transform.translation.adjust_precision();
+        let start_vel = lin_vel.0;
         let rot = transform.rotation.adjust_precision();
-        let up = transform.up().adjust_precision();
         let filter = SpatialQueryFilter::from_excluded_entities([entity]);
 
-        let Some(front) = spatial.cast_shape(
-            collider,
-            pos,
-            rot,
-            dir,
-            &ShapeCastConfig::from_max_distance(front_probe),
-            &filter,
-        ) else {
-            continue;
+        let on_hit = |hit: MoveAndSlideHitData<'_>| {
+            collisions.0.push(CharacterCollision {
+                collider: hit.entity,
+                point: hit.point,
+                normal: *hit.normal,
+                character_velocity: *hit.velocity,
+            });
+            MoveAndSlideHitResponse::Accept
         };
-        let riser_angle = (rot * front.normal1).angle_between(up);
-        if riser_angle <= ground.max_angle || riser_angle < min_riser {
-            continue;
-        }
 
-        let head_room = spatial
-            .cast_shape(
-                collider,
-                pos,
-                rot,
-                Dir3::Y,
-                &ShapeCastConfig::from_max_distance(step),
-                &filter,
-            )
-            .map(|h| h.distance)
-            .unwrap_or(step);
-        if head_room < 0.05 {
-            continue;
-        }
-        let lift = head_room.min(step);
-        let raised = pos + up * lift;
-
-        if spatial
-            .cast_shape(
-                collider,
-                raised,
-                rot,
-                dir,
-                &ShapeCastConfig::from_max_distance(sample_dist),
-                &filter,
-            )
-            .is_some()
-        {
-            continue;
-        }
-
-        let sample = raised + fwd * sample_dist;
-        let Some(down) = spatial.cast_shape(
+        // 1. Primary slide (Quake `PM_SlideMove`).
+        let flat = move_and_slide.move_and_slide(
             collider,
-            sample,
+            start,
             rot,
-            Dir3::NEG_Y,
-            &ShapeCastConfig::from_max_distance(lift + 0.05),
+            start_vel,
+            dt,
+            &cfg,
             &filter,
-        ) else {
-            continue;
-        };
-        if (rot * down.normal1).angle_between(up) > ground.max_angle {
-            continue;
-        }
+            on_hit,
+        );
 
-        let landed = sample - up * down.distance;
-        let climb = landed.y - pos.y;
-        if climb >= min_climb && climb <= step + 0.05 {
-            transform.translation.y = landed.y as f32;
-            if velocity.y > 0.0 {
-                velocity.y = 0.0;
+        let mut final_pos = flat.position;
+        let mut final_vel = flat.projected_velocity;
+
+        let intent = input.0;
+        let wish_speed = (if intent.crouch {
+            config::PLAYER_CROUCH_SPEED
+        } else if intent.sprint {
+            config::PLAYER_SPRINT_SPEED
+        } else {
+            config::PLAYER_MOVE_SPEED
+        }) * speed_mult.0;
+        let horizontal_vel = Vector::new(start_vel.x, 0.0, start_vel.z);
+        let mut step_vel = if horizontal_vel.length() > 0.05 {
+            horizontal_vel
+        } else {
+            wish_horizontal(&intent, wish_speed)
+        };
+
+        let dt_s = time.delta_secs_f64().adjust_precision();
+        let intended_h = horizontal_len(start_vel * dt_s, up);
+        let actual_h = horizontal_len(flat.position - start, up);
+        let blocked = intended_h > 0.02
+            && actual_h < intended_h * config::PLAYER_STEP_BLOCKED_FRAC;
+
+        // 2. Step-up only when the first slide did not reach its destination.
+        if contact.on_ground && blocked && start_vel.y <= 0.0 && step_vel.length() > 0.05 {
+            // Quake: never step while moving up (jump / kickoff).
+            let headroom = move_and_slide
+                .spatial_query
+                .cast_shape(
+                    collider,
+                    start,
+                    rot,
+                    Dir3::Y,
+                    &ShapeCastConfig::from_max_distance(step),
+                    &filter,
+                )
+                .map(|h| h.distance)
+                .unwrap_or(step);
+
+            if headroom >= 0.05 {
+                let lift = headroom.min(step);
+                let elevated = start + up * lift;
+
+                let stepped = move_and_slide.move_and_slide(
+                    collider,
+                    elevated,
+                    rot,
+                    step_vel,
+                    dt,
+                    &cfg,
+                    &filter,
+                    |_| MoveAndSlideHitResponse::Accept,
+                );
+
+                if let Some(down) = move_and_slide.spatial_query.cast_shape(
+                    collider,
+                    stepped.position,
+                    rot,
+                    Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(lift + 0.05),
+                    &filter,
+                ) {
+                    let normal = (rot * down.normal1).normalize_or_zero();
+                    if normal.dot(up) >= config::PLAYER_MIN_WALK_NORMAL {
+                        final_pos = stepped.position - up * down.distance;
+                        final_vel = Vector::new(
+                            stepped.projected_velocity.x,
+                            flat.projected_velocity.y,
+                            stepped.projected_velocity.z,
+                        );
+                    }
+                }
             }
         }
+
+        transform.translation = final_pos.f32();
+        lin_vel.0 = final_vel;
     }
 }
 
-/// After movement: snap to floor and refresh [`GroundContact`] for next tick.
-fn resolve_ground(
-    time: Res<Time>,
+/// Post-move ground refresh (Quake calls `PM_GroundTrace` again after the move).
+/// Updates grounded state only — **never** teleports the body.
+fn ground_trace_after_move(
     spatial: SpatialQuery,
     liquids: Query<Entity, With<crate::liquids::Liquid>>,
-    layout: Res<KenneyLayoutCache>,
-    run: Query<&RunState>,
+    time: Res<Time>,
     mut players: Query<
         (
             Entity,
             &Collider,
-            &GroundDetection,
-            &mut Transform,
+            &Transform,
             &LinearVelocity,
             &mut GroundContact,
             &mut CoyoteTime,
@@ -701,60 +674,38 @@ fn resolve_ground(
     >,
 ) {
     let dt = time.delta_secs();
-    let snap = config::PLAYER_SNAP_TO_GROUND;
     let liquid_ents: Vec<Entity> = liquids.iter().collect();
-    let extraction = extraction_xz(&layout, run.single().ok());
 
-    for (entity, collider, ground, mut transform, velocity, mut contact, mut coyote, water) in
-        &mut players
+    for (entity, collider, transform, velocity, mut contact, mut coyote, water) in &mut players
     {
-        if velocity.y > config::PLAYER_JUMP_GROUND_CUTOFF {
-            contact.on_ground = false;
-            coyote.0 = (coyote.0 - dt).max(0.0);
-            continue;
-        }
-
-        let world_pos = transform.translation;
-        if let Some([ex, ez]) = extraction {
-            if kenney_pit::suppress_extraction_grounding(world_pos.x, world_pos.y, world_pos.z, ex, ez) {
-                contact.on_ground = false;
-                coyote.0 = 0.0;
-                continue;
-            }
-        }
-
-        let pos = world_pos.adjust_precision();
+        let pos = transform.translation.adjust_precision();
         let rot = transform.rotation.adjust_precision();
         let mut exclude = liquid_ents.clone();
         exclude.push(entity);
-        let wading = water.0 > 0;
 
-        if let Some(gap) = probe_floor_gap(&spatial, collider, pos, rot, ground, &exclude) {
-            if floor_contact_allowed(gap, wading) {
-                if let Some([ex, ez]) = extraction {
-                    let hub_top = kenney_pit::pit_floor_top_y(kenney_pit::HUB_FLOOR_LEVEL);
-                    // Nudge shaft fallers onto the hub rim — not hub-floor walkers stepping into the pit.
-                    if kenney_pit::in_extraction_drop_zone(world_pos.x, world_pos.z, ex, ez)
-                        && world_pos.y > hub_top + 1.2
-                        && world_pos.y < kenney_pit::pit_floor_plane_y(0) - 0.25
-                        && velocity.y < 0.0
-                    {
-                        let [lx, lz] = shared::kenney_hub::hub_shaft_landing_xz(ex, ez);
-                        transform.translation.x = lx;
-                        transform.translation.z = lz;
-                    }
-                }
-                if gap <= snap && gap > 1e-5 {
-                    transform.translation.y -= gap as f32;
-                }
-                contact.on_ground = true;
-                coyote.0 = config::PLAYER_COYOTE_TIME;
-                continue;
-            }
+        let mut on_ground = ground_trace(
+            &spatial,
+            collider,
+            pos,
+            rot,
+            velocity.0,
+            &exclude,
+        );
+
+        if on_ground && water.0 > 0 {
+            on_ground = spatial
+                .cast_shape(
+                    collider,
+                    pos,
+                    rot,
+                    Dir3::NEG_Y,
+                    &ShapeCastConfig::from_max_distance(config::PLAYER_WADE_GROUND_PROBE),
+                    &SpatialQueryFilter::from_excluded_entities(exclude),
+                )
+                .is_some();
         }
 
-        contact.on_ground = false;
-        coyote.0 = (coyote.0 - dt).max(0.0);
+        update_ground_contact(on_ground, dt, &mut contact, &mut coyote);
     }
 }
 

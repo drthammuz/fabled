@@ -487,11 +487,11 @@ pub fn spawn_piece_record_pub(
     p: &PieceRecord,
     owner: PieceOwner,
     piece_id: u32,
-    extraction_xz: Option<[f32; 2]>,
+    _extraction_xz: Option<[f32; 2]>,
 ) {
-    if extraction_xz.is_some_and(|[ex, ez]| {
-        kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor_level, p.x, p.z, ex, ez)
-    }) {
+    // Editor authoring view: only the legacy diagonal-wedge hole props are suppressed
+    // (mask-driven hub holes are applied during playtest).
+    if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor_level, p.x, p.z, None) {
         return;
     }
     let yaw = quantize_yaw(p.yaw);
@@ -1734,17 +1734,15 @@ fn editor_apply_materials(
             continue;
         }
 
-        let mesh_cutouts = ws.map.extraction_xz.map(|[ex, ez]| {
-            kenney_pit::mesh_cutouts_for_piece(
-                module.name,
-                placed.floor_level,
-                root_gt.translation().x,
-                root_gt.translation().z,
-                root_gt.rotation().to_euler(EulerRot::YXZ).0,
-                ex,
-                ez,
-            )
-        }).unwrap_or_default();
+        let mesh_cutouts = kenney_pit::mesh_cutouts_for_piece(
+            module.name,
+            placed.floor_level,
+            root_gt.translation().x,
+            root_gt.translation().z,
+            root_gt.rotation().to_euler(EulerRot::YXZ).0,
+            ws.map.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
+            ws.map.floors.get(&placed.floor_level),
+        );
 
         let mat = if ghost.is_some() {
             ghost_mat.clone()

@@ -123,48 +123,22 @@ fn build_air_motes_effect() -> EffectAsset {
         .render(OrientModifier::new(OrientMode::FaceCameraPosition))
 }
 
-fn channel_steam_fog() -> FogVolume {
+/// One toxic-haze fog for the WHOLE level. A `FogVolume` is a box; using many
+/// small boxes (one per walkway/channel) made their flat vertical side faces
+/// show up as translucent "walls" between/inside modules. A single box that
+/// spans the level only has faces at the perimeter — hidden behind the outer
+/// walls/ceiling/floor — so the interior gets volumetric gas with no stray faces.
+fn level_fog(test_map: bool) -> FogVolume {
     FogVolume {
-        fog_color: Color::srgba(0.10, 0.6, 0.26, 1.0),
-        // Moderate base density. The 3D noise density texture (FogNoisePlugin)
-        // varies this in space so it reads as rolling wisps, not a solid box.
-        density_factor: 0.22,
-        absorption: 0.05,
+        fog_color: Color::srgba(0.10, 0.42, 0.22, 1.0),
+        density_factor: if test_map { 0.025 } else { 0.10 },
+        absorption: 0.04,
         scattering: 0.9,
-        scattering_asymmetry: 0.55,
-        light_tint: Color::srgb(0.25, 1.0, 0.5),
-        light_intensity: 1.4,
+        scattering_asymmetry: 0.5,
+        light_tint: Color::srgb(0.30, 1.0, 0.5),
+        light_intensity: 1.2,
         ..default()
     }
-}
-
-fn tunnel_haze_fog() -> FogVolume {
-    FogVolume {
-        fog_color: Color::srgba(0.42, 0.48, 0.52, 1.0),
-        density_factor: 0.12,
-        absorption: 0.10,
-        scattering: 0.5,
-        scattering_asymmetry: 0.45,
-        light_tint: Color::srgb(0.6, 0.68, 0.72),
-        light_intensity: 0.6,
-        ..default()
-    }
-}
-
-pub fn attach_water_atmosphere(commands: &mut Commands, def: &StaticDef) {
-    let center = def.position;
-    let size = def.size;
-    // Tall animated FogVolume rising off the water — 3 m fills the air at and
-    // above player eye height so the toxic green steam is clearly visible, not
-    // a thin strip on the floor. Widened past the channel so it drifts over the
-    // walkways too.
-    commands.spawn((
-        LevelVisual,
-        AnimatedFogVolume,
-        channel_steam_fog(),
-        Transform::from_translation(center + Vec3::Y * 1.5)
-            .with_scale(Vec3::new(size.x.max(2.0) * 1.6, 3.0, size.z.max(2.0) * 1.6)),
-    ));
 }
 
 fn is_walk_surface(kind: StaticKind) -> bool {
@@ -175,12 +149,35 @@ pub fn spawn_level_atmosphere(
     commands: &mut Commands,
     effects: &AtmosphereEffects,
     statics: &[StaticDef],
+    test_map: bool,
 ) {
+    if test_map {
+        return;
+    }
+    // Single level-spanning fog volume (see `level_fog` doc).
+    let mut min = Vec3::splat(f32::MAX);
+    let mut max = Vec3::splat(f32::MIN);
+    for def in statics {
+        min = min.min(def.position - def.size * 0.5);
+        max = max.max(def.position + def.size * 0.5);
+    }
+    if min.x <= max.x {
+        let center = (min + max) * 0.5;
+        // Inset slightly so the side faces sit just inside the perimeter walls.
+        let size = (max - min) * 0.96;
+        commands.spawn((
+            LevelVisual,
+            AnimatedFogVolume,
+            level_fog(test_map),
+            Transform::from_translation(center).with_scale(size),
+        ));
+    }
+
+    // Sparse soft dust motes over the larger walk surfaces.
     let Some(motes) = effects.air_motes.as_ref() else {
         return;
     };
     let dust_tex = effects.dust_tex.clone();
-
     let mut emitter_count = 0u32;
     const MAX_EMITTERS: u32 = 6;
 
@@ -188,30 +185,17 @@ pub fn spawn_level_atmosphere(
         if !is_walk_surface(def.kind) {
             continue;
         }
-        let span = def.size.x.max(def.size.z);
-        if span < 6.0 {
+        if def.size.x.max(def.size.z) < 8.0 || emitter_count >= MAX_EMITTERS {
             continue;
         }
-
-        commands.spawn((
+        let mut e = commands.spawn((
             LevelVisual,
-            AnimatedFogVolume,
-            tunnel_haze_fog(),
-            Transform::from_translation(def.position + Vec3::Y * 1.6)
-                .with_scale(Vec3::new(def.size.x * 0.95, 3.2, def.size.z * 0.95)),
+            ParticleEffect::new(motes.clone()),
+            Transform::from_translation(def.position + Vec3::Y * 1.1),
         ));
-
-        if span >= 8.0 && emitter_count < MAX_EMITTERS {
-            let mut e = commands.spawn((
-                LevelVisual,
-                ParticleEffect::new(motes.clone()),
-                Transform::from_translation(def.position + Vec3::Y * 1.1),
-            ));
-            // Bind the soft-dot texture to the effect's texture slot 0.
-            if let Some(tex) = dust_tex.clone() {
-                e.insert(EffectMaterial { images: vec![tex] });
-            }
-            emitter_count += 1;
+        if let Some(tex) = dust_tex.clone() {
+            e.insert(EffectMaterial { images: vec![tex] });
         }
+        emitter_count += 1;
     }
 }

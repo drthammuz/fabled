@@ -36,7 +36,7 @@ pub fn wall_panels(def: &StaticDef, seed: u64, index: u32) -> Vec<(Vec3, Vec3)> 
     }
 }
 
-fn split_axis(size: Vec3, axis: Vec3, seed: u64, index: u32) -> Vec<(Vec3, Vec3)> {
+fn split_axis(size: Vec3, axis: Vec3, _seed: u64, _index: u32) -> Vec<(Vec3, Vec3)> {
     let max_panel = config::WALL_PANEL_MAX_M;
     let long = size.dot(axis).abs();
     let count = (long / max_panel).ceil().max(1.0) as u32;
@@ -45,7 +45,6 @@ fn split_axis(size: Vec3, axis: Vec3, seed: u64, index: u32) -> Vec<(Vec3, Vec3)
 
     for i in 0..count {
         let t = (i as f32 + 0.5) / count as f32 - 0.5;
-        let jitter = panel_jitter(seed, index, i);
         let mut panel_size = size;
         if axis.z > 0.5 {
             panel_size.z = panel_len;
@@ -54,20 +53,26 @@ fn split_axis(size: Vec3, axis: Vec3, seed: u64, index: u32) -> Vec<(Vec3, Vec3)
         } else {
             panel_size.y = panel_len;
         }
-        let offset = axis * (t * long) + jitter;
+        // Panels are kept perfectly flush. (An earlier positional "jitter"
+        // pushed adjacent panels a few cm out of alignment, producing visible
+        // seams / apparent duplicates. Surface relief comes from the normal map
+        // now, not from offsetting whole panels.)
+        let offset = axis * (t * long);
         panels.push((offset, panel_size));
     }
     panels
 }
 
+#[allow(dead_code)]
 fn panel_jitter(seed: u64, wall: u32, panel: u32) -> Vec3 {
     let h = seed
         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
         .wrapping_add(wall as u64)
         .wrapping_add((panel as u64) << 32);
     let j = |n: u64| {
-        let v = ((n ^ (n >> 15)).wrapping_mul(0x27D4_EB2D) >> 12) as f32 / 1048576.0 - 0.5;
-        v * 0.08
+        let bits = ((n ^ (n >> 15)).wrapping_mul(0x27D4_EB2D) >> 12) & 0xF_FFFF;
+        let v = bits as f32 / 1048576.0 - 0.5; // [-0.5, 0.5)
+        v * 0.08 // ±0.04 m
     };
     Vec3::new(j(h), j(h.wrapping_add(1)), j(h.wrapping_add(2)))
 }

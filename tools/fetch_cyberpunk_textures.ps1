@@ -12,7 +12,8 @@ New-Item -ItemType Directory -Force -Path $dst, $dl | Out-Null
 
 $packs = @(
     @{ Name = "MetalPlates008"; Prefix = "floor" },
-    @{ Name = "MetalPlates006"; Prefix = "wall" },
+    # Walls: weathered/rusted steel plate (old industrial metal look).
+    @{ Name = "MetalPlates013"; Prefix = "wall" },
     @{ Name = "Concrete031"; Prefix = "ceiling" }
 )
 

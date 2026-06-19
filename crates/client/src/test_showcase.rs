@@ -221,33 +221,30 @@ fn kenney_placements() -> Vec<Placement> {
 
 fn placements_from_layout(layout: &KenneyLayout) -> Vec<Placement> {
     let mut out: Vec<Placement> = Vec::new();
+    let (ex_def, ez_def) = layout
+        .extraction_xz
+        .map(|[a, b]| (a, b))
+        .unwrap_or((f32::INFINITY, f32::INFINITY));
     for p in &layout.pieces {
-        if layout.extraction_xz.is_some_and(|[ex, ez]| {
-            kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, ex, ez)
-        }) {
+        let mask = layout.floors.get(&p.floor);
+        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask) {
             continue;
         }
         let mut collide = kenney_catalog::piece(&p.stem)
             .map(|x| x.collide_default)
             .unwrap_or(false);
-        if layout.extraction_xz.is_some_and(|[ex, ez]| {
-            kenney_pit::skip_hub_passage_collider(&p.stem, p.floor, p.x, p.z, ex, ez)
-        }) {
+        if kenney_pit::skip_hub_passage_collider(&p.stem, p.floor, p.x, p.z, ex_def, ez_def, mask) {
             collide = false;
         }
-        if matches!(
-            p.stem.as_str(),
-            "template-floor-hole" | "template-floor-layer-hole"
-        ) && p.floor < 0
-        {
-            collide = false;
-        }
-        let mesh_cutouts = layout
-            .extraction_xz
-            .map(|[ex, ez]| {
-                kenney_pit::mesh_cutouts_for_piece(&p.stem, p.floor, p.x, p.z, p.yaw, ex, ez)
-            })
-            .unwrap_or_default();
+        let mesh_cutouts = kenney_pit::mesh_cutouts_for_piece(
+            &p.stem,
+            p.floor,
+            p.x,
+            p.z,
+            p.yaw,
+            layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
+            mask,
+        );
         out.push(m(
             leak_stem(&p.stem),
             Vec3::new(p.x, p.floor as f32 * MOD_H + 0.002, p.z),
@@ -280,57 +277,34 @@ fn placements_from_instances(active: &MountedMap, candidates: &[MountedMap]) -> 
 }
 
 fn placements_from_mounted(inst: &MountedMap) -> Vec<Placement> {
-    let world = inst.to_world_layout();
     let mut out: Vec<Placement> = Vec::new();
+    let (ex_def, ez_def) = inst
+        .layout
+        .extraction_xz
+        .map(|[a, b]| (a, b))
+        .unwrap_or((f32::INFINITY, f32::INFINITY));
     for p in &inst.layout.pieces {
-        if world.extraction_xz.is_some_and(|[ex, ez]| {
-            kenney_pit::hide_extraction_hatch_piece(
-                &p.stem,
-                p.floor,
-                p.x + inst.offset.x,
-                p.z + inst.offset.z,
-                ex,
-                ez,
-            )
-        }) {
+        // All hub decisions run in the instance-local frame (mask is origin-centred).
+        let mask = inst.layout.floors.get(&p.floor);
+        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask) {
             continue;
         }
         let mut collide = kenney_catalog::piece(&p.stem)
             .map(|x| x.collide_default)
             .unwrap_or(false);
-        if world.extraction_xz.is_some_and(|[ex, ez]| {
-            kenney_pit::skip_hub_passage_collider(
-                &p.stem,
-                p.floor,
-                p.x + inst.offset.x,
-                p.z + inst.offset.z,
-                ex,
-                ez,
-            )
-        }) {
+        if kenney_pit::skip_hub_passage_collider(&p.stem, p.floor, p.x, p.z, ex_def, ez_def, mask) {
             collide = false;
         }
-        if matches!(
-            p.stem.as_str(),
-            "template-floor-hole" | "template-floor-layer-hole"
-        ) && p.floor < 0
-        {
-            collide = false;
-        }
-        let mesh_cutouts = world
-            .extraction_xz
-            .map(|[ex, ez]| {
-                kenney_pit::mesh_cutouts_for_piece(
-                    &p.stem,
-                    p.floor,
-                    p.x + inst.offset.x,
-                    p.z + inst.offset.z,
-                    p.yaw,
-                    ex,
-                    ez,
-                )
-            })
-            .unwrap_or_default();
+        let mesh_cutouts = kenney_pit::mesh_cutouts_for_piece(
+            &p.stem,
+            p.floor,
+            p.x,
+            p.z,
+            p.yaw,
+            inst.layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
+            mask,
+        )
+        .translated(inst.offset.x, inst.offset.z);
         out.push(m(
             leak_stem(&p.stem),
             inst.piece_translation(p),
@@ -392,7 +366,7 @@ fn sync_stream_showcase(
             KenneyModule {
                 name: p.stem,
                 collide: p.collide,
-                mesh_cutouts: p.mesh_cutouts,
+                mesh_cutouts: p.mesh_cutouts.clone(),
                 group_id: p.group_id,
                 floor: p.floor,
             },
@@ -442,7 +416,7 @@ fn spawn_showcase(
             KenneyModule {
                 name: p.stem,
                 collide: p.collide,
-                mesh_cutouts: p.mesh_cutouts,
+                mesh_cutouts: p.mesh_cutouts.clone(),
                 group_id: p.group_id,
                 floor: p.floor,
             },
@@ -585,8 +559,8 @@ pub fn apply_room_shell_mesh_cutouts(
     stem: &str,
     floor: i32,
     root_gt: &GlobalTransform,
-    ex: f32,
-    ez: f32,
+    extraction: Option<Vec2>,
+    mask: Option<&shared::editor_map::FloorMask>,
     meshes: &mut Assets<Mesh>,
     children_q: &Query<&Children>,
     mesh_q: &Query<(&Mesh3d, &GlobalTransform)>,
@@ -601,8 +575,8 @@ pub fn apply_room_shell_mesh_cutouts(
         root_gt.translation().x,
         root_gt.translation().z,
         yaw,
-        ex,
-        ez,
+        extraction,
+        mask,
     );
     if cutouts.is_empty() {
         return false;
@@ -661,14 +635,11 @@ pub fn cut_kenney_mesh(
 }
 
 pub fn cut_floor_mesh(mesh: &Mesh, gt: &GlobalTransform, cutouts: &[Vec2], floor: i32) -> Mesh {
-    let mut ops = kenney_pit::KenneyMeshCutouts {
+    let ops = kenney_pit::KenneyMeshCutouts {
         floor,
+        floor_holes: cutouts.to_vec(),
         ..Default::default()
     };
-    for (i, hole) in cutouts.iter().enumerate().take(3) {
-        ops.floor_holes[i] = Some(*hole);
-        ops.floor_hole_count += 1;
-    }
     cut_kenney_mesh(mesh, gt, &ops)
 }
 

@@ -40,20 +40,20 @@ pub struct WaterSplashEffects {
 pub struct SewerWaterChannel(pub u32);
 
 fn sewer_water_settings() -> WaterSettings {
-    let (r, g, b, a) = config::WATER_BASE_COLOR;
-    let (sr, sg, sb, sa) = config::WATER_SHALLOW_COLOR;
-    let (dr, dg, db, da) = config::WATER_DEEP_COLOR;
+    // Global fallback config — kept in sync with the per-tile material: one
+    // uniform opaque slime green (clarity 0 = not see-through).
+    let slime = Color::srgb(0.32, 0.62, 0.18);
     WaterSettings {
         spawn_tiles: None,
         height: config::WATER_SURFACE_HEIGHT,
         amplitude: config::WATER_WAVE_AMPLITUDE,
-        base_color: Color::srgba(r, g, b, a),
-        shallow_color: Color::srgba(sr, sg, sb, sa),
-        deep_color: Color::srgba(dr, dg, db, da),
-        clarity: 0.55,
+        base_color: slime,
+        shallow_color: slime,
+        deep_color: slime,
+        clarity: 0.0,
         water_quality: WaterQuality::Medium,
         wave_direction: Vec2::new(0.35, 0.85),
-        alpha_mode: bevy::prelude::AlphaMode::Blend,
+        alpha_mode: bevy::prelude::AlphaMode::Opaque,
         ..default()
     }
 }
@@ -83,31 +83,39 @@ pub fn spawn_channel_water(
     let depth = def.size.z.max(0.5);
     let mesh = build_channel_plane(meshes, width, depth);
 
-    let (sr, sg, sb, sa) = config::WATER_SHALLOW_COLOR;
-    let (dr, dg, db, da) = config::WATER_DEEP_COLOR;
     let wave_dir = Vec2::new(0.35, 0.85);
+    // ONE uniform "slime" green. The dark-static-surface / light-wavy-surface
+    // look was bevy_water tinting troughs with deep_color (dark) and crests/edges
+    // with shallow/edge_color (light) — making one surface look like two. Setting
+    // every colour the same and zeroing the edge tint gives a single flat slime
+    // colour that still ripples (the waves are geometry, not colour).
+    let slime = Color::srgb(0.32, 0.62, 0.18);
 
     let material = water_materials.add(StandardWaterMaterial {
         base: StandardMaterial {
-            base_color: Color::srgba(0.06, 0.5, 0.22, 0.92),
+            // SOLID, fully opaque. Translucency was never convincing here.
+            base_color: slime,
             // Faint glow so the channel reads even in near-total darkness.
-            emissive: LinearRgba::new(0.01, 0.12, 0.05, 1.0),
-            perceptual_roughness: 0.16,
+            emissive: LinearRgba::new(0.02, 0.10, 0.03, 1.0),
+            // Smooth + reflective so point lights make wet specular highlights.
+            perceptual_roughness: 0.08,
             metallic: 0.0,
-            reflectance: 0.7,
-            alpha_mode: AlphaMode::Blend,
+            reflectance: 0.8,
+            alpha_mode: AlphaMode::Opaque,
             ..default()
         },
         extension: WaterMaterial {
-            // Gentle ripples for a shallow sewer stream. Kept small so wave
-            // troughs never dip below the channel floor (which would occlude
-            // the alpha-blended surface).
-            amplitude: 0.02,
-            clarity: 0.4,
-            deep_color: Color::srgba(dr, dg, db, da),
-            shallow_color: Color::srgba(sr, sg, sb, sa),
-            edge_color: Color::srgb(0.25, 0.95, 0.45),
-            edge_scale: 0.25,
+            // Gentle ripples for a shallow sewer stream.
+            amplitude: 0.015,
+            // clarity 0 = fully opaque. bevy_water does its own depth-based
+            // see-through and IGNORES AlphaMode::Opaque, so this is the real knob
+            // that stops the dark channel bed showing through under the surface
+            // (which read as a separate dark layer beneath the slime).
+            clarity: 0.0,
+            deep_color: slime,
+            shallow_color: slime,
+            edge_color: slime,
+            edge_scale: 0.0,
             // Map mesh UV (0..1) to a few wavelengths across the channel.
             coord_offset: Vec2::new(def.position.x - width * 0.5, def.position.z - depth * 0.5),
             coord_scale: Vec2::new(width, depth),
@@ -118,9 +126,10 @@ pub fn spawn_channel_water(
         },
     });
 
-    // Place the surface just above the top of the channel volume so the whole
-    // (small-amplitude) wave stays above the surrounding floor and stays visible.
-    let surface_y = def.position.y + def.size.y * 0.5 + 0.05;
+    // Recessed INTO the channel: the surrounding walkways' top sits ~0.06 m, so
+    // the water surface stays a few cm below that (was floating ABOVE the
+    // walkways before). A channel bed is rendered separately below it.
+    let surface_y = def.position.y + def.size.y * 0.5 + 0.01;
 
     commands.spawn((
         LevelVisual,

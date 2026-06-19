@@ -42,11 +42,11 @@ pub fn generate_fog_noise(images: &mut Assets<Image>) -> FogNoiseTexture {
                 let n1 = value_noise_3d(fx * 3.0, fy * 3.0, fz * 3.0);
                 let n2 = value_noise_3d(fx * 6.0, fy * 6.0, fz * 6.0);
                 let n = (n1 * 0.65 + n2 * 0.35).clamp(0.0, 1.0);
-                // Keep a solid floor (0.35) so fog is always present, with
-                // variation up to 1.0 for wispy structure — never a flat box,
-                // never invisible. Denser near the floor (fog settles low).
-                let height_bias = (1.0 - fy * 0.6).clamp(0.3, 1.0);
-                let density = (0.35 + 0.65 * n) * height_bias;
+                // Low floor + wide range = real wispy contrast (some near-empty
+                // pockets, some dense banks) rather than uniform soup. Denser
+                // near the floor (fog settles low).
+                let height_bias = (1.0 - fy * 0.7).clamp(0.2, 1.0);
+                let density = (0.12 + 0.88 * n) * height_bias;
                 data.push((density.clamp(0.0, 1.0) * 255.0) as u8);
             }
         }

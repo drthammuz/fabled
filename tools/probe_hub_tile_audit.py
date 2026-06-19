@@ -40,77 +40,66 @@ def load_layout(path: Path) -> dict:
 
 
 def hub_west_drop(ex: float, ez: float) -> Tuple[float, float]:
-    return ex - 8.0, ez
+    # SW corner (ex-8, ez+8): off the centre row to the gate / stairs.
+    return ex - 8.0, ez + 8.0
 
 
 def hub_stairs_opening(ex: float, ez: float) -> Tuple[float, float]:
     wx = ex - HUB_MODULE_SPAN
-    return wx + 6.0, ez
+    return wx + 4.0, ez
 
 
-def in_hub_drop_column(x: float, z: float, tx: float, tz: float) -> bool:
-    return abs(x - tx) <= FLOOR_TILE_HALF and abs(z - tz) <= FLOOR_TILE_HALF
+def hub_stairs_opening_cells(ex: float, ez: float):
+    """Both hub-floor cells above the L2 stairs (1x2 piece, yaw +90deg): stair-top
+    at wx+4 and the cell one step west at wx. Door threshold wx+8 stays solid."""
+    wx = ex - HUB_MODULE_SPAN
+    return [(wx + 4.0, ez), (wx, ez)]
 
 
-def in_extraction_drop_zone(x: float, z: float, ex: float, ez: float) -> bool:
-    return abs(x - ex) < PIT_DROP_HALF and abs(z - ez) < PIT_DROP_HALF
+def hub_l3_drop(ex: float, ez: float) -> Tuple[float, float]:
+    """L3 pit drop on the hub floor — a separate tile north of the (ex,ez) landing."""
+    return ex, ez - 8.0
 
 
-def hide_extraction_hatch(stem: str, floor: int, px: float, pz: float, ex: float, ez: float) -> bool:
-    if floor == HUB_FLOOR and stem in ("template-floor-hole", "template-floor-layer-hole"):
-        west = hub_west_drop(ex, ez)
-        stair = hub_stairs_opening(ex, ez)
-        if (
-            in_extraction_drop_zone(px, pz, ex, ez)
-            or in_hub_drop_column(px, pz, west[0], west[1])
-            or in_hub_drop_column(px, pz, stair[0], stair[1])
-        ):
-            return True
-    if floor == HUB_FLOOR and stem in (
-        "template-floor",
-        "template-floor-layer",
-        "template-floor-big",
-    ):
-        west = hub_west_drop(ex, ez)
-        stair = hub_stairs_opening(ex, ez)
-        if (
-            in_hub_drop_column(px, pz, ex, ez)
-            or in_hub_drop_column(px, pz, west[0], west[1])
-            or in_hub_drop_column(px, pz, stair[0], stair[1])
-        ):
-            return True
+def carves_floor(stem: str) -> bool:
     return (
-        stem in ("template-floor-hole", "template-floor-layer-hole")
-        and floor == 0
-        and abs(px - ex) < 0.5
-        and abs(pz - ez) < 0.5
+        stem in ROOM_SHELLS
+        or stem.startswith("corridor")
+        or (stem.startswith("template-floor") and "hole" not in stem)
     )
 
 
-def skip_physics_collider(stem: str, floor: int, px: float, pz: float, ex: float, ez: float) -> bool:
+def floor_prop_on_hole(stem: str, px: float, pz: float, masks, layout, floor: int) -> bool:
+    """Suppress only *solid* floor tiles that overlap a hole. The template-floor-hole
+    *frame* is intentional decoration: keep it rendered (its collider is skipped in
+    skip_physics_collider so the hole stays open)."""
+    if not stem.startswith("template-floor"):
+        return False
+    if "hole" in stem:
+        return False
+    return mask_open_at(masks, layout, px, pz, floor)
+
+
+def hide_extraction_hatch(stem, floor, px, pz, masks, layout) -> bool:
+    return floor_prop_on_hole(stem, px, pz, masks, layout, floor)
+
+
+def skip_physics_collider(stem, floor, px, pz, ex, ez, masks, layout) -> bool:
+    # Hole frame: the raised rim collides (open centre); never skip it. Mirrors
+    # kenney_skip_piece_collider.
     if stem in ("template-floor-hole", "template-floor-layer-hole"):
-        if floor < 0:
-            return True
-        if floor == 0 and abs(px - ex) < 0.5 and abs(pz - ez) < 0.5:
-            return True
+        return False
+    if floor_prop_on_hole(stem, px, pz, masks, layout, floor):
+        return True
     if floor == HUB_FLOOR:
         if stem in ("gate", "gate-opening", "gate-lasers"):
             return True
-        west = hub_west_drop(ex, ez)
-        stair = hub_stairs_opening(ex, ez)
         if stem.startswith("template-wall"):
             wall_x_west = ex - 10.0
             wall_x_east = ex - HUB_MODULE_SPAN + 10.0
             if abs(px - wall_x_west) < 1.6 and abs(pz - ez) < 2.05:
                 return True
             if abs(px - wall_x_east) < 1.6 and abs(pz - ez) < 2.05:
-                return True
-        if stem in ("template-floor", "template-floor-layer", "template-floor-big"):
-            if (
-                in_hub_drop_column(px, pz, ex, ez)
-                or in_hub_drop_column(px, pz, west[0], west[1])
-                or in_hub_drop_column(px, pz, stair[0], stair[1])
-            ):
                 return True
     return False
 
@@ -145,22 +134,24 @@ def piece_overlaps_tile(px: float, pz: float, stem: str, yaw: float, tx: float, 
     )
 
 
-def mesh_cutout_holes(stem: str, floor: int, px: float, pz: float, yaw: float, ex: float, ez: float) -> List[Tuple[float, float]]:
-    if stem not in ROOM_SHELLS:
+def mesh_cutout_holes(stem, floor, px, pz, yaw, masks, layout) -> List[Tuple[float, float]]:
+    """World XZ of every footprint cell whose mask cell is a hole (single source)."""
+    if not carves_floor(stem):
         return []
+    nx, nz = piece_grid_size(stem)
+    steps = probe.yaw_steps(yaw)
+    for _ in range(steps % 4):
+        nx, nz = nz, nx
+    sw_x = px - nx * CELL * 0.5
+    sw_z = pz - nz * CELL * 0.5
     holes: List[Tuple[float, float]] = []
-    if floor == 0 and piece_overlaps_tile(px, pz, stem, yaw, ex, ez):
-        holes.append((ex, ez))
-    if floor == HUB_FLOOR:
-        if piece_overlaps_tile(px, pz, stem, yaw, ex, ez):
-            holes.append((ex, ez))
-        west = hub_west_drop(ex, ez)
-        if piece_overlaps_tile(px, pz, stem, yaw, west[0], west[1]):
-            holes.append(west)
-        stair = hub_stairs_opening(ex, ez)
-        if piece_overlaps_tile(px, pz, stem, yaw, stair[0], stair[1]):
-            holes.append(stair)
-    return holes[:3]
+    for j in range(int(round(nz))):
+        for i in range(int(round(nx))):
+            cx = sw_x + (i + 0.5) * CELL
+            cz = sw_z + (j + 0.5) * CELL
+            if mask_open_at(masks, layout, cx, cz, floor):
+                holes.append((cx, cz))
+    return holes
 
 
 def filter_open_hole_tris(tris: List[Tri], tx: float, tz: float, floor_plane_y: float) -> List[Tri]:
@@ -197,14 +188,19 @@ def filter_shaft_tris(tris: List[Tri], ex: float, ez: float) -> List[Tri]:
     return out
 
 
-def apply_piece_cutouts(tris: List[Tri], stem: str, floor: int, px: float, pz: float, yaw: float, ex: float, ez: float) -> List[Tri]:
-    if stem not in ROOM_SHELLS:
+def apply_piece_cutouts(tris, stem, floor, px, pz, yaw, ex, ez, masks, layout):
+    if not carves_floor(stem):
         return tris
     plane_y = floor * MOD_H
     out = tris
-    for hole in mesh_cutout_holes(stem, floor, px, pz, yaw, ex, ez):
+    for hole in mesh_cutout_holes(stem, floor, px, pz, yaw, masks, layout):
         out = filter_open_hole_tris(out, hole[0], hole[1], plane_y)
-    if floor == 0 and piece_overlaps_tile(px, pz, stem, yaw, ex, ez):
+    if (
+        stem in ROOM_SHELLS
+        and floor == 0
+        and mask_open_at(masks, layout, ex, ez, 0)
+        and piece_overlaps_tile(px, pz, stem, yaw, ex, ez)
+    ):
         out = filter_shaft_tris(out, ex, ez)
     return out
 
@@ -214,6 +210,8 @@ def build_world_tris(
     floor: int,
     ex: float,
     ez: float,
+    masks,
+    layout,
     *,
     visual: bool,
 ) -> List[Tri]:
@@ -225,12 +223,12 @@ def build_world_tris(
         stem = p["stem"]
         px, pz = float(p["x"]), float(p["z"])
         yaw = float(p.get("yaw", 0.0))
-        if visual and hide_extraction_hatch(stem, fl, px, pz, ex, ez):
+        if visual and hide_extraction_hatch(stem, fl, px, pz, masks, layout):
             continue
         if not visual:
             if not piece_collides(stem):
                 continue
-            if skip_physics_collider(stem, fl, px, pz, ex, ez):
+            if skip_physics_collider(stem, fl, px, pz, ex, ez, masks, layout):
                 continue
         local = probe.load_piece_tris(stem)
         if not local:
@@ -242,7 +240,7 @@ def build_world_tris(
             piece_tris.append(
                 tuple(probe.transform_vertex(v, px, pz, py, steps) for v in tri)  # type: ignore[misc]
             )
-        piece_tris = apply_piece_cutouts(piece_tris, stem, fl, px, pz, yaw, ex, ez)
+        piece_tris = apply_piece_cutouts(piece_tris, stem, fl, px, pz, yaw, ex, ez, masks, layout)
         out.extend(piece_tris)
     return out
 
@@ -258,36 +256,80 @@ def mesh_solid_at(cx: float, cz: float, tris: List[Tri], floor: int) -> bool:
     return any(band[0] <= h <= band[1] for h in hits)
 
 
+def grid_dims(layout: dict) -> Tuple[int, int, float, float, float]:
+    cell = float(layout.get("grid_unit_m", CELL))
+    cx_cells = int(layout.get("modules_x", 3)) * 5
+    cz_cells = int(layout.get("modules_z", 3)) * 5
+    x0 = -(cx_cells * cell) / 2.0
+    z0 = -(cz_cells * cell) / 2.0
+    return cx_cells, cz_cells, x0, z0, cell
+
+
+def coverage_mask(layout: dict, floor: int) -> List[bool]:
+    """Sub-floor mask from floor-piece coverage (mirrors subfloor_mask_from_coverage)."""
+    cx_cells, cz_cells, x0, z0, cell = grid_dims(layout)
+    cells = [False] * (cx_cells * cz_cells)
+    for p in layout.get("pieces", []):
+        if int(p.get("floor", p.get("floor_level", 0))) != floor:
+            continue
+        if not carves_floor(p["stem"]):
+            continue
+        nx, nz = piece_grid_size(p["stem"])
+        steps = probe.yaw_steps(float(p.get("yaw", 0.0)))
+        for _ in range(steps % 4):
+            nx, nz = nz, nx
+        sw_x = float(p["x"]) - nx * cell * 0.5
+        sw_z = float(p["z"]) - nz * cell * 0.5
+        for j in range(int(round(nz))):
+            for i in range(int(round(nx))):
+                cxw = sw_x + (i + 0.5) * cell
+                czw = sw_z + (j + 0.5) * cell
+                ix = int((cxw - x0) // cell)
+                iz = int((czw - z0) // cell)
+                if 0 <= ix < cx_cells and 0 <= iz < cz_cells:
+                    cells[iz * cx_cells + ix] = True
+    return cells
+
+
 def patched_floor_mask(layout: dict, ex: float, ez: float) -> Dict[int, Optional[List[bool]]]:
+    cx_cells, cz_cells, x0, z0, cell = grid_dims(layout)
     floors = layout.get("floors", {})
     out: Dict[int, Optional[List[bool]]] = {}
-    cell = float(layout.get("grid_unit_m", CELL))
-    for key, mask in floors.items():
-        fl = int(key)
-        cells = list(mask.get("cells", []))
-        cx_cells = int(mask.get("cells_x", 0))
-        cz_cells = int(mask.get("cells_z", 0))
-        if not cells:
-            out[fl] = None
-            continue
-        x0 = -((layout.get("modules_x", 3) * 5 * cell) / 2.0)
-        z0 = -((layout.get("modules_z", 3) * 5 * cell) / 2.0)
 
-        def cut_at(wx: float, wz: float) -> None:
+    # Floor 0: solid ground (file mask if present, else filled).
+    file0 = floors.get("0")
+    if file0 and file0.get("cells"):
+        out[0] = list(file0["cells"])
+    else:
+        out[0] = [True] * (cx_cells * cz_cells)
+    # Sub-floors: derive from coverage (sub-floors aren't authored as masks).
+    out[HUB_FLOOR] = coverage_mask(layout, HUB_FLOOR)
+    out[-2] = coverage_mask(layout, -2)
+
+    def make_set(fl: int):
+        def set_at(wx: float, wz: float, on: bool) -> None:
             ix = int(round((wx - x0) / cell - 0.5))
             iz = int(round((wz - z0) / cell - 0.5))
             if 0 <= ix < cx_cells and 0 <= iz < cz_cells:
-                cells[iz * cx_cells + ix] = False
+                out[fl][iz * cx_cells + ix] = on
+        return set_at
 
-        if fl == 0:
-            cut_at(ex, ez)
-        if fl == HUB_FLOOR:
-            west = hub_west_drop(ex, ez)
-            stair = hub_stairs_opening(ex, ez)
-            cut_at(ex, ez)
-            cut_at(west[0], west[1])
-            cut_at(stair[0], stair[1])
-        out[fl] = cells
+    set0 = make_set(0)
+    set0(ex, ez, False)  # extraction trap
+
+    seth = make_set(HUB_FLOOR)
+    west = hub_west_drop(ex, ez)
+    stair_cells = hub_stairs_opening_cells(ex, ez)
+    l3 = hub_l3_drop(ex, ez)
+    seth(ex, ez, True)  # landing forced solid
+    seth(west[0], west[1], False)
+    for s in stair_cells:  # stairs span two cells
+        seth(s[0], s[1], False)
+    seth(l3[0], l3[1], False)
+
+    setd = make_set(-2)
+    for s in stair_cells:
+        setd(s[0], s[1], False)
     return out
 
 
@@ -301,11 +343,7 @@ def mask_open_at(
     cells = masks.get(floor)
     if cells is None:
         return False
-    cell = float(layout.get("grid_unit_m", CELL))
-    cx_cells = int(layout["floors"][str(floor)]["cells_x"])
-    cz_cells = int(layout["floors"][str(floor)]["cells_z"])
-    x0 = -((layout.get("modules_x", 3) * 5 * cell) / 2.0)
-    z0 = -((layout.get("modules_z", 3) * 5 * cell) / 2.0)
+    cx_cells, cz_cells, x0, z0, cell = grid_dims(layout)
     ix = int(round((cx - x0) / cell - 0.5))
     iz = int(round((cz - z0) / cell - 0.5))
     if ix < 0 or iz < 0 or ix >= cx_cells or iz >= cz_cells:
@@ -313,24 +351,17 @@ def mask_open_at(
     return not cells[iz * cx_cells + ix]
 
 
-def mesh_covers_cell(layout: dict, cx: float, cz: float, floor: int, ex: float, ez: float) -> bool:
+def mesh_covers_cell(layout: dict, cx: float, cz: float, floor: int, ex: float, ez: float, masks) -> bool:
     if floor < 0:
-        west = hub_west_drop(ex, ez)
-        stair = hub_stairs_opening(ex, ez)
-        if floor == HUB_FLOOR and (
-            in_hub_drop_column(cx, cz, ex, ez)
-            or in_hub_drop_column(cx, cz, west[0], west[1])
-            or in_hub_drop_column(cx, cz, stair[0], stair[1])
-        ):
-            return True
+        # Below ground, any floor-bearing piece (room shell or template-floor tile) counts.
         for p in layout.get("pieces", []):
             fl = int(p.get("floor", p.get("floor_level", 0)))
             if fl != floor:
                 continue
             stem = p["stem"]
-            if skip_physics_collider(stem, fl, float(p["x"]), float(p["z"]), ex, ez):
+            if skip_physics_collider(stem, fl, float(p["x"]), float(p["z"]), ex, ez, masks, layout):
                 continue
-            if stem not in ROOM_SHELLS:
+            if not carves_floor(stem):
                 continue
             if piece_contains_xz(p, cx, cz):
                 return True
@@ -339,9 +370,7 @@ def mesh_covers_cell(layout: dict, cx: float, cz: float, floor: int, ex: float, 
         fl = int(p.get("floor", p.get("floor_level", 0)))
         if fl != floor:
             continue
-        if skip_physics_collider(
-            p["stem"], fl, float(p["x"]), float(p["z"]), ex, ez
-        ):
+        if skip_physics_collider(p["stem"], fl, float(p["x"]), float(p["z"]), ex, ez, masks, layout):
             continue
         if not piece_collides(p["stem"]):
             continue
@@ -373,23 +402,12 @@ def physical_solid_at(
     ex: float,
     ez: float,
 ) -> bool:
-    if mesh_solid_at(cx, cz, phys_tris, floor):
-        return True
+    # Single source: a mask hole is never solid; otherwise a cuboid or room trimesh fills it.
     if mask_open_at(masks, layout, cx, cz, floor):
         return False
-    if floor == 0 and in_hub_drop_column(cx, cz, ex, ez):
-        return False
-    if floor == HUB_FLOOR:
-        west = hub_west_drop(ex, ez)
-        stair = hub_stairs_opening(ex, ez)
-        if (
-            in_hub_drop_column(cx, cz, ex, ez)
-            or in_hub_drop_column(cx, cz, west[0], west[1])
-            or in_hub_drop_column(cx, cz, stair[0], stair[1])
-        ):
-            return False
-    if mesh_covers_cell(layout, cx, cz, floor, ex, ez):
-        return False
+    if mesh_solid_at(cx, cz, phys_tris, floor):
+        return True
+    # Mask-solid cells with no room mesh get a floor-cell cuboid spawned by the server.
     return True
 
 
@@ -402,16 +420,16 @@ def audit_layout(path: Path) -> Tuple[List[str], List[str]]:
     pieces = layout.get("pieces", [])
     masks = patched_floor_mask(layout, ex, ez)
 
-    # Hub + west module band (world tiles on 4 m grid centres).
-    xs = list(range(2, 29, 4))  # 2,6,10,...,26 — covers west module through hub east rim
-    zs = [16, 20, 24]
+    # Hub + west module band, sampled at true 4 m cell centres (boundaries are ambiguous).
+    xs = list(range(-8, 29, 4))  # -8,-4,0,...,28 — west module through hub east rim
+    zs = [12, 16, 20, 24]
 
     mismatches: List[str] = []
     rows: List[str] = []
 
     for floor in (0, HUB_FLOOR):
-        vis_tris = build_world_tris(pieces, floor, ex, ez, visual=True)
-        phys_tris = build_world_tris(pieces, floor, ex, ez, visual=False)
+        vis_tris = build_world_tris(pieces, floor, ex, ez, masks, layout, visual=True)
+        phys_tris = build_world_tris(pieces, floor, ex, ez, masks, layout, visual=False)
         for cx in xs:
             for cz in zs:
                 vis = mesh_solid_at(cx, cz, vis_tris, floor)
@@ -424,18 +442,24 @@ def audit_layout(path: Path) -> Tuple[List[str], List[str]]:
                     f"  F{floor:+2d} ({cx:5.1f},{cz:5.1f})  visual={tag}  physical={ptag}  {mark}"
                 )
 
-    # Expected states for reported bug tiles (authoritative pass/fail).
+    # Authoritative expectations for the locked hub design.
+    l3 = hub_l3_drop(ex, ez)
+    west = hub_west_drop(ex, ez)
+    stair_cells = hub_stairs_opening_cells(ex, ez)
     expectations = [
-        ("F0 pit trap", 0, ex, ez, False),
-        ("F-1 hub pit", HUB_FLOOR, ex, ez, False),
-        ("F-1 west drop", HUB_FLOOR, ex - 8.0, ez, False),
-        ("F-1 stairs opening", HUB_FLOOR, hub_stairs_opening(ex, ez)[0], ez, False),
+        ("F0 extraction trap", 0, ex, ez, False),
+        ("F-1 hub landing (SOLID)", HUB_FLOOR, ex, ez, True),
+        ("F-1 west drop (SW corner)", HUB_FLOOR, west[0], west[1], False),
+        # The cell on the centre row to the gate must now be SOLID (path is clear).
+        ("F-1 gate path (SOLID)", HUB_FLOOR, ex - 8.0, ez, True),
+        ("F-1 stairs opening top", HUB_FLOOR, stair_cells[0][0], stair_cells[0][1], False),
+        ("F-1 stairs opening west", HUB_FLOOR, stair_cells[1][0], stair_cells[1][1], False),
+        ("F-1 L3 pit drop", HUB_FLOOR, l3[0], l3[1], False),
         ("F-1 door threshold", HUB_FLOOR, ex - HUB_MODULE_SPAN + 8.0, ez, True),
-        ("F-1 hub rim E", HUB_FLOOR, ex + 2.0, ez, True),
     ]
     for label, floor, cx, cz, want_solid in expectations:
-        vis_tris = build_world_tris(pieces, floor, ex, ez, visual=True)
-        phys_tris = build_world_tris(pieces, floor, ex, ez, visual=False)
+        vis_tris = build_world_tris(pieces, floor, ex, ez, masks, layout, visual=True)
+        phys_tris = build_world_tris(pieces, floor, ex, ez, masks, layout, visual=False)
         vis = mesh_solid_at(cx, cz, vis_tris, floor)
         phys = physical_solid_at(cx, cz, floor, layout, phys_tris, masks, ex, ez)
         ok = vis == want_solid and phys == want_solid

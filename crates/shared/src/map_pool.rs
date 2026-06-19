@@ -222,7 +222,9 @@ impl MountedMap {
             instance_id: 1,
             pool_id: pool_id.into(),
             offset: Vec3::ZERO,
-            layout,
+            // Bake hub holes into the local mask so floor visuals + physics share one source.
+            // No-op for non-hub maps (patch returns early without an extraction point).
+            layout: crate::kenney_hub::patch_hub_branch_layout(layout),
             exit: None,
         }
     }
@@ -238,7 +240,7 @@ impl MountedMap {
             instance_id,
             pool_id: pool_id.into(),
             offset,
-            layout,
+            layout: crate::kenney_hub::patch_hub_branch_layout(layout),
             exit: Some(exit),
         }
     }
@@ -396,18 +398,33 @@ mod tests {
     }
 
     #[test]
-    fn hub_drop_zones_include_centre_and_west_pit() {
-        use crate::kenney_pit::{hub_west_drop_centre, in_hub_west_drop_zone, in_hub_l3_drop_zone};
+    fn hub_drop_zones_are_three_separate_tiles_off_the_landing() {
+        use crate::kenney_pit::{
+            hub_l3_drop_centre, hub_west_drop_centre, in_hub_l3_drop_zone, in_hub_west_drop_zone,
+        };
         let ex = 20.0;
         let ez = 20.0;
         let west = hub_west_drop_centre(ex, ez);
-        assert_eq!(west, bevy::prelude::Vec2::new(12.0, 20.0));
-        assert!(in_hub_west_drop_zone(12.0, 20.0, ex, ez));
+        // SW corner (ex-8, ez+8) — off the centre row to the gate / stairs.
+        assert_eq!(west, bevy::prelude::Vec2::new(12.0, 28.0));
+        assert!(in_hub_west_drop_zone(12.0, 28.0, ex, ez));
+        // The (ex,ez) landing tile is SOLID — not any drop zone.
         assert!(!in_hub_west_drop_zone(20.0, 20.0, ex, ez));
-        assert!(in_hub_l3_drop_zone(20.0, 20.0, ex, ez));
-        use crate::kenney_pit::hub_stairs_opening;
+        assert!(!in_hub_l3_drop_zone(20.0, 20.0, ex, ez));
+        // L3 drop sits on its own tile north of the landing.
+        let l3 = hub_l3_drop_centre(ex, ez);
+        assert_eq!(l3, bevy::prelude::Vec2::new(20.0, 12.0));
+        assert!(in_hub_l3_drop_zone(l3.x, l3.y, ex, ez));
+        use crate::kenney_pit::{hub_stairs_opening, hub_stairs_opening_cells};
         let stair = hub_stairs_opening(ex, ez);
-        assert_eq!(stair, bevy::prelude::Vec2::new(6.0, 20.0));
+        // Cell-aligned (west centre 0 + 4), not the off-grid +6 that desynced mask vs mesh.
+        assert_eq!(stair, bevy::prelude::Vec2::new(4.0, 20.0));
+        // The stairs span two cells (stair-top + one west); the door threshold (8,20) stays solid.
+        let cells = hub_stairs_opening_cells(ex, ez);
+        assert_eq!(cells, [bevy::prelude::Vec2::new(4.0, 20.0), bevy::prelude::Vec2::new(0.0, 20.0)]);
+        assert!(crate::kenney_pit::in_hub_stairs_opening(0.0, 20.0, ex, ez));
+        assert!(crate::kenney_pit::in_hub_stairs_opening(4.0, 20.0, ex, ez));
+        assert!(!crate::kenney_pit::in_hub_stairs_opening(8.0, 20.0, ex, ez));
     }
 
     #[test]

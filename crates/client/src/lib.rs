@@ -7,6 +7,7 @@ pub mod class_select;
 pub mod display_settings;
 pub mod process_spawn;
 pub mod darkness;
+pub mod floor_debug;
 pub mod fog_noise;
 pub mod fly_camera;
 pub mod hotbar;
@@ -69,6 +70,7 @@ impl Plugin for ClientCorePlugin {
             city_viewer::CityViewerPlugin,
             editor_playtest::EditorPlaytestPlugin,
             kenney_editor::KenneyEditorPlugin,
+            floor_debug::FloorDebugPlugin,
         ))
         .add_systems(Startup, log_startup);
     }
