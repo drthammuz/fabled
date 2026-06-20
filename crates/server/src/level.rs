@@ -326,6 +326,7 @@ fn spawn_kenney_piece_scenes(
             p.yaw,
             layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
             layout.floors.get(&p.floor),
+            p.ceiling,
         );
         commands.spawn((
             LevelEntity,
@@ -341,7 +342,7 @@ fn spawn_kenney_piece_scenes(
             },
             SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
             Transform::from_translation(Vec3::new(p.x, floor_y, p.z))
-                .with_rotation(Quat::from_rotation_y(yaw))
+                .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
                 .with_scale(Vec3::splat(scale)),
         ));
         n += 1;
@@ -355,6 +356,10 @@ pub fn kenney_skip_piece_collider(
     p: &shared::kenney_layout::KenneyPlacement,
     layout: &KenneyLayout,
 ) -> bool {
+    // Ceiling slabs are visual-only (flipped template-floor one level up).
+    if p.ceiling {
+        return true;
+    }
     // The hole frame (template-floor-hole) is a raised rim with an open centre: it
     // SHOULD collide so you stand on the rim and fall through the middle. Never skip it.
     if matches!(

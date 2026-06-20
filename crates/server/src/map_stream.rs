@@ -334,6 +334,7 @@ fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, in
             p.yaw,
             inst.layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
             inst.layout.floors.get(&p.floor),
+            p.ceiling,
         )
         .translated(inst.offset.x, inst.offset.z);
         commands.spawn((
@@ -353,7 +354,7 @@ fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, in
             },
             SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
             Transform::from_translation(inst.piece_translation(p))
-                .with_rotation(Quat::from_rotation_y(yaw))
+                .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
                 .with_scale(Vec3::splat(scale)),
         ));
     }

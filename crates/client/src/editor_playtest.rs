@@ -138,13 +138,23 @@ fn sync_playtest_patched_pieces(
     let patched = map_pool::play_layout(true);
     let extraction = patched.extraction_xz;
 
-    for (entity, module, gt, ..) in &placed {
+    // Re-bake meshes (ceiling cutouts / underside materials) for playtest layout.
+    for (entity, ..) in &placed {
+        commands.entity(entity).remove::<EditorModuleReady>();
+    }
+
+    for (entity, module, gt, _, ep, _) in &placed {
+        let pos = gt.translation();
+        // Never re-derive `ceiling` from layout position alone — floor and ceiling slabs
+        // share the same stem and (x, z) on hub/landing levels, so `.find()` picks the
+        // wrong piece and treats roofs as hatch props over mask holes.
         if kenney_pit::hide_extraction_hatch_piece(
             module.name,
             module.floor,
-            gt.translation().x,
-            gt.translation().z,
+            pos.x,
+            pos.z,
             patched.floors.get(&module.floor),
+            ep.ceiling || module.ceiling,
         ) {
             commands.entity(entity).despawn();
         }
@@ -159,18 +169,23 @@ fn sync_playtest_patched_pieces(
         }
     }
 
-    for piece in &patched.pieces {
-        if piece.stem != "stairs" {
+    for (_entity, module, gt, mut tf, mut ep, ..) in &mut placed {
+        if ep.ceiling {
             continue;
         }
-        for (_, module, _, mut tf, mut ep, ..) in &mut placed {
-            if module.name != "stairs" {
-                continue;
-            }
-            ep.floor_level = piece.floor;
-            tf.translation = Vec3::new(piece.x, floor_y(piece.floor), piece.z);
-            tf.rotation = Quat::from_rotation_y(piece.yaw);
-        }
+        let pos = gt.translation();
+        let Some(piece) = patched.pieces.iter().find(|p| {
+            p.floor == module.floor
+                && !p.ceiling
+                && (p.x - pos.x).abs() < 0.05
+                && (p.z - pos.z).abs() < 0.05
+        }) else {
+            continue;
+        };
+        ep.floor_level = piece.floor;
+        let yaw = shared::kenney_catalog::quantize_yaw(piece.yaw);
+        tf.translation = Vec3::new(piece.x, floor_y(piece.floor), piece.z);
+        tf.rotation = Quat::from_rotation_y(yaw);
     }
 }
 

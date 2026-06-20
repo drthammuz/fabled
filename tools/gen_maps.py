@@ -1,28 +1,24 @@
 #!/usr/bin/env python3
 """
-Fabled – procedural 5×5 Kenney map generator.
+Fabled – procedural 5×5 Kenney map generator (tile synthesis only).
 
-Two-phase generation (similar in spirit to strat_planned in gen_modules.py):
+Two-phase generation:
 
-  1. High-level design – paint which module slots connect (spawn and end in
-     opposite corners; spanning connected graph over all 25 slots; target ~2.25
-     average connections per module).
+  1. Mission graph – carve a winding spine spawn→end, grow depth-capped branch
+     spurs off it, add a few loop chords, and tag each slot with a role
+     (START / SPINE / HUB / CHAMBER / CORRIDOR / END).
 
-  2. Tile synthesis – for each module slot, route corridors and place 1×1
-     pieces (template-floor, template-wall, corridor-*) to match the painted
-     graph and neighbour tile alignment.  No room GLBs or pre-authored modules.
-
-     Legacy: pass --use-pool to pick modules from userinput/modules/ instead.
+  2. Tile synthesis – build every slot from 1×1 pieces only (template-floor,
+     template-wall, corridor-*): dead-end chambers + spawn become tiled rooms,
+     the rest are corridor junctions / through-corridors.  No room GLBs and no
+     pre-authored module pool (that path has been removed).
 
 Usage:
     python tools/gen_maps.py
     python tools/gen_maps.py --seed 42 --attempts 50
-    python tools/gen_maps.py --use-pool space_rooms --seed 42
-    python tools/gen_maps.py --pool-batch 10 --seed 1
 
 Output:
     userinput/maps/gen_map_<timestamp>.json
-    userinput/maps/pool/map_NNN.json  (with --pool-batch)
 """
 
 from __future__ import annotations
@@ -88,7 +84,6 @@ def module_exits_from_data(data: dict, pieces: List[PlacedPiece]) -> Dict[str, S
 TARGET_AVG_DEGREE = 2.25
 MAP_MODULES = 5
 MAP_DIR = Path("userinput/maps")
-POOL_DIR = MAP_DIR / "pool"
 LAYOUT_PATH = Path("userinput/kenney_layout.json")
 EXTRACTION_HOLE_STEM = "template-floor-hole"
 HUB_EXIT_GATE = "gate"
@@ -422,32 +417,16 @@ def exits_by_side(grid: CellGrid) -> Dict[str, Set[int]]:
     return result
 
 
-def build_variants(path: Path, data: dict, side_hint: Optional[Set[str]] = None) -> List[ModuleVariant]:
-    """
-    One variant per module, saved orientation only.
-
-    The map editor places modules by translating piece offsets — it does not
-    rotate the group.  Pre-rotating piece (x, z) in Python does not match how
-    per-piece yaw is applied in-engine, so we never spin modules here.
-    """
-    base_pieces = pieces_from_json(data.get('pieces', []))
-    name = data.get('name', path.stem)
-    fm = data.get('floor_mask', {})
-    floor_mask = list(fm.get('cells', [True] * (CELLS * CELLS)))
-    exits = module_exits_from_data(data, base_pieces)
-    detected = open_sides_from_exits(exits)
-    open_sides = side_hint if side_hint else detected
-    if not open_sides:
-        return []
-    grid = replay_pieces_to_grid(base_pieces)
-    return [ModuleVariant(path, name, 0, base_pieces, grid, open_sides, exits, floor_mask)]
-
-
 @dataclass
 class ModuleVariant:
+    """Lightweight container for a placed slot's synthesised geometry.
+
+    Historically this also represented a pre-authored pool module; that path is
+    gone, so `SYNTHETIC_VARIANT` is the only instance — every slot is built from
+    1×1 tiles by `synthesize_module` / `synthesize_chamber`."""
     path: Path
     name: str
-    rotation: int          # always 0 (see build_variants)
+    rotation: int          # always 0
     pieces: List[PlacedPiece]
     grid: CellGrid
     open_sides: Set[str]
@@ -510,10 +489,101 @@ def synthesize_module(
     return pieces, grid, floor_mask_from_grid(grid)
 
 
+def synthesize_chamber(
+    required: Set[str],
+    tile_req: Dict[str, int],
+) -> Tuple[List[PlacedPiece], CellGrid, List[bool]]:
+    """Build a full tiled room slot (CHAMBER / HUB / START role).
+
+    Every cell gets a template-floor; a full perimeter template-wall ring seals
+    the slot except for the kept door tile on each required side.  This is the
+    module-local analogue of `build_tiled_floor_room` (which works in world
+    coordinates for the hub/extraction rooms) and is used for dead-end side
+    areas, junction halls, and the spawn room so the layout reads as
+    "corridors = main path, rooms = side areas".
+    """
+    pieces: List[PlacedPiece] = []
+    grid = gm.CellGrid()
+
+    # Floor every cell; mark walkable for spawn placement + floor mask.
+    for iz in range(CELLS):
+        for ix in range(CELLS):
+            pieces.append(pp('template-floor', cell_cx(ix), cell_cz(iz)))
+            grid.c(ix, iz).walkable = True
+
+    # Interior open faces between adjacent walkable cells (whole room is open).
+    for iz in range(CELLS):
+        for ix in range(CELLS):
+            for face, (dx, dz) in DELTA.items():
+                nix, niz = ix + dx, iz + dz
+                if grid.in_bounds(nix, niz):
+                    grid.c(ix, iz).open_faces.add(face)
+
+    # Perimeter wall ring minus the kept door tile on each required side.
+    for side in SIDES:
+        door = tile_req.get(side, CENTER_TILE) if side in required else None
+        for tile in range(CELLS):
+            if tile == door:
+                continue
+            pieces.append(wall_for_opening(side, tile))
+        # Discard interior open faces that the ring seals; keep the door face.
+        if side == 'N':
+            cells = [(ix, 0) for ix in range(CELLS)]
+        elif side == 'S':
+            cells = [(ix, CELLS - 1) for ix in range(CELLS)]
+        elif side == 'E':
+            cells = [(CELLS - 1, iz) for iz in range(CELLS)]
+        else:
+            cells = [(0, iz) for iz in range(CELLS)]
+        for ix, iz in cells:
+            tile = ix if side in ('N', 'S') else iz
+            if tile == door:
+                grid.c(ix, iz).open_faces.add(side)  # outward door opening
+            else:
+                grid.c(ix, iz).open_faces.discard(side)
+
+    return pieces, grid, floor_mask_from_grid(grid)
+
+
 # ─── phase 1: high-level connectivity paint ──────────────────────────────────
 
 Slot = Tuple[int, int]
 Side = str
+
+# ─── slot roles (Phase 1 mission graph) ──────────────────────────────────────
+# Each module slot is tagged with a role derived from spine membership + graph
+# degree.  Synthesis picks geometry per role: rooms for destinations/junctions,
+# narrow corridors for the through-path.
+ROLE_START = 'START'      # spawn module (room)
+ROLE_END = 'END'          # extraction module (overwritten by hub builder)
+ROLE_SPINE = 'SPINE'      # on the main path, degree 2 → through-corridor
+ROLE_HUB = 'HUB'          # degree ≥3 junction → open room routing to centre
+ROLE_CHAMBER = 'CHAMBER'  # dead-end leaf → full tiled chamber (side area)
+ROLE_CORRIDOR = 'CORRIDOR'  # off-spine pass-through, degree 2 → corridor
+
+# Roles whose slot is synthesised as a full tiled room rather than corridors.
+# HUB is deliberately NOT a room: the manifest wants hubs to "route exits to
+# centre" — i.e. a corridor junction — so only dead-end chambers and the spawn
+# room fill a whole module slot.  Keeping hubs as junctions roughly halves the
+# number of full 20 m square rooms (less "module-grid" read).
+ROOM_ROLES = frozenset({ROLE_START, ROLE_CHAMBER})
+
+ROLE_GLYPH = {
+    ROLE_START: 'S', ROLE_END: 'X', ROLE_SPINE: '=',
+    ROLE_HUB: 'H', ROLE_CHAMBER: 'o', ROLE_CORRIDOR: '·',
+}
+
+# Default loop chords reconnecting branches/spine (kept small so the graph reads
+# as a tree, not a mesh).  See manifest §5.1 loop_count.
+DEFAULT_LOOP_COUNT = 1
+# Max slots a branch spur extends off the spine before it must dead-end into a
+# chamber.  Lower = more, shorter side rooms; higher = longer side corridors.
+BRANCH_MAX_DEPTH = 3
+# Probability the spine takes a winding detour step instead of marching straight
+# toward the end corner.  0 = monotone staircase (~9 slots on a 5×5), higher =
+# longer/windier spine.  Kept modest so the main path stays readable and leaves
+# room for branch side-areas.
+SPINE_WIND = 0.22
 
 
 @dataclass
@@ -523,6 +593,8 @@ class HighLevelDesign:
     # slot -> set of sides that must connect to a neighbour
     connections: Dict[Slot, Set[Side]]
     edges: Set[Tuple[Slot, Slot]]
+    spine: List[Slot] = field(default_factory=list)
+    roles: Dict[Slot, str] = field(default_factory=dict)
 
     def degree(self, slot: Slot) -> int:
         return len(self.connections.get(slot, set()))
@@ -531,6 +603,9 @@ class HighLevelDesign:
         if not self.connections:
             return 0.0
         return sum(len(v) for v in self.connections.values()) / len(self.connections)
+
+    def role(self, slot: Slot) -> str:
+        return self.roles.get(slot, ROLE_CORRIDOR)
 
     def ascii(self) -> str:
         # row 0 = north (−Z), printed top-to-bottom so it matches the editor view.
@@ -546,6 +621,16 @@ class HighLevelDesign:
                 else:
                     ch = str(self.degree(slot))
                 row_chars.append(ch)
+            lines.append(' '.join(row_chars))
+        lines.append('    S')
+        return '\n'.join(lines)
+
+    def ascii_roles(self) -> str:
+        """Role map: S=start X=extract ==spine H=hub o=chamber ·=corridor."""
+        lines = ['    N', 'W   E']
+        for row in range(MAP_MODULES):
+            row_chars = [ROLE_GLYPH.get(self.role((col, row)), '?')
+                         for col in range(MAP_MODULES)]
             lines.append(' '.join(row_chars))
         lines.append('    S')
         return '\n'.join(lines)
@@ -569,15 +654,118 @@ def _add_edge(connections: Dict[Slot, Set[Side]], a: Slot, b: Slot) -> None:
         connections[b].add('E')
 
 
+def _carve_spine(rng: random.Random, spawn: Slot, end: Slot) -> List[Slot]:
+    """Self-avoiding path spawn→end that winds but always reaches the end corner.
+
+    At each step we usually march toward the end corner (reducing the remaining
+    column/row gap); with probability SPINE_WIND we take a perpendicular detour
+    if one is available, lengthening the main path.  Falls back to the monotone
+    remainder whenever a detour would strand us.
+    """
+    path: List[Slot] = [spawn]
+    visited: Set[Slot] = {spawn}
+    cur = spawn
+    guard = 0
+    while cur != end and guard < MAP_MODULES * MAP_MODULES * 4:
+        guard += 1
+        cc, cr = cur
+        ec, er = end
+        toward: List[Slot] = []
+        if cc != ec:
+            toward.append((cc + (1 if ec > cc else -1), cr))
+        if cr != er:
+            toward.append((cc, cr + (1 if er > cr else -1)))
+        toward = [s for s in toward if in_map(*s) and s not in visited]
+
+        detours: List[Slot] = []
+        for side in SIDES:
+            nxt = neighbor_slot(cc, cr, side)
+            if in_map(*nxt) and nxt not in visited and nxt not in toward:
+                detours.append(nxt)
+
+        if toward and (not detours or rng.random() >= SPINE_WIND):
+            nxt = rng.choice(toward)
+        elif detours:
+            nxt = rng.choice(detours)
+        elif toward:
+            nxt = rng.choice(toward)
+        else:
+            break  # boxed in — close out below
+        path.append(nxt)
+        visited.add(nxt)
+        cur = nxt
+
+    # If a detour boxed us in before reaching the end, append a monotone tail.
+    if cur != end:
+        cc, cr = cur
+        ec, er = end
+        while (cc, cr) != end:
+            if cc != ec:
+                cc += 1 if ec > cc else -1
+            else:
+                cr += 1 if er > cr else -1
+            step = (cc, cr)
+            if step in visited:
+                # Degenerate (rare): bail to a guaranteed monotone path.
+                return _monotone_path(spawn, end)
+            path.append(step)
+            visited.add(step)
+    return path
+
+
+def _monotone_path(spawn: Slot, end: Slot) -> List[Slot]:
+    """Guaranteed self-avoiding staircase (column steps then row steps)."""
+    path = [spawn]
+    cc, cr = spawn
+    ec, er = end
+    while cc != ec:
+        cc += 1 if ec > cc else -1
+        path.append((cc, cr))
+    while cr != er:
+        cr += 1 if er > cr else -1
+        path.append((cc, cr))
+    return path
+
+
+def _assign_roles(design: HighLevelDesign) -> None:
+    """Tag each slot with a role from spine membership + graph degree."""
+    spine_set = set(design.spine)
+    roles: Dict[Slot, str] = {}
+    for slot in design.connections:
+        deg = design.degree(slot)
+        if slot == design.spawn:
+            roles[slot] = ROLE_START
+        elif slot == design.end:
+            roles[slot] = ROLE_END
+        elif deg >= 3:
+            roles[slot] = ROLE_HUB
+        elif slot in spine_set:
+            roles[slot] = ROLE_SPINE
+        elif deg <= 1:
+            roles[slot] = ROLE_CHAMBER
+        else:
+            roles[slot] = ROLE_CORRIDOR
+    design.roles = roles
+
+
 def design_high_level(
     rng: random.Random,
     target_avg_degree: float = TARGET_AVG_DEGREE,
+    *,
+    loop_count: int = DEFAULT_LOOP_COUNT,
 ) -> HighLevelDesign:
     """
-    Build a connected graph on all module slots.
+    Build a mission graph on all module slots: spine + branches + a few loops.
 
-    Spawn and end sit in opposite corners.  Start from a random spanning tree,
-    then add chords until the average degree approaches target_avg_degree.
+    1. Spawn/end sit in opposite corners; carve a winding self-avoiding **spine**
+       between them — this is the readable main path.
+    2. Grow **branches** off the spine as a randomised-DFS spanning forest so all
+       remaining slots attach as winding spurs ending in dead-end leaves.
+    3. Add up to `loop_count` chord edges between already-filled neighbours to
+       create the occasional shortcut without turning the tree into a mesh.
+
+    `target_avg_degree` is accepted for CLI/report compatibility but no longer
+    drives edge count — spine + branches + loop_count do (manifest Phase 1).
     """
     last = MAP_MODULES - 1
     corners = [
@@ -592,63 +780,83 @@ def design_high_level(
     connections: Dict[Slot, Set[Side]] = {s: set() for s in all_slots}
     edges: Set[Tuple[Slot, Slot]] = set()
 
-    # Randomised spanning tree via shuffled BFS expansion.
-    filled: Set[Slot] = {spawn}
-    frontier = [spawn]
-    rng.shuffle(frontier)
-
-    while len(filled) < len(all_slots):
-        if not frontier:
-            # Pick a filled cell and grow toward nearest unfilled.
-            src = rng.choice(list(filled))
-            frontier = [src]
-        cur = frontier.pop()
-        nbrs = []
-        for side in SIDES:
-            nc, nr = neighbor_slot(cur[0], cur[1], side)
-            if in_map(nc, nr) and (nc, nr) not in filled:
-                nbrs.append(((nc, nr), side))
-        if not nbrs:
-            continue
-        rng.shuffle(nbrs)
-        nxt, side = nbrs[0]
-        filled.add(nxt)
-        frontier.append(nxt)
-        edge = tuple(sorted((cur, nxt)))
-        edges.add(edge)  # type: ignore[arg-type]
-        _add_edge(connections, cur, nxt)
-
-    # Ensure end is on the tree (always true for spanning tree) and has ≥1 link.
-    assert end in filled
-
-    # Add extra adjacency edges to approach target average degree.
-    target_edges = int(round(len(all_slots) * target_avg_degree / 2))
-    adjacency: List[Tuple[Slot, Slot]] = []
-    for c in range(MAP_MODULES):
-        for r in range(MAP_MODULES):
-            for side in ('E', 'S'):
-                a = (c, r)
-                b = neighbor_slot(c, r, side)
-                if in_map(*b):
-                    adjacency.append(tuple(sorted((a, b))))  # type: ignore[arg-type]
-    rng.shuffle(adjacency)
-
-    for edge in adjacency:
-        if len(edges) >= target_edges:
-            break
+    def link(a: Slot, b: Slot) -> None:
+        edge = tuple(sorted((a, b)))
         if edge in edges:
-            continue
-        a, b = edge
-        da, db = len(connections[a]), len(connections[b])
-        if da >= 4 or db >= 4:
-            continue
-        # Prefer adding to slots that are still below 3 connections.
-        if da >= 3 and db >= 3 and rng.random() < 0.35:
-            continue
-        edges.add(edge)
+            return
+        edges.add(edge)  # type: ignore[arg-type]
         _add_edge(connections, a, b)
 
-    return HighLevelDesign(spawn=spawn, end=end, connections=connections, edges=edges)
+    # ── 1. Spine ─────────────────────────────────────────────────────────────
+    spine = _carve_spine(rng, spawn, end)
+    for a, b in zip(spine, spine[1:]):
+        link(a, b)
+    filled: Set[Slot] = set(spine)
+
+    # ── 2. Branches — depth-capped DFS forest grafted onto the spine ─────────
+    # Each spur extends at most BRANCH_MAX_DEPTH slots before it is forced to
+    # terminate (becoming a dead-end chamber).  When every active tip is capped
+    # or boxed in, the stack is re-seeded from the current frontier — filled
+    # slots that still border empty ones — at depth 0.  Re-seeding from the
+    # frontier (never from a free-floating slot) keeps the forest a single
+    # connected tree, and the cap trades long snaking corridors for more, shorter
+    # side rooms (empirically ~8 chambers vs ~3 for uncapped DFS).
+    def unfilled_neighbors(s: Slot) -> List[Slot]:
+        out = []
+        for side in SIDES:
+            nb = neighbor_slot(s[0], s[1], side)
+            if in_map(*nb) and nb not in filled:
+                out.append(nb)
+        return out
+
+    stack: List[Tuple[Slot, int]] = [(s, 0) for s in spine]
+    rng.shuffle(stack)
+    while len(filled) < len(all_slots):
+        if not stack:
+            frontier = [s for s in filled if unfilled_neighbors(s)]
+            if not frontier:
+                break  # unreachable on a connected grid, but stay safe
+            rng.shuffle(frontier)
+            stack = [(s, 0) for s in frontier]
+            continue
+        cur, depth = stack[-1]
+        nbrs = unfilled_neighbors(cur)
+        if not nbrs or depth >= BRANCH_MAX_DEPTH:
+            stack.pop()
+            continue
+        nxt = rng.choice(nbrs)
+        link(cur, nxt)
+        filled.add(nxt)
+        stack.append((nxt, depth + 1))
+
+    assert end in filled
+
+    # ── 3. Loops — a few shortcut chords between filled neighbours ───────────
+    if loop_count > 0:
+        candidates: List[Tuple[Slot, Slot]] = []
+        for c in range(MAP_MODULES):
+            for r in range(MAP_MODULES):
+                for side in ('E', 'S'):
+                    a = (c, r)
+                    b = neighbor_slot(c, r, side)
+                    if not in_map(*b):
+                        continue
+                    edge = tuple(sorted((a, b)))
+                    if edge in edges:
+                        continue
+                    # Avoid spawning 4-way intersections; keep the graph legible.
+                    if len(connections[a]) >= 3 or len(connections[b]) >= 3:
+                        continue
+                    candidates.append(edge)  # type: ignore[arg-type]
+        rng.shuffle(candidates)
+        for edge in candidates[:loop_count]:
+            link(*edge)
+
+    design = HighLevelDesign(
+        spawn=spawn, end=end, connections=connections, edges=edges, spine=spine,
+    )
+    _assign_roles(design)
+    return design
 
 
 # ─── phase 2: module placement ───────────────────────────────────────────────
@@ -665,15 +873,13 @@ class PlacedModule:
 
 @dataclass
 class PlacementState:
+    """Per-map placement driver.  Tile synthesis only — the pre-authored module
+    pool path was removed (see module-logic teardown); every slot is built from
+    1×1 corridor/floor/wall pieces by `synthesize_module` / `synthesize_chamber`."""
     design: HighLevelDesign
-    pool: Optional[List[ModuleVariant]]
     rng: random.Random
     placed: Dict[Slot, PlacedModule] = field(default_factory=dict)
     synth_retries: int = SYNTH_RETRIES
-
-    @property
-    def use_synthesis(self) -> bool:
-        return not self.pool
 
     def required_sides(self, slot: Slot) -> Set[Side]:
         return set(self.design.connections.get(slot, set()))
@@ -699,30 +905,6 @@ class PlacementState:
             else:
                 constraints[side] = next(iter(nopens))
         return constraints
-
-    def compatible_variants(self, slot: Slot) -> List[ModuleVariant]:
-        required = self.required_sides(slot)
-        tile_req = self.neighbor_tile_constraints(slot)
-        out: List[ModuleVariant] = []
-        for var in self.pool:
-            if not required.issubset(var.open_sides):
-                continue
-            ok = True
-            for side in required:
-                tile = tile_req.get(side, CENTER_TILE)
-                if tile not in var.exits.get(side, set()):
-                    ok = False
-                    break
-            if ok:
-                out.append(var)
-        return out
-
-    def close_unused_exits(
-        self, var: ModuleVariant, required: Set[Side], tile_req: Dict[Side, int],
-    ) -> List[PlacedPiece]:
-        return probe.close_for_placement_mesh(
-            var.pieces, required, tile_req,
-        )
 
     def _verify_slot(
         self, slot: Slot, pieces: List[PlacedPiece],
@@ -772,39 +954,33 @@ class PlacementState:
 
         required = self.required_sides(slot)
         tile_req = self.neighbor_tile_constraints(slot)
+        col, row = slot
+        role = self.design.role(slot)
 
-        if self.use_synthesis:
-            col, row = slot
-            placed_ok = False
-            for _ in range(self.synth_retries):
-                pieces, grid, floor_mask = synthesize_module(required, tile_req, self.rng)
-                slot_errs = self._verify_slot(slot, pieces, required, tile_req)
-                if slot_errs:
-                    continue
+        # Room roles (chamber / start) try a deterministic tiled room first;
+        # corridor synthesis is the fallback so generation stays robust if a
+        # room can't satisfy a downstream neighbour.
+        if role in ROOM_ROLES:
+            pieces, grid, floor_mask = synthesize_chamber(required, tile_req)
+            if not self._verify_slot(slot, pieces, required, tile_req):
                 self.placed[slot] = PlacedModule(
                     col, row, SYNTHETIC_VARIANT, pieces, grid, floor_mask,
                 )
                 if self._place_from(idx + 1, order):
                     return True
                 del self.placed[slot]
-            return False
 
-        candidates = self.compatible_variants(slot)
-        self.rng.shuffle(candidates)
-
-        for var in candidates:
-            pieces = self.close_unused_exits(var, required, tile_req)
+        for _ in range(self.synth_retries):
+            pieces, grid, floor_mask = synthesize_module(required, tile_req, self.rng)
             slot_errs = self._verify_slot(slot, pieces, required, tile_req)
             if slot_errs:
                 continue
-            grid = replay_pieces_to_grid(pieces)
-            col, row = slot
-            floor_mask = var.floor_mask
-            self.placed[slot] = PlacedModule(col, row, var, pieces, grid, floor_mask)
+            self.placed[slot] = PlacedModule(
+                col, row, SYNTHETIC_VARIANT, pieces, grid, floor_mask,
+            )
             if self._place_from(idx + 1, order):
                 return True
             del self.placed[slot]
-
         return False
 
 
@@ -985,10 +1161,16 @@ def apply_extraction_and_hub(
     floor0: List[bool],
     pieces_out: List[dict],
     cells_total: int,
+    end_gid: int,
 ) -> Tuple[List[float], List[bool]]:
     """
     Replace the finish module with a room-large extraction room, cut a single
     centre-tile floor hole, and spawn the hub one floor below.
+
+    `end_gid` is the END module's true group_id (assigned in build_map_json) — it
+    must be passed in, not inferred from piece bounds: a neighbour's wall ring on
+    the shared boundary plane falls inside the END bounds and may carry a higher
+    group_id (the end corner is not always the last-placed slot).
     """
     ec, er = design.end
     end_slot = (ec, er)
@@ -997,14 +1179,13 @@ def apply_extraction_and_hub(
     hole_z = mcz + cell_cz(CENTER_TILE)
     extraction = [hole_x, hole_z]
 
-    end_gid = max(
-        (int(p['group_id']) for p in pieces_out if in_module_bounds(p, mcx, mcz) and p.get('group_id')),
-        default=1,
-    )
-
+    # Strip the END module's OWN floor-0 pieces by its true group_id.  Stripping
+    # by spatial bounds instead would (a) also delete a neighbour chamber's wall
+    # ring on the shared boundary → that face reads open, and (b) miss END's own
+    # walls when end_gid is misread, leaving stale walls under the rebuilt room.
     pieces_out[:] = [
         p for p in pieces_out
-        if p.get('floor_level', 0) != 0 or not in_module_bounds(p, mcx, mcz)
+        if p.get('floor_level', 0) != 0 or int(p.get('group_id', -1)) != end_gid
     ]
 
     required = set(design.connections.get(end_slot, set()))
@@ -1435,6 +1616,8 @@ def export_kenney_layout(doc: dict) -> None:
                 "floor": p.get("floor_level", 0),
                 "scale": p.get("scale", 1.0),
                 **({"group_id": p["group_id"]} if p.get("group_id") is not None else {}),
+                **({"ceiling": True} if p.get("ceiling") else {}),
+                **({"underside": True} if p.get("underside") else {}),
             }
             for p in doc["pieces"]
         ],
@@ -1442,6 +1625,7 @@ def export_kenney_layout(doc: dict) -> None:
         "extraction_xz": doc.get("extraction_xz"),
         "hub_exits": doc.get("hub_exits"),
         "branch_levels": doc.get("branch_levels"),
+        "hub_model": doc.get("hub_model"),
     }
     LAYOUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     LAYOUT_PATH.write_text(json.dumps(layout, indent=2) + "\n", encoding='utf-8')
@@ -1456,8 +1640,10 @@ def build_map_json(
     floor = [False] * (cells_total * cells_total)
     pieces_out: List[dict] = []
     group_id = 1
+    slot_gids: Dict[Slot, int] = {}
 
     for (col, row), pm in sorted(placed.items()):
+        slot_gids[(col, row)] = group_id
         mcx, mcz = module_center(col, row)
         for p in pm.pieces:
             pieces_out.append({
@@ -1480,7 +1666,7 @@ def build_map_json(
 
     spawn = compute_spawn(design, placed)
     extraction, hub_floor = apply_extraction_and_hub(
-        design, placed, floor, pieces_out, cells_total,
+        design, placed, floor, pieces_out, cells_total, slot_gids[design.end],
     )
     floors: Dict[str, dict] = {
         "0": {
@@ -1603,9 +1789,10 @@ def validate_map(
     if len(seen) != MAP_MODULES * MAP_MODULES:
         return False, f"module graph reachability {len(seen)}/{MAP_MODULES * MAP_MODULES}"
 
+    # avg_degree is no longer a rejection gate (Phase 1: spine + branches set the
+    # structure; target_avg_degree is informational only).  Reachability above
+    # and the opening audit below are the real correctness checks.
     avg_deg = design.avg_degree()
-    if abs(avg_deg - target_avg_degree) > 0.6:
-        return False, f"avg degree {avg_deg:.2f} far from target {target_avg_degree}"
 
     errors = audit_map(design, placed)
     if errors:
@@ -1693,54 +1880,8 @@ def audit_map_file(path: Path) -> None:
             print(f"    · {e}")
 
 
-def load_pool(pool_name: str, min_score: float, corridors_only: bool = True) -> List[ModuleVariant]:
-    pool_dir = Path("userinput/modules") / pool_name
-    index_path = pool_dir / "gen_index.json"
-    allowed: Optional[Set[str]] = None
-    side_hints: Dict[str, Set[str]] = {}
-    if index_path.exists():
-        meta = json.loads(index_path.read_text(encoding='utf-8'))
-        allowed = {e['name'] for e in meta if e.get('score', 0) >= min_score}
-        for e in meta:
-            if e.get('score', 0) >= min_score and e.get('sides'):
-                side_hints[e['name']] = set(e['sides'])
-
-    variants: List[ModuleVariant] = []
-    for path in sorted(pool_dir.glob("*.json")):
-        if path.name in ('gen_index.json',):
-            continue
-        try:
-            data = json.loads(path.read_text(encoding='utf-8'))
-        except (json.JSONDecodeError, OSError):
-            continue
-        name = data.get('name', path.stem)
-        if allowed is not None and name not in allowed:
-            continue
-        stems = {p.get('stem', '') for p in data.get('pieces', [])}
-        if corridors_only and any(s.startswith('room-') for s in stems):
-            continue
-        hint = side_hints.get(name)
-        variants.extend(build_variants(path, data, hint))
-
-    return variants
-
-
-def export_pool_index(entries: List[dict]) -> None:
-    """Write pool manifest consumed by the game runtime."""
-    POOL_DIR.mkdir(parents=True, exist_ok=True)
-    manifest = {
-        "version": 1,
-        "modules": MAP_MODULES,
-        "grid_unit_m": CELL_M,
-        "start_id": entries[0]["id"] if entries else None,
-        "maps": entries,
-    }
-    (POOL_DIR / "index.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-
-
 def try_generate_map(
     rng: random.Random,
-    pool: Optional[List[ModuleVariant]],
     max_attempts: int,
     *,
     target_avg_degree: float = TARGET_AVG_DEGREE,
@@ -1750,7 +1891,7 @@ def try_generate_map(
     for attempt in range(1, max_attempts + 1):
         design = design_high_level(rng, target_avg_degree)
         state = PlacementState(
-            design=design, pool=pool, rng=rng, synth_retries=synth_retries,
+            design=design, rng=rng, synth_retries=synth_retries,
         )
         if not state.try_place_all():
             continue
@@ -1768,86 +1909,24 @@ def generate_map_report(
     attempts: int,
     target_avg_degree: float,
     synth_retries: int,
-    pool: Optional[List[ModuleVariant]],
     out_path: Path,
     export_layout: bool,
     name: str = "preview",
 ) -> dict:
-    """Generate one map; return a JSON-serializable report for the editor."""
-    t0 = time.time()
-    rng = random.Random(seed)
-    result = try_generate_map(
-        rng,
-        pool,
-        attempts,
-        target_avg_degree=target_avg_degree,
-        synth_retries=synth_retries,
+    """Generate one map; return a JSON-serializable report for the editor.
+
+    Delegates to the free-form generator (`gen_freeform`): rooms + corridors on a
+    flat tile grid, no module slots.  `target_avg_degree` / `synth_retries` are
+    accepted for editor/CLI signature compatibility but unused by free-form.
+    """
+    import gen_freeform
+    return gen_freeform.run(
+        seed=seed,
+        attempts=attempts,
+        out_path=out_path,
+        export_layout=export_layout,
+        name=name,
     )
-    if result is None:
-        return {
-            "ok": False,
-            "seed": seed,
-            "error": f"no valid map in {attempts} attempts",
-            "elapsed_s": round(time.time() - t0, 2),
-        }
-
-    design, _placed, doc = result
-    doc["name"] = name
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
-    if export_layout:
-        export_kenney_layout(doc)
-
-    avg_deg = design.avg_degree()
-    return {
-        "ok": True,
-        "path": str(out_path).replace("\\", "/"),
-        "seed": seed if seed is not None else rng.randint(0, 2**31 - 1),
-        "spawn": list(design.spawn),
-        "end": list(design.end),
-        "avg_degree": round(avg_deg, 2),
-        "pieces": len(doc.get("pieces", [])),
-        "paint": design.ascii(),
-        "elapsed_s": round(time.time() - t0, 2),
-    }
-
-
-def generate_pool_batch(
-    count: int,
-    rng: random.Random,
-    pool: Optional[List[ModuleVariant]],
-    attempts_per_map: int,
-) -> List[dict]:
-    """Generate `count` full maps into userinput/maps/pool/."""
-    POOL_DIR.mkdir(parents=True, exist_ok=True)
-    entries: List[dict] = []
-    for i in range(1, count + 1):
-        map_id = f"map_{i:03d}"
-        print(f"Generating {map_id}…")
-        result = try_generate_map(rng, pool, attempts_per_map)
-        if result is None:
-            print(f"  FAILED to generate {map_id} in {attempts_per_map} attempts")
-            continue
-        design, _placed, doc = result
-        doc["name"] = map_id
-        doc["pool_id"] = map_id
-        rel = f"pool/{map_id}.json"
-        out_path = MAP_DIR / rel
-        out_path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
-        entries.append({
-            "id": map_id,
-            "path": rel.replace("\\", "/"),
-            "spawn_xz": doc["spawn_xz"],
-            "extraction_xz": doc.get("extraction_xz"),
-            "hub_exits": doc.get("hub_exits"),
-            "modules_x": doc["modules_x"],
-            "modules_z": doc["modules_z"],
-        })
-        print(f"  ok  spawn={design.spawn}  end={design.end}  pieces={len(doc['pieces'])}")
-    export_pool_index(entries)
-    if entries:
-        export_kenney_layout(json.loads((MAP_DIR / entries[0]["path"]).read_text(encoding="utf-8")))
-    return entries
 
 
 # ─── main ────────────────────────────────────────────────────────────────────
@@ -1855,18 +1934,10 @@ def generate_pool_batch(
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--use-pool', default=None, metavar='NAME',
-                    help='Legacy: pick modules from userinput/modules/NAME instead of tile synthesis')
-    ap.add_argument('--min-score', type=float, default=0.85,
-                    help='Minimum module score from gen_index.json (default: 0.85, --use-pool only)')
     ap.add_argument('--seed', type=int, default=None)
-    ap.add_argument('--pool-batch', type=int, default=None, metavar='N',
-                    help='Generate N full 5×5 maps into userinput/maps/pool/')
     ap.add_argument('--attempts', type=int, default=50,
                     help='Max high-level designs to try per map (default: 50)')
     ap.add_argument('--out', default=None, help='Output map path')
-    ap.add_argument('--corridors-only', action='store_true',
-                    help='With --use-pool: exclude room-* GLBs from the module pool')
     ap.add_argument('--target-degree', type=float, default=TARGET_AVG_DEGREE,
                     help=f'Target average module connections (default: {TARGET_AVG_DEGREE})')
     ap.add_argument('--synth-retries', type=int, default=SYNTH_RETRIES,
@@ -1900,19 +1971,8 @@ def main() -> None:
         print(f"  Exported {LAYOUT_PATH}")
         return
 
-    rng = random.Random(args.seed)
-    pool: Optional[List[ModuleVariant]] = None
-    if args.use_pool:
-        pool = load_pool(args.use_pool, args.min_score, corridors_only=args.corridors_only)
-        if not pool:
-            print(
-                f"No modules found in userinput/modules/{args.use_pool} "
-                f"(min_score={args.min_score})"
-            )
-            sys.exit(1)
-        print(f"Loaded {len(pool)} module variants from pool '{args.use_pool}'")
-    else:
-        print("Tile synthesis mode (corridors + template-floor/wall, no room GLBs)")
+    if not args.preview:
+        print("Free-form tile generation (rooms + corridors, no modules / room GLBs)")
 
     if args.preview:
         out_path = Path(args.out) if args.out else MAP_DIR / "_editor_preview.json"
@@ -1921,7 +1981,6 @@ def main() -> None:
             attempts=args.attempts,
             target_avg_degree=args.target_degree,
             synth_retries=args.synth_retries,
-            pool=pool,
             out_path=out_path,
             export_layout=not args.no_layout_export,
             name=out_path.stem,
@@ -1929,23 +1988,12 @@ def main() -> None:
         print(json.dumps(report))
         sys.exit(0 if report.get("ok") else 1)
 
-    if args.pool_batch:
-        entries = generate_pool_batch(args.pool_batch, rng, pool, args.attempts)
-        if not entries:
-            print("Pool batch generation failed — no maps produced.")
-            sys.exit(1)
-        print(f"Wrote {len(entries)} maps to {POOL_DIR.resolve()}")
-        print(f"  manifest: {(POOL_DIR / 'index.json').resolve()}")
-        print(f"  playtest layout: {LAYOUT_PATH.resolve()} (first pool map)")
-        return
-
     MAP_DIR.mkdir(parents=True, exist_ok=True)
     report = generate_map_report(
         seed=args.seed,
         attempts=args.attempts,
         target_avg_degree=args.target_degree,
         synth_retries=args.synth_retries,
-        pool=pool,
         out_path=Path(args.out) if args.out else MAP_DIR / f"gen_map_{time.strftime('%m%d%H%M%S')}.json",
         export_layout=True,
     )
@@ -1954,20 +2002,15 @@ def main() -> None:
         sys.exit(1)
 
     out_path = Path(report["path"])
-    print(f"Generated map in {report['elapsed_s']}s")
-    print(f"  spawn={report['spawn']}  end={report['end']}  avg_deg={report['avg_degree']}")
-    print(f"  high-level paint (S=spawn E=end, digit=connection count):\n{report.get('paint', '')}")
+    print(f"Generated free-form map in {report['elapsed_s']}s")
+    print(f"  spawn={report['spawn']}  extraction={report['end']}  "
+          f"rooms={report.get('rooms', '?')}  pieces={report['pieces']}")
+    print(f"  map (S=spawn X=extract #=room +=corridor):\n{report.get('paint', '')}")
     print(f"  wrote {out_path.resolve()}")
     print(f"  exported {LAYOUT_PATH.resolve()}")
-    print(f"  pieces={report['pieces']}")
     if args.probe:
-        issues = probe.probe_map(out_path, verbose=False)
-        if issues:
-            print(f"  probe: {len(issues)} mismatch(es) — run probe_map_geometry.py -v")
-            for line in issues[:8]:
-                print(f"    · {line}")
-        else:
-            print("  probe: OK (mesh borders match expected + adjacent)")
+        print("  (note: --probe uses the old module-border check; not applicable "
+              "to free-form maps — gen_freeform validates reachability internally)")
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::kenney_catalog::KENNEY_CELL;
+use crate::kenney_layout::HubExit;
 
 pub const CELLS_PER_MODULE: u32 = 5;
 pub const DEFAULT_MAP_MODULES: u32 = 3;
@@ -220,6 +221,11 @@ pub struct PieceRecord {
     pub scale: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_id: Option<u32>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ceiling: bool,
+    /// Walkable space exists on the floor below — render floor slab double-sided (not a duplicate piece).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub underside: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -317,6 +323,12 @@ pub struct MapDocument {
     /// Hub branch destinations keyed "2" | "3" | "4" (L2 stairs, L3 pit, L4 west drop).
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub branch_levels: HashMap<String, BranchLevel>,
+    /// Free-form hub exits keyed "0" | "1" (see `gen_freeform.py`).
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub hub_exits: HashMap<String, HubExit>,
+    /// `freeform_v1` skips legacy west-stairs hub patching.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_model: Option<String>,
 }
 
 impl Default for MapDocument {
@@ -342,6 +354,8 @@ impl MapDocument {
             spawn_xz: None,
             extraction_xz: None,
             branch_levels: HashMap::new(),
+            hub_exits: HashMap::new(),
+            hub_model: None,
         }
     }
 
@@ -424,6 +438,8 @@ impl MapDocument {
                                 .map(|x| x as f32)
                                 .unwrap_or(1.0),
                             group_id: p.get("group_id").and_then(|x| x.as_u64()).map(|x| x as u32),
+                            ceiling: p.get("ceiling").and_then(|x| x.as_bool()).unwrap_or(false),
+                            underside: p.get("underside").and_then(|x| x.as_bool()).unwrap_or(false),
                         })
                     })
                     .collect()
@@ -434,6 +450,16 @@ impl MapDocument {
             .get("branch_levels")
             .and_then(|b| serde_json::from_value(b.clone()).ok())
             .unwrap_or_default();
+
+        let hub_exits: HashMap<String, HubExit> = v
+            .get("hub_exits")
+            .and_then(|h| serde_json::from_value(h.clone()).ok())
+            .unwrap_or_default();
+
+        let hub_model = v
+            .get("hub_model")
+            .and_then(|x| x.as_str())
+            .map(str::to_string);
 
         Some(Self {
             version: v.get("version").and_then(|x| x.as_u64()).unwrap_or(1) as u32,
@@ -461,6 +487,8 @@ impl MapDocument {
                 .get("extraction_xz")
                 .and_then(|s| serde_json::from_value(s.clone()).ok()),
             branch_levels,
+            hub_exits,
+            hub_model,
         })
     }
 
@@ -489,11 +517,14 @@ impl MapDocument {
                     floor: p.floor_level,
                     scale: p.scale,
                     group_id: p.group_id,
+                    ceiling: p.ceiling,
+                    underside: p.underside,
                 })
                 .collect(),
             spawn_xz: self.spawn_xz,
             extraction_xz: self.extraction_xz,
-            hub_exits: HashMap::new(),
+            hub_exits: self.hub_exits.clone(),
+            hub_model: self.hub_model.clone(),
             branch_levels: self.branch_levels.clone(),
         }
     }
@@ -518,12 +549,20 @@ impl MapDocument {
                 floor_level: p.floor,
                 scale: p.scale,
                 group_id: p.group_id,
+                ceiling: p.ceiling,
+                underside: p.underside,
             })
             .collect();
         self.floors = layout.floors;
         self.extraction_xz = layout.extraction_xz;
         if self.branch_levels.is_empty() {
             self.branch_levels = layout.branch_levels;
+        }
+        if self.hub_exits.is_empty() {
+            self.hub_exits = layout.hub_exits;
+        }
+        if self.hub_model.is_none() {
+            self.hub_model = layout.hub_model;
         }
     }
 }

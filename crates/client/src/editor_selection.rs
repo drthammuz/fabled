@@ -22,6 +22,8 @@ pub struct EditorPlaced {
     pub sw_z: f32,
     pub owner: PieceOwner,
     pub group_id: Option<u32>,
+    pub ceiling: bool,
+    pub underside: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]

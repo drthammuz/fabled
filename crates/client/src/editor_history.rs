@@ -111,6 +111,8 @@ pub fn record_from_snapshot(s: &PieceSnapshot) -> PieceRecord {
         scale: s.scale,
         floor_level: s.floor_level,
         group_id: s.group_id,
+        ceiling: false,
+        underside: false,
     }
 }
 

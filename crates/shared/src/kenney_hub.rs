@@ -166,9 +166,25 @@ pub fn default_branch_levels(ex: f32, ez: f32) -> HashMap<String, BranchLevel> {
     ])
 }
 
+/// True for maps from `gen_freeform.py` (two exits keyed `"0"`/`"1"`, no L2/L3/L4 branches).
+pub fn is_freeform_hub_layout(layout: &KenneyLayout) -> bool {
+    if layout.hub_model.as_deref() == Some("freeform_v1") {
+        return true;
+    }
+    layout.hub_exits.contains_key("0")
+        && layout.hub_exits.contains_key("1")
+        && !layout.hub_exits.contains_key("2")
+        && layout.branch_levels.is_empty()
+}
+
 /// Fix common hub-branch mistakes in saved editor layouts (stairs floor/yaw, missing L3 shell).
 pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
     layout = layout.resolve_for_playtest();
+    if is_freeform_hub_layout(&layout) {
+        // Do not inject west stairs, L3/L4 mask holes, or room-large shells — the
+        // free-form generator authors hub holes and landings explicitly.
+        return layout;
+    }
     let Some([ex, ez]) = layout.extraction_xz else {
         return layout;
     };
@@ -195,6 +211,8 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
             floor: sfloor,
             scale: 1.0,
             group_id: Some(BRANCH_GID_L2),
+            ceiling: false,
+            underside: false,
         });
     }
 
@@ -210,6 +228,8 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
             floor: DEPTH_FLOOR_LEVEL,
             scale: 1.0,
             group_id: Some(BRANCH_GID_L3),
+            ceiling: false,
+            underside: false,
         });
     }
 
@@ -258,7 +278,7 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
     // Remove any floor prop that now sits over a hole (legacy hatch wedges included).
     let floors_snapshot = layout.floors.clone();
     layout.pieces.retain(|p| {
-        !kenney_pit::floor_prop_on_hole(&p.stem, p.x, p.z, floors_snapshot.get(&p.floor))
+        !kenney_pit::floor_prop_on_hole(&p.stem, p.x, p.z, floors_snapshot.get(&p.floor), p.ceiling)
     });
 
     layout

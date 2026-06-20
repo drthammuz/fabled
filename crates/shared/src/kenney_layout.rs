@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use bevy::prelude::Vec2;
+use bevy::prelude::{Quat, Vec2};
 use serde::{Deserialize, Serialize};
 
 use crate::editor_map::{FloorMask, DEFAULT_MAP_MODULES};
@@ -50,9 +50,12 @@ pub struct KenneyLayout {
     /// Extraction pit centre [x, z] on floor 0 (hub is one MOD_H below).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extraction_xz: Option<[f32; 2]>,
-    /// Hub exit anchors keyed "2" | "3" | "4" for streaming child maps.
+    /// Hub exit anchors keyed "0" | "1" (freeform) or legacy "2" | "3" | "4".
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub hub_exits: HashMap<String, HubExit>,
+    /// `freeform_v1` = gen_freeform hub (no legacy west-stairs patch).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hub_model: Option<String>,
     /// Legacy embedded branch destinations (deprecated).
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub branch_levels: HashMap<String, BranchLevel>,
@@ -77,6 +80,7 @@ impl Default for KenneyLayout {
             spawn_xz: None,
             extraction_xz: None,
             hub_exits: HashMap::new(),
+            hub_model: None,
             branch_levels: HashMap::new(),
         }
     }
@@ -177,7 +181,7 @@ impl KenneyLayout {
         if self.extraction_xz.is_none() {
             self.extraction_xz = self.infer_extraction_xz();
         }
-        if self.branch_levels.is_empty() {
+        if self.branch_levels.is_empty() && !crate::kenney_hub::is_freeform_hub_layout(&self) {
             if let Some([ex, ez]) = self.extraction_xz {
                 self.branch_levels = crate::kenney_hub::default_branch_levels(ex, ez);
             }
@@ -216,8 +220,37 @@ pub struct KenneyPlacement {
     pub scale: f32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_id: Option<u32>,
+    /// True for ceiling slabs (`template-floor` one level above walkable); not hidden over mask void.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ceiling: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub underside: bool,
 }
 
 fn default_placement_scale() -> f32 {
     1.0
+}
+
+/// World rotation for a placed piece (yaw only). Ceiling slabs are *not* flipped:
+/// `template-floor` GLBs already carry a textured downward (−Y) face, so a slab
+/// placed one level up reads as a ceiling from below without any rotation. The
+/// `ceiling` flag is kept in the signature for call-site clarity.
+pub fn placement_rotation(yaw: f32, _ceiling: bool) -> Quat {
+    Quat::from_rotation_y(yaw)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::prelude::Vec3;
+
+    #[test]
+    fn placement_rotation_is_yaw_only() {
+        // Ceiling slabs must not be flipped: a flat floor tile already shows a
+        // textured face from below, and flipping only mirrors the texture.
+        let flat = placement_rotation(0.0, false);
+        let ceil = placement_rotation(0.0, true);
+        assert!((flat * Vec3::Y).y > 0.9, "floor normal should point up");
+        assert!((ceil * Vec3::Y).y > 0.9, "ceiling slab must not be flipped");
+    }
 }

@@ -51,7 +51,7 @@ use crate::editor_workspace::{EditorMenuRoot, EditorSidebarRoot, EditorWorkspace
 use crate::process_spawn::relaunch_fabled;
 use crate::test_showcase::{
     cut_kenney_mesh, init_editor_kenney_materials, CyberLaserMaterial, CyberMaterial,
-    KenneyModule, EDITOR_BUILD_TAG,
+    CyberMaterialCeiling, KenneyModule, EDITOR_BUILD_TAG,
 };
 
 fn editor_active(editor: Option<Res<EditorMode>>, playtest: Option<Res<EditorPlaytestActive>>) -> bool {
@@ -148,7 +148,6 @@ impl Plugin for KenneyEditorPlugin {
                 (
                     draw_snap_gizmo,
                     draw_selection_gizmo,
-                    editor_apply_materials,
                     sync_floor_slabs,
                     sync_spawn_marker,
                     update_save_toast,
@@ -159,6 +158,15 @@ impl Plugin for KenneyEditorPlugin {
                 )
                     .chain()
                     .run_if(editor_active),
+            )
+            .add_systems(
+                Update,
+                (
+                    sync_ceiling_piece_transforms,
+                    editor_apply_materials,
+                )
+                    .chain()
+                    .run_if(resource_exists::<EditorMode>),
             )
             .add_systems(
                 Update,
@@ -314,9 +322,10 @@ fn editor_startup(
         cam.focus = Vec3::new(cx, 0.0, cz);
     }
 
-    let (cyber, cyber_lasers) = init_editor_kenney_materials(&asset_server, &mut materials);
+    let (cyber, cyber_lasers, cyber_ceiling) = init_editor_kenney_materials(&asset_server, &mut materials);
     commands.insert_resource(cyber);
     commands.insert_resource(cyber_lasers);
+    commands.insert_resource(cyber_ceiling);
 
     commands.spawn((
         Camera3d::default(),
@@ -381,6 +390,8 @@ fn load_initial_documents(ws: &mut EditorWorkspace) {
             floor_level: p.floor,
             scale: p.scale,
             group_id: p.group_id,
+            ceiling: p.ceiling,
+            underside: p.underside,
         });
     }
 }
@@ -462,6 +473,8 @@ fn spawn_module(
     owner: PieceOwner,
     piece_id: u32,
     group_id: Option<u32>,
+    ceiling: bool,
+    underside: bool,
 ) {
     let name = stem_static(stem);
     let path = glb_asset_path(stem);
@@ -479,6 +492,7 @@ fn spawn_module(
             mesh_cutouts: kenney_pit::KenneyMeshCutouts::default(),
             group_id,
             floor: floor_level,
+            ceiling,
         },
         EditorPlaced {
             piece_id,
@@ -487,6 +501,8 @@ fn spawn_module(
             sw_z,
             owner,
             group_id,
+            ceiling,
+            underside,
         },
         Visibility::Inherited,
     ));
@@ -502,7 +518,7 @@ pub fn spawn_piece_record_pub(
 ) {
     // Editor authoring view: only the legacy diagonal-wedge hole props are suppressed
     // (mask-driven hub holes are applied during playtest).
-    if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor_level, p.x, p.z, None) {
+    if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor_level, p.x, p.z, None, p.ceiling) {
         return;
     }
     let yaw = quantize_yaw(p.yaw);
@@ -525,6 +541,8 @@ pub fn spawn_piece_record_pub(
         owner,
         piece_id,
         p.group_id,
+        p.ceiling,
+        p.underside,
     );
 }
 
@@ -546,6 +564,7 @@ fn spawn_ghost(commands: &mut Commands, asset_server: &AssetServer, state: &Edit
             mesh_cutouts: kenney_pit::KenneyMeshCutouts::default(),
             group_id: None,
             floor: floor_level,
+            ceiling: false,
         },
         EditorGhost,
         Visibility::Inherited,
@@ -581,6 +600,7 @@ fn spawn_module_ghost(
                 mesh_cutouts: kenney_pit::KenneyMeshCutouts::default(),
                 group_id: p.group_id,
                 floor: ws.floor_level + p.floor_level,
+                ceiling: false,
             },
             EditorGhost,
             EditorModuleGhostPiece {
@@ -699,6 +719,8 @@ fn sync_pieces_from_world(
             floor_level: ep.floor_level,
             scale: tf.scale.x,
             group_id: ep.group_id,
+            ceiling: ep.ceiling,
+            underside: ep.underside,
         })
         .collect()
 }
@@ -985,6 +1007,8 @@ fn editor_input(
             owner,
             piece_id,
             None,
+            false,
+            false,
         );
         state.next_id += 1;
         ws.dirty = true;
@@ -996,6 +1020,8 @@ fn editor_input(
             floor_level: ws.floor_level,
             scale: 1.0,
             group_id: None,
+            ceiling: false,
+            underside: false,
         };
         match ws.workflow {
             EditorWorkflow::MapMaker => ws.map.pieces.push(record.clone()),
@@ -1160,6 +1186,8 @@ fn place_module_on_map(
             floor_level: p.floor_level + ws.floor_level,
             scale: p.scale,
             group_id: Some(group_id),
+            ceiling: p.ceiling,
+            underside: p.underside,
         };
         spawn_piece_record(
             commands,
@@ -1713,10 +1741,44 @@ fn draw_snap_gizmo(mut gizmos: Gizmos, state: Res<EditorState>, ws: Res<EditorWo
     gizmos.line(Vec3::new(x0, y, z1), Vec3::new(x0, y, z0), color);
 }
 
+/// Keep the `ceiling` flag on placed pieces in sync with the loaded map so the
+/// double-sided ceiling material is applied. No geometry change: a `template-floor`
+/// already has a textured downward face, so it reads as a ceiling from below as-is.
+fn sync_ceiling_piece_transforms(
+    mut commands: Commands,
+    ws: Res<EditorWorkspace>,
+    mut placed: Query<(Entity, &mut EditorPlaced, &mut KenneyModule, &GlobalTransform)>,
+) {
+    const EPS: f32 = 0.05;
+    for (entity, mut ep, mut module, gt) in &mut placed {
+        let px = gt.translation().x;
+        let pz = gt.translation().z;
+        // Floor and ceiling slabs share stem + (x, z) on hub/landing levels — pick the
+        // record that matches this entity's role, not whichever appears first in JSON.
+        let want_ceiling = ep.ceiling || module.ceiling;
+        let Some(p) = ws.map.pieces.iter().find(|p| {
+            p.floor_level == ep.floor_level
+                && p.ceiling == want_ceiling
+                && (p.x - px).abs() < EPS
+                && (p.z - pz).abs() < EPS
+                && stem_static(&p.stem) == module.name
+        }) else {
+            continue;
+        };
+        if ep.ceiling != p.ceiling || module.ceiling != p.ceiling {
+            ep.ceiling = p.ceiling;
+            module.ceiling = p.ceiling;
+            commands.entity(entity).remove::<EditorModuleReady>();
+        }
+    }
+}
+
 fn editor_apply_materials(
     mut commands: Commands,
     ws: Res<EditorWorkspace>,
+    playtest: Option<Res<EditorPlaytestActive>>,
     cyber: Option<Res<CyberMaterial>>,
+    cyber_ceiling: Option<Res<CyberMaterialCeiling>>,
     cyber_lasers: Option<Res<CyberLaserMaterial>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -1741,6 +1803,9 @@ fn editor_apply_materials(
     });
 
     for (root, module, root_gt, placed, ghost) in &modules {
+        if playtest.is_some() && !placed.ceiling {
+            continue;
+        }
         let mesh_ents: Vec<Entity> = children_q
             .iter_descendants(root)
             .filter(|e| mesh_q.contains(*e))
@@ -1755,21 +1820,45 @@ fn editor_apply_materials(
             continue;
         }
 
-        let mesh_cutouts = kenney_pit::mesh_cutouts_for_piece(
-            module.name,
-            placed.floor_level,
-            root_gt.translation().x,
-            root_gt.translation().z,
-            root_gt.rotation().to_euler(EulerRot::YXZ).0,
-            ws.map.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
-            ws.map.floors.get(&placed.floor_level),
-        );
+        let px = root_gt.translation().x;
+        let pz = root_gt.translation().z;
+        let want_ceiling = placed.ceiling || module.ceiling;
+        let piece_yaw = ws
+            .map
+            .pieces
+            .iter()
+            .find(|p| {
+                p.floor_level == placed.floor_level
+                    && p.ceiling == want_ceiling
+                    && (p.x - px).abs() < 0.05
+                    && (p.z - pz).abs() < 0.05
+                    && stem_static(&p.stem) == module.name
+            })
+            .map(|p| quantize_yaw(p.yaw))
+            .unwrap_or_else(|| root_gt.rotation().to_euler(EulerRot::YXZ).0);
+        let mesh_cutouts = if placed.ceiling {
+            kenney_pit::KenneyMeshCutouts::default()
+        } else {
+            kenney_pit::mesh_cutouts_for_piece(
+                module.name,
+                placed.floor_level,
+                px,
+                pz,
+                piece_yaw,
+                ws.map.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
+                ws.map.floors.get(&placed.floor_level),
+                placed.ceiling,
+            )
+        };
 
         let mat = if ghost.is_some() {
             ghost_mat.clone()
         } else if module.name == "gate-lasers" {
             let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
             cyber_lasers.0.clone()
+        } else if placed.ceiling {
+            let Some(cyber_ceiling) = cyber_ceiling.as_ref() else { continue };
+            cyber_ceiling.0.clone()
         } else {
             let Some(cyber) = cyber.as_ref() else { continue };
             cyber.0.clone()
@@ -1777,7 +1866,10 @@ fn editor_apply_materials(
 
         for e in &mesh_ents {
             let (mesh3d, gt) = mesh_q.get(*e).unwrap();
-            let mesh_handle = if !mesh_cutouts.is_empty() {
+            // Ceiling slabs keep the unmodified GLB mesh: the floor tile already has a
+            // textured downward (−Y) face, so it reads as a ceiling from below as-is.
+            // Only the (double-sided) ceiling material is swapped in.
+            let mesh_handle = if !placed.ceiling && !mesh_cutouts.is_empty() {
                 if let Some(mesh) = meshes.get(&mesh3d.0).cloned() {
                     meshes.add(cut_kenney_mesh(&mesh, gt, &mesh_cutouts))
                 } else {
@@ -1933,7 +2025,7 @@ fn editor_playtest_exit(
     mut skip_exit: ResMut<SkipPlaytestExit>,
     mut ws: ResMut<EditorWorkspace>,
     asset_server: Res<AssetServer>,
-    state: Res<EditorState>,
+    mut state: ResMut<EditorState>,
     prefs: Res<UserEditorPrefs>,
     cam: Res<EditorCam>,
     test_mode: ResMut<TestMode>,
@@ -1942,6 +2034,7 @@ fn editor_playtest_exit(
     player_vis: Query<&mut Visibility, With<crate::netplay::OwnPlayer>>,
     playtest_cam: Query<Entity, With<crate::editor_playtest::EditorPlaytestCamera>>,
     coords_hud: Query<Entity, With<crate::editor_playtest::PlaytestCoordsHud>>,
+    map_placed: Query<(Entity, &EditorPlaced)>,
 ) {
     if !keys.just_pressed(KeyCode::KeyG) {
         return;
@@ -1959,6 +2052,29 @@ fn editor_playtest_exit(
         playtest_cam,
         coords_hud,
     );
+
+    // The in-process playtest reuses and mutates/despawns the editor's placed-piece
+    // entities (repositioning, mesh cutouts, hatch hiding). Rebuild the map pieces
+    // verbatim from `ws.map` so the editor returns to its exact saved state — this is
+    // what keeps roofs/ceilings intact across a playtest round-trip.
+    for (e, ep) in &map_placed {
+        if ep.owner == PieceOwner::Map {
+            commands.entity(e).despawn();
+        }
+    }
+    for p in &ws.map.pieces.clone() {
+        let id = state.next_id;
+        spawn_piece_record_pub(
+            &mut commands,
+            &asset_server,
+            p,
+            PieceOwner::Map,
+            id,
+            ws.map.extraction_xz,
+        );
+        state.next_id += 1;
+    }
+
     ws.floor_dirty = true;
     ws.spawn_marker_dirty = true;
     restore_editor_shell(

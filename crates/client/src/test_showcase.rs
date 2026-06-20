@@ -30,10 +30,16 @@ impl Plugin for TestShowcasePlugin {
 }
 
 /// Shared cyberpunk materials for Kenney GLBs (test showcase + editor).
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub struct CyberMaterial(pub Handle<StandardMaterial>);
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
+pub struct CyberMaterialUnderside(pub Handle<StandardMaterial>);
+
+#[derive(Resource, Clone)]
+pub struct CyberMaterialCeiling(pub Handle<StandardMaterial>);
+
+#[derive(Resource, Clone)]
 pub struct CyberLaserMaterial(pub Handle<StandardMaterial>);
 
 pub const EDITOR_BUILD_TAG: &str = "2026-06-15g";
@@ -74,7 +80,7 @@ pub fn init_kenney_materials(
 pub fn init_editor_kenney_materials(
     asset_server: &AssetServer,
     materials: &mut Assets<StandardMaterial>,
-) -> (CyberMaterial, CyberLaserMaterial) {
+) -> (CyberMaterial, CyberLaserMaterial, CyberMaterialCeiling) {
     let base = asset_server.load("models/space/cyber_colormap.png");
     let emissive = asset_server.load("models/space/cyber_colormap_emissive.png");
     let mr = asset_server.load_with_settings(
@@ -100,7 +106,17 @@ pub fn init_editor_kenney_materials(
         emissive: LinearRgba::rgb(2.5, 0.4, 0.4),
         ..default()
     });
-    (CyberMaterial(cyber), CyberLaserMaterial(cyber_lasers))
+    let mut ceiling_mat = materials
+        .get(&cyber)
+        .cloned()
+        .unwrap_or_default();
+    ceiling_mat.cull_mode = None;
+    let cyber_ceiling = materials.add(ceiling_mat);
+    (
+        CyberMaterial(cyber),
+        CyberLaserMaterial(cyber_lasers),
+        CyberMaterialCeiling(cyber_ceiling),
+    )
 }
 
 #[derive(Component)]
@@ -113,6 +129,7 @@ pub struct KenneyModule {
     pub mesh_cutouts: kenney_pit::KenneyMeshCutouts,
     pub group_id: Option<u32>,
     pub floor: i32,
+    pub ceiling: bool,
 }
 
 #[derive(Component)]
@@ -175,6 +192,7 @@ struct Placement {
     mesh_cutouts: kenney_pit::KenneyMeshCutouts,
     group_id: Option<u32>,
     floor: i32,
+    ceiling: bool,
 }
 
 fn m(
@@ -186,6 +204,7 @@ fn m(
     mesh_cutouts: kenney_pit::KenneyMeshCutouts,
     group_id: Option<u32>,
     floor: i32,
+    ceiling: bool,
 ) -> Placement {
     Placement {
         stem,
@@ -196,6 +215,7 @@ fn m(
         mesh_cutouts,
         group_id,
         floor,
+        ceiling,
     }
 }
 
@@ -227,7 +247,7 @@ fn placements_from_layout(layout: &KenneyLayout) -> Vec<Placement> {
         .unwrap_or((f32::INFINITY, f32::INFINITY));
     for p in &layout.pieces {
         let mask = layout.floors.get(&p.floor);
-        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask) {
+        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask, p.ceiling) {
             continue;
         }
         let mut collide = kenney_catalog::piece(&p.stem)
@@ -244,6 +264,7 @@ fn placements_from_layout(layout: &KenneyLayout) -> Vec<Placement> {
             p.yaw,
             layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
             mask,
+            p.ceiling,
         );
         out.push(m(
             leak_stem(&p.stem),
@@ -254,6 +275,7 @@ fn placements_from_layout(layout: &KenneyLayout) -> Vec<Placement> {
             mesh_cutouts,
             p.group_id,
             p.floor,
+            p.ceiling,
         ));
     }
 
@@ -262,7 +284,17 @@ fn placements_from_layout(layout: &KenneyLayout) -> Vec<Placement> {
             let collide = kenney_catalog::piece("stairs")
                 .map(|p| p.collide_default)
                 .unwrap_or(true);
-            out.push(m("stairs", pos, yaw, 1.0, collide, kenney_pit::KenneyMeshCutouts::default(), None, 0));
+            out.push(m(
+                "stairs",
+                pos,
+                yaw,
+                1.0,
+                collide,
+                kenney_pit::KenneyMeshCutouts::default(),
+                None,
+                0,
+                false,
+            ));
         }
     }
     out
@@ -286,7 +318,7 @@ fn placements_from_mounted(inst: &MountedMap) -> Vec<Placement> {
     for p in &inst.layout.pieces {
         // All hub decisions run in the instance-local frame (mask is origin-centred).
         let mask = inst.layout.floors.get(&p.floor);
-        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask) {
+        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask, p.ceiling) {
             continue;
         }
         let mut collide = kenney_catalog::piece(&p.stem)
@@ -303,6 +335,7 @@ fn placements_from_mounted(inst: &MountedMap) -> Vec<Placement> {
             p.yaw,
             inst.layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
             mask,
+            p.ceiling,
         )
         .translated(inst.offset.x, inst.offset.z);
         out.push(m(
@@ -314,6 +347,7 @@ fn placements_from_mounted(inst: &MountedMap) -> Vec<Placement> {
             mesh_cutouts,
             p.group_id,
             p.floor,
+            p.ceiling,
         ));
     }
     out
@@ -369,6 +403,7 @@ fn sync_stream_showcase(
                 mesh_cutouts: p.mesh_cutouts.clone(),
                 group_id: p.group_id,
                 floor: p.floor,
+                ceiling: p.ceiling,
             },
         ));
     }
@@ -398,9 +433,11 @@ fn spawn_showcase(
         return;
     }
 
-    let (cyber, cyber_lasers) = init_kenney_materials(&asset_server, &mut materials);
+    let (cyber, cyber_lasers, cyber_ceiling) =
+        init_editor_kenney_materials(&asset_server, &mut materials);
     commands.insert_resource(cyber);
     commands.insert_resource(cyber_lasers);
+    commands.insert_resource(cyber_ceiling);
 
     let list = placements(test.style);
     let layout = shared::map_pool::test_play_layout();
@@ -419,6 +456,7 @@ fn spawn_showcase(
                 mesh_cutouts: p.mesh_cutouts.clone(),
                 group_id: p.group_id,
                 floor: p.floor,
+                ceiling: p.ceiling,
             },
         ));
     }
@@ -457,6 +495,7 @@ fn build_modules(
     test: Option<Res<TestMode>>,
     editor: Option<Res<EditorMode>>,
     cyber: Option<Res<CyberMaterial>>,
+    cyber_ceiling: Option<Res<CyberMaterialCeiling>>,
     cyber_lasers: Option<Res<CyberLaserMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     modules: Query<(Entity, &KenneyModule), Without<ModuleReady>>,
@@ -486,6 +525,9 @@ fn build_modules(
         let mat = if module.name == "gate-lasers" {
             let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
             cyber_lasers.0.clone()
+        } else if module.ceiling {
+            let Some(cyber_ceiling) = cyber_ceiling.as_ref() else { continue };
+            cyber_ceiling.0.clone()
         } else {
             let Some(cyber) = cyber.as_ref() else { continue };
             cyber.0.clone()
@@ -493,7 +535,7 @@ fn build_modules(
 
         for e in &mesh_ents {
             let (mesh3d, gt) = mesh_q.get(*e).unwrap();
-            let mesh_handle = if !module.mesh_cutouts.is_empty() {
+            let mesh_handle = if !module.ceiling && !module.mesh_cutouts.is_empty() {
                 if let Some(mesh) = meshes.get(&mesh3d.0).cloned() {
                     meshes.add(cut_kenney_mesh(&mesh, gt, &module.mesh_cutouts))
                 } else {
@@ -507,7 +549,8 @@ fn build_modules(
             }
             commands.entity(*e).insert(MeshMaterial3d(mat.clone()));
 
-            if module.collide && !is_test {
+            // Ceiling slabs are visual-only: never give them a collider.
+            if module.collide && !module.ceiling && !is_test {
                 if let Some(mesh) = meshes.get(&mesh_handle) {
                     if let Some(collider) = world_trimesh(mesh, gt, &module.mesh_cutouts) {
                         commands.spawn((RigidBody::Static, collider, Transform::default()));
@@ -577,6 +620,7 @@ pub fn apply_room_shell_mesh_cutouts(
         yaw,
         extraction,
         mask,
+        false,
     );
     if cutouts.is_empty() {
         return false;

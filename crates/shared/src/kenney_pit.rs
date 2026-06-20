@@ -140,6 +140,7 @@ fn footprint_hole_cells(stem: &str, px: f32, pz: f32, yaw: f32, mask: &FloorMask
 ///
 /// Floor holes come **only** from `mask` (single source of truth shared with physics).
 /// `ex`/`ez` drive the floor-0 extraction shaft clear and the hub door wall openings only.
+/// Ceiling slabs (`ceiling == true`) skip mask hole carving — they intentionally sit over void.
 pub fn mesh_cutouts_for_piece(
     stem: &str,
     floor: i32,
@@ -148,6 +149,7 @@ pub fn mesh_cutouts_for_piece(
     yaw: f32,
     extraction: Option<Vec2>,
     mask: Option<&FloorMask>,
+    ceiling: bool,
 ) -> KenneyMeshCutouts {
     let mut cutouts = KenneyMeshCutouts {
         floor,
@@ -155,7 +157,7 @@ pub fn mesh_cutouts_for_piece(
     };
 
     // Floor holes: mask-driven, for any floor-bearing piece (works without a hub).
-    if carves_floor(stem) {
+    if carves_floor(stem) && !ceiling {
         if let Some(mask) = mask {
             cutouts.floor_holes = footprint_hole_cells(stem, px, pz, yaw, mask);
         }
@@ -191,6 +193,26 @@ pub fn mesh_cutouts_for_piece(
     cutouts
 }
 
+/// True when a floor slab must render its underside (walkable floor one level below).
+pub fn floor_slab_needs_underside(
+    stem: &str,
+    floor: i32,
+    x: f32,
+    z: f32,
+    ceiling: bool,
+    floors: &std::collections::HashMap<i32, FloorMask>,
+) -> bool {
+    if ceiling {
+        return true;
+    }
+    if !carves_floor(stem) {
+        return false;
+    }
+    floors
+        .get(&(floor - 1))
+        .is_some_and(|m| mask_has_floor_world(m, x, z))
+}
+
 pub fn floor_cutout_centers(
     stem: &str,
     floor: i32,
@@ -200,7 +222,7 @@ pub fn floor_cutout_centers(
     extraction: Option<Vec2>,
     mask: Option<&FloorMask>,
 ) -> Vec<Vec2> {
-    mesh_cutouts_for_piece(stem, floor, px, pz, yaw, extraction, mask)
+    mesh_cutouts_for_piece(stem, floor, px, pz, yaw, extraction, mask, false)
         .floor_holes()
         .collect()
 }
@@ -527,7 +549,7 @@ pub fn skip_hub_passage_collider(
     mask: Option<&FloorMask>,
 ) -> bool {
     // Floor props over a hole carry no collider (any floor, mask-driven).
-    if floor_prop_on_hole(stem, px, pz, mask) {
+    if floor_prop_on_hole(stem, px, pz, mask, false) {
         return true;
     }
     if floor != HUB_FLOOR_LEVEL {
@@ -560,7 +582,16 @@ pub fn over_open_hole(layout: &KenneyLayout, x: f32, y: f32, z: f32) -> bool {
 }
 
 /// A floor prop placed over a mask hole (its visual + collider must be suppressed).
-pub fn floor_prop_on_hole(stem: &str, px: f32, pz: f32, mask: Option<&FloorMask>) -> bool {
+pub fn floor_prop_on_hole(
+    stem: &str,
+    px: f32,
+    pz: f32,
+    mask: Option<&FloorMask>,
+    ceiling: bool,
+) -> bool {
+    if ceiling {
+        return false;
+    }
     if !stem.starts_with("template-floor") {
         return false;
     }
@@ -581,8 +612,9 @@ pub fn hide_extraction_hatch_piece(
     px: f32,
     pz: f32,
     mask: Option<&FloorMask>,
+    ceiling: bool,
 ) -> bool {
-    floor_prop_on_hole(stem, px, pz, mask)
+    floor_prop_on_hole(stem, px, pz, mask, ceiling)
 }
 
 #[cfg(test)]
@@ -604,16 +636,32 @@ mod tests {
     }
 
     #[test]
+    fn ceiling_slabs_skip_mask_hole_carving() {
+        let mask = mask_with_hole(0.0, 0.0);
+        let cut = mesh_cutouts_for_piece(
+            "template-floor",
+            0,
+            0.0,
+            0.0,
+            0.0,
+            None,
+            Some(&mask),
+            true,
+        );
+        assert!(cut.floor_holes.is_empty());
+    }
+
+    #[test]
     fn floor_holes_come_from_mask_only() {
         let ext = Some(Vec2::new(EX, EZ));
         // No mask -> no holes, even on the hub floor.
-        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, None);
+        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, None, false);
         assert!(cut.floor_holes.is_empty());
 
         // A masked hole under the room footprint produces exactly one carved cell.
         let mask = mask_with_hole(EX, EZ);
         let cut =
-            mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, Some(&mask));
+            mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, Some(&mask), false);
         assert_eq!(cut.floor_holes.len(), 1);
         let h = cut.floor_holes[0];
         assert!((h.x - EX).abs() < 2.0 && (h.y - EZ).abs() < 2.0);
@@ -623,18 +671,18 @@ mod tests {
     fn floor_0_shaft_only_when_drop_is_masked_hole() {
         let ext = Some(Vec2::new(EX, EZ));
         let solid = FloorMask::filled(15, 15);
-        let cut = mesh_cutouts_for_piece("room-large", 0, EX, EZ, 0.0, ext, Some(&solid));
+        let cut = mesh_cutouts_for_piece("room-large", 0, EX, EZ, 0.0, ext, Some(&solid), false);
         assert!(cut.pit_shaft.is_none());
 
         let mask = mask_with_hole(EX, EZ);
-        let cut = mesh_cutouts_for_piece("room-large", 0, EX, EZ, 0.0, ext, Some(&mask));
+        let cut = mesh_cutouts_for_piece("room-large", 0, EX, EZ, 0.0, ext, Some(&mask), false);
         assert_eq!(cut.pit_shaft, Some(Vec2::new(EX, EZ)));
     }
 
     #[test]
     fn hub_room_keeps_door_wall_opening() {
         let ext = Some(Vec2::new(EX, EZ));
-        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, None);
+        let cut = mesh_cutouts_for_piece("room-large", HUB_FLOOR_LEVEL, EX, EZ, 0.0, ext, None, false);
         assert!(cut.west_opening.is_some());
     }
 

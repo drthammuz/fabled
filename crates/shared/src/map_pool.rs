@@ -165,6 +165,10 @@ impl PoolMapDocument {
                 .and_then(|s| serde_json::from_value(s.clone()).ok())
                 .or(entry.extraction_xz),
             hub_exits,
+            hub_model: v
+                .get("hub_model")
+                .and_then(|m| m.as_str())
+                .map(str::to_owned),
             branch_levels,
         };
 
