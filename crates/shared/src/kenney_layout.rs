@@ -239,6 +239,25 @@ pub fn placement_rotation(yaw: f32, _ceiling: bool) -> Quat {
     Quat::from_rotation_y(yaw)
 }
 
+/// Visual-only roof slab — never gets a physics collider.
+pub fn is_ceiling_slab(p: &KenneyPlacement) -> bool {
+    if p.ceiling {
+        return true;
+    }
+    // Freeform maps only walk on floor 0 / hub sub-floors; every `template-floor`
+    // on floor 1+ is a roof slab (even if an old export lost `ceiling: true`).
+    // Do not infer from “walkable below” — that misclassified hub floor −1 tiles
+    // sitting above floor −2 landings and removed their colliders.
+    p.stem == "template-floor" && p.floor > 0
+}
+
+/// Walkable floor tile (`template-floor` GLB). Uses a mask cuboid collider instead
+/// of a baked trimesh — the GLB is double-sided and trimesh baking creates ghost
+/// collisions in rooms.
+pub fn uses_floor_cell_collider(p: &KenneyPlacement) -> bool {
+    p.stem == "template-floor" && !is_ceiling_slab(p)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,5 +271,99 @@ mod tests {
         let ceil = placement_rotation(0.0, true);
         assert!((flat * Vec3::Y).y > 0.9, "floor normal should point up");
         assert!((ceil * Vec3::Y).y > 0.9, "ceiling slab must not be flipped");
+    }
+
+    #[test]
+    fn is_ceiling_slab_detects_roof_without_flag() {
+        let layout = KenneyLayout {
+            pieces: vec![
+                KenneyPlacement {
+                    stem: "template-floor".into(),
+                    x: 0.0,
+                    z: 0.0,
+                    yaw: 0.0,
+                    floor: 0,
+                    scale: 1.0,
+                    group_id: None,
+                    ceiling: false,
+                    underside: false,
+                },
+                KenneyPlacement {
+                    stem: "template-floor".into(),
+                    x: 0.0,
+                    z: 0.0,
+                    yaw: 0.0,
+                    floor: 1,
+                    scale: 1.0,
+                    group_id: None,
+                    ceiling: false,
+                    underside: false,
+                },
+            ],
+            ..Default::default()
+        };
+        assert!(!is_ceiling_slab(&layout.pieces[0]));
+        assert!(is_ceiling_slab(&layout.pieces[1]));
+    }
+
+    #[test]
+    fn is_ceiling_slab_hub_extension_at_floor_zero() {
+        let layout = KenneyLayout {
+            pieces: vec![
+                KenneyPlacement {
+                    stem: "template-floor".into(),
+                    x: 4.0,
+                    z: 4.0,
+                    yaw: 0.0,
+                    floor: -1,
+                    scale: 1.0,
+                    group_id: None,
+                    ceiling: false,
+                    underside: false,
+                },
+                KenneyPlacement {
+                    stem: "template-floor".into(),
+                    x: 4.0,
+                    z: 4.0,
+                    yaw: 0.0,
+                    floor: 0,
+                    scale: 1.0,
+                    group_id: None,
+                    ceiling: true,
+                    underside: false,
+                },
+            ],
+            ..Default::default()
+        };
+        assert!(!is_ceiling_slab(&layout.pieces[0]));
+        assert!(is_ceiling_slab(&layout.pieces[1]));
+    }
+
+    #[test]
+    fn is_ceiling_slab_does_not_strip_hub_floor_above_landing() {
+        // Hub floor −1 must keep its collider even when floor −2 landing is below.
+        let hub = KenneyPlacement {
+            stem: "template-floor".into(),
+            x: 0.0,
+            z: 0.0,
+            yaw: 0.0,
+            floor: -1,
+            scale: 1.0,
+            group_id: None,
+            ceiling: false,
+            underside: false,
+        };
+        let _landing = KenneyPlacement {
+            stem: "template-floor".into(),
+            x: 0.0,
+            z: 0.0,
+            yaw: 0.0,
+            floor: -2,
+            scale: 1.0,
+            group_id: None,
+            ceiling: false,
+            underside: false,
+        };
+        assert!(!is_ceiling_slab(&hub));
     }
 }

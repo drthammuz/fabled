@@ -1,0 +1,1796 @@
+{
+  "model_kits": {
+    "building": {
+      "dest": "assets/models/building",
+      "theme": "Generic urban / modular buildings (brick, doorways, barricades)",
+      "glb_count": 79,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "wall": [
+          "wall",
+          "wall-corner",
+          "wall-corner-column",
+          "wall-corner-column-bottom",
+          "wall-corner-column-small",
+          "wall-corner-column-small-bottom",
+          "wall-corner-diagonal",
+          "wall-corner-round",
+          "wall-doorway-round",
+          "wall-doorway-square",
+          "wall-doorway-wide-round",
+          "wall-doorway-wide-square",
+          "wall-half",
+          "wall-low",
+          "wall-window-round",
+          "wall-window-round-detailed",
+          "wall-window-square",
+          "wall-window-square-detailed",
+          "wall-window-wide-round",
+          "wall-window-wide-round-detailed",
+          "wall-window-wide-square",
+          "wall-window-wide-square-detailed"
+        ],
+        "border": [
+          "border",
+          "border-corner",
+          "border-corner-diagonal",
+          "border-corner-round",
+          "border-corner-small",
+          "border-high",
+          "border-high-corner",
+          "border-high-corner-diagonal",
+          "border-high-corner-round",
+          "border-high-corner-small"
+        ],
+        "door": [
+          "door-rotate-round-a",
+          "door-rotate-round-b",
+          "door-rotate-round-c",
+          "door-rotate-round-d",
+          "door-rotate-square-a",
+          "door-rotate-square-b",
+          "door-rotate-square-c",
+          "door-rotate-square-d"
+        ],
+        "stairs": [
+          "stairs-center",
+          "stairs-center-short",
+          "stairs-closed",
+          "stairs-closed-short",
+          "stairs-open",
+          "stairs-open-short",
+          "stairs-sides",
+          "stairs-sides-short"
+        ],
+        "roof": [
+          "roof-flat-center",
+          "roof-flat-corner",
+          "roof-flat-corner-inner",
+          "roof-flat-patch",
+          "roof-flat-patch-large",
+          "roof-flat-side",
+          "roof-flat-square"
+        ],
+        "barricade": [
+          "barricade-doorway-a",
+          "barricade-doorway-b",
+          "barricade-doorway-c",
+          "barricade-window-a",
+          "barricade-window-b",
+          "barricade-window-c"
+        ],
+        "floor": [
+          "floor",
+          "floor-corner-diagonal",
+          "floor-corner-round",
+          "floor-half",
+          "floor-quarter"
+        ],
+        "gutter": [
+          "gutter-vertical",
+          "gutter-vertical-bottom",
+          "gutter-vertical-short",
+          "gutter-vertical-top",
+          "gutter-vertical-wall"
+        ],
+        "plating": [
+          "plating",
+          "plating-detailed",
+          "plating-detailed-wide",
+          "plating-wide"
+        ],
+        "column": [
+          "column",
+          "column-thin",
+          "column-wide"
+        ],
+        "detail": [
+          "detail-pipe"
+        ]
+      }
+    },
+    "factory": {
+      "dest": "assets/models/factory",
+      "theme": "Industrial factory: pipes, tanks, conveyors, machinery, catwalks",
+      "glb_count": 143,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "conveyor": [
+          "conveyor",
+          "conveyor-bars",
+          "conveyor-bars-fence",
+          "conveyor-bars-fence-slope",
+          "conveyor-bars-high",
+          "conveyor-bars-high-slope",
+          "conveyor-bars-sides",
+          "conveyor-bars-stripe",
+          "conveyor-bars-stripe-fence",
+          "conveyor-bars-stripe-fence-slope",
+          "conveyor-bars-stripe-high",
+          "conveyor-bars-stripe-high-slope",
+          "conveyor-bars-stripe-side",
+          "conveyor-corner",
+          "conveyor-cross",
+          "conveyor-junction-t",
+          "conveyor-long",
+          "conveyor-long-part-end",
+          "conveyor-long-part-middle",
+          "conveyor-long-sides",
+          "conveyor-long-sides-part-end",
+          "conveyor-long-sides-part-middle",
+          "conveyor-long-stripe",
+          "conveyor-long-stripe-sides",
+          "conveyor-long-stripe-sides-part-end",
+          "conveyor-long-stripe-sides-part-middle",
+          "conveyor-sides",
+          "conveyor-sides-cross",
+          "conveyor-sides-junction-t",
+          "conveyor-stripe",
+          "conveyor-stripe-corner",
+          "conveyor-stripe-cross",
+          "conveyor-stripe-junction-t",
+          "conveyor-stripe-part-end",
+          "conveyor-stripe-part-middle",
+          "conveyor-stripe-sides",
+          "conveyor-stripe-sides-cross",
+          "conveyor-stripe-sides-junction-t"
+        ],
+        "pipe": [
+          "pipe-glass-large",
+          "pipe-glass-large-bend",
+          "pipe-glass-large-bump",
+          "pipe-glass-large-cross",
+          "pipe-glass-large-curve",
+          "pipe-glass-large-junction",
+          "pipe-glass-large-long",
+          "pipe-glass-large-side",
+          "pipe-glass-large-valve",
+          "pipe-large",
+          "pipe-large-bend",
+          "pipe-large-bump",
+          "pipe-large-cross",
+          "pipe-large-curve",
+          "pipe-large-junction",
+          "pipe-large-long",
+          "pipe-large-side",
+          "pipe-large-valve"
+        ],
+        "structure": [
+          "structure-corner-inner",
+          "structure-corner-outer",
+          "structure-doorway",
+          "structure-doorway-wide",
+          "structure-high",
+          "structure-medium",
+          "structure-short",
+          "structure-tall",
+          "structure-wall",
+          "structure-window",
+          "structure-window-wide",
+          "structure-yellow-high",
+          "structure-yellow-medium",
+          "structure-yellow-short",
+          "structure-yellow-tall"
+        ],
+        "screen": [
+          "screen-flat",
+          "screen-hanging-small",
+          "screen-hanging-wide",
+          "screen-panel-flat",
+          "screen-panel-small",
+          "screen-panel-wide",
+          "screen-small",
+          "screen-wide"
+        ],
+        "machine": [
+          "machine",
+          "machine-bed",
+          "machine-connection-hole",
+          "machine-connection-pipe",
+          "machine-fortified",
+          "machine-window",
+          "machine-window-bar"
+        ],
+        "catwalk": [
+          "catwalk-corner",
+          "catwalk-cross",
+          "catwalk-junction",
+          "catwalk-stairs",
+          "catwalk-stairs-loop",
+          "catwalk-straight"
+        ],
+        "cog": [
+          "cog-a",
+          "cog-b",
+          "cog-c",
+          "cog-d",
+          "cog-e"
+        ],
+        "arrow": [
+          "arrow",
+          "arrow-basic",
+          "arrow-basic-rounded",
+          "arrow-rounded"
+        ],
+        "box": [
+          "box-large",
+          "box-long",
+          "box-small",
+          "box-wide"
+        ],
+        "button": [
+          "button-floor-round",
+          "button-floor-round-small",
+          "button-floor-square",
+          "button-floor-square-small"
+        ],
+        "door": [
+          "door",
+          "door-wide-closed",
+          "door-wide-half",
+          "door-wide-open"
+        ],
+        "hopper": [
+          "hopper-high-round",
+          "hopper-high-square",
+          "hopper-round",
+          "hopper-square"
+        ],
+        "indicator": [
+          "indicator-special-area",
+          "indicator-special-arrow",
+          "indicator-special-cross",
+          "indicator-special-lines"
+        ],
+        "piston": [
+          "piston-round",
+          "piston-square",
+          "piston-thin-round",
+          "piston-thin-square"
+        ],
+        "crane": [
+          "crane",
+          "crane-lift",
+          "crane-magnet"
+        ],
+        "top": [
+          "top",
+          "top-large",
+          "top-large-checkerboard"
+        ],
+        "floor": [
+          "floor",
+          "floor-large"
+        ],
+        "lever": [
+          "lever-double",
+          "lever-single"
+        ],
+        "robot": [
+          "robot-arm-a",
+          "robot-arm-b"
+        ],
+        "scanner": [
+          "scanner-high",
+          "scanner-low"
+        ],
+        "warning": [
+          "warning-orange",
+          "warning-traffic"
+        ],
+        "cone": [
+          "cone"
+        ],
+        "oopi": [
+          "oopi"
+        ]
+      }
+    },
+    "furniture": {
+      "dest": "assets/models/furniture",
+      "theme": "Interior furniture props (embedded textures)",
+      "glb_count": 140,
+      "texture_scheme": "embedded",
+      "textures": [],
+      "groups": {
+        "bathroomCabinet": [
+          "bathroomCabinet"
+        ],
+        "bathroomCabinetDrawer": [
+          "bathroomCabinetDrawer"
+        ],
+        "bathroomMirror": [
+          "bathroomMirror"
+        ],
+        "bathroomSink": [
+          "bathroomSink"
+        ],
+        "bathroomSinkSquare": [
+          "bathroomSinkSquare"
+        ],
+        "bathtub": [
+          "bathtub"
+        ],
+        "bear": [
+          "bear"
+        ],
+        "bedBunk": [
+          "bedBunk"
+        ],
+        "bedDouble": [
+          "bedDouble"
+        ],
+        "bedSingle": [
+          "bedSingle"
+        ],
+        "bench": [
+          "bench"
+        ],
+        "benchCushion": [
+          "benchCushion"
+        ],
+        "benchCushionLow": [
+          "benchCushionLow"
+        ],
+        "bookcaseClosed": [
+          "bookcaseClosed"
+        ],
+        "bookcaseClosedDoors": [
+          "bookcaseClosedDoors"
+        ],
+        "bookcaseClosedWide": [
+          "bookcaseClosedWide"
+        ],
+        "bookcaseOpen": [
+          "bookcaseOpen"
+        ],
+        "bookcaseOpenLow": [
+          "bookcaseOpenLow"
+        ],
+        "books": [
+          "books"
+        ],
+        "cabinetBed": [
+          "cabinetBed"
+        ],
+        "cabinetBedDrawer": [
+          "cabinetBedDrawer"
+        ],
+        "cabinetBedDrawerTable": [
+          "cabinetBedDrawerTable"
+        ],
+        "cabinetTelevision": [
+          "cabinetTelevision"
+        ],
+        "cabinetTelevisionDoors": [
+          "cabinetTelevisionDoors"
+        ],
+        "cardboardBoxClosed": [
+          "cardboardBoxClosed"
+        ],
+        "cardboardBoxOpen": [
+          "cardboardBoxOpen"
+        ],
+        "ceilingFan": [
+          "ceilingFan"
+        ],
+        "chair": [
+          "chair"
+        ],
+        "chairCushion": [
+          "chairCushion"
+        ],
+        "chairDesk": [
+          "chairDesk"
+        ],
+        "chairModernCushion": [
+          "chairModernCushion"
+        ],
+        "chairModernFrameCushion": [
+          "chairModernFrameCushion"
+        ],
+        "chairRounded": [
+          "chairRounded"
+        ],
+        "coatRack": [
+          "coatRack"
+        ],
+        "coatRackStanding": [
+          "coatRackStanding"
+        ],
+        "computerKeyboard": [
+          "computerKeyboard"
+        ],
+        "computerMouse": [
+          "computerMouse"
+        ],
+        "computerScreen": [
+          "computerScreen"
+        ],
+        "desk": [
+          "desk"
+        ],
+        "deskCorner": [
+          "deskCorner"
+        ],
+        "doorway": [
+          "doorway"
+        ],
+        "doorwayFront": [
+          "doorwayFront"
+        ],
+        "doorwayOpen": [
+          "doorwayOpen"
+        ],
+        "dryer": [
+          "dryer"
+        ],
+        "floorCorner": [
+          "floorCorner"
+        ],
+        "floorCornerRound": [
+          "floorCornerRound"
+        ],
+        "floorFull": [
+          "floorFull"
+        ],
+        "floorHalf": [
+          "floorHalf"
+        ],
+        "hoodLarge": [
+          "hoodLarge"
+        ],
+        "hoodModern": [
+          "hoodModern"
+        ],
+        "kitchenBar": [
+          "kitchenBar"
+        ],
+        "kitchenBarEnd": [
+          "kitchenBarEnd"
+        ],
+        "kitchenBlender": [
+          "kitchenBlender"
+        ],
+        "kitchenCabinet": [
+          "kitchenCabinet"
+        ],
+        "kitchenCabinetCornerInner": [
+          "kitchenCabinetCornerInner"
+        ],
+        "kitchenCabinetCornerRound": [
+          "kitchenCabinetCornerRound"
+        ],
+        "kitchenCabinetDrawer": [
+          "kitchenCabinetDrawer"
+        ],
+        "kitchenCabinetUpper": [
+          "kitchenCabinetUpper"
+        ],
+        "kitchenCabinetUpperCorner": [
+          "kitchenCabinetUpperCorner"
+        ],
+        "kitchenCabinetUpperDouble": [
+          "kitchenCabinetUpperDouble"
+        ],
+        "kitchenCabinetUpperLow": [
+          "kitchenCabinetUpperLow"
+        ],
+        "kitchenCoffeeMachine": [
+          "kitchenCoffeeMachine"
+        ],
+        "kitchenFridge": [
+          "kitchenFridge"
+        ],
+        "kitchenFridgeBuiltIn": [
+          "kitchenFridgeBuiltIn"
+        ],
+        "kitchenFridgeLarge": [
+          "kitchenFridgeLarge"
+        ],
+        "kitchenFridgeSmall": [
+          "kitchenFridgeSmall"
+        ],
+        "kitchenMicrowave": [
+          "kitchenMicrowave"
+        ],
+        "kitchenSink": [
+          "kitchenSink"
+        ],
+        "kitchenStove": [
+          "kitchenStove"
+        ],
+        "kitchenStoveElectric": [
+          "kitchenStoveElectric"
+        ],
+        "lampRoundFloor": [
+          "lampRoundFloor"
+        ],
+        "lampRoundTable": [
+          "lampRoundTable"
+        ],
+        "lampSquareCeiling": [
+          "lampSquareCeiling"
+        ],
+        "lampSquareFloor": [
+          "lampSquareFloor"
+        ],
+        "lampSquareTable": [
+          "lampSquareTable"
+        ],
+        "lampWall": [
+          "lampWall"
+        ],
+        "laptop": [
+          "laptop"
+        ],
+        "loungeChair": [
+          "loungeChair"
+        ],
+        "loungeChairRelax": [
+          "loungeChairRelax"
+        ],
+        "loungeDesignChair": [
+          "loungeDesignChair"
+        ],
+        "loungeDesignSofa": [
+          "loungeDesignSofa"
+        ],
+        "loungeDesignSofaCorner": [
+          "loungeDesignSofaCorner"
+        ],
+        "loungeSofa": [
+          "loungeSofa"
+        ],
+        "loungeSofaCorner": [
+          "loungeSofaCorner"
+        ],
+        "loungeSofaLong": [
+          "loungeSofaLong"
+        ],
+        "loungeSofaOttoman": [
+          "loungeSofaOttoman"
+        ],
+        "paneling": [
+          "paneling"
+        ],
+        "pillow": [
+          "pillow"
+        ],
+        "pillowBlue": [
+          "pillowBlue"
+        ],
+        "pillowBlueLong": [
+          "pillowBlueLong"
+        ],
+        "pillowLong": [
+          "pillowLong"
+        ],
+        "plantSmall1": [
+          "plantSmall1"
+        ],
+        "plantSmall2": [
+          "plantSmall2"
+        ],
+        "plantSmall3": [
+          "plantSmall3"
+        ],
+        "pottedPlant": [
+          "pottedPlant"
+        ],
+        "radio": [
+          "radio"
+        ],
+        "rugDoormat": [
+          "rugDoormat"
+        ],
+        "rugRectangle": [
+          "rugRectangle"
+        ],
+        "rugRound": [
+          "rugRound"
+        ],
+        "rugRounded": [
+          "rugRounded"
+        ],
+        "rugSquare": [
+          "rugSquare"
+        ],
+        "shower": [
+          "shower"
+        ],
+        "showerRound": [
+          "showerRound"
+        ],
+        "sideTable": [
+          "sideTable"
+        ],
+        "sideTableDrawers": [
+          "sideTableDrawers"
+        ],
+        "speaker": [
+          "speaker"
+        ],
+        "speakerSmall": [
+          "speakerSmall"
+        ],
+        "stairs": [
+          "stairs"
+        ],
+        "stairsCorner": [
+          "stairsCorner"
+        ],
+        "stairsOpen": [
+          "stairsOpen"
+        ],
+        "stairsOpenSingle": [
+          "stairsOpenSingle"
+        ],
+        "stoolBar": [
+          "stoolBar"
+        ],
+        "stoolBarSquare": [
+          "stoolBarSquare"
+        ],
+        "table": [
+          "table"
+        ],
+        "tableCloth": [
+          "tableCloth"
+        ],
+        "tableCoffee": [
+          "tableCoffee"
+        ],
+        "tableCoffeeGlass": [
+          "tableCoffeeGlass"
+        ],
+        "tableCoffeeGlassSquare": [
+          "tableCoffeeGlassSquare"
+        ],
+        "tableCoffeeSquare": [
+          "tableCoffeeSquare"
+        ],
+        "tableCross": [
+          "tableCross"
+        ],
+        "tableCrossCloth": [
+          "tableCrossCloth"
+        ],
+        "tableGlass": [
+          "tableGlass"
+        ],
+        "tableRound": [
+          "tableRound"
+        ],
+        "televisionAntenna": [
+          "televisionAntenna"
+        ],
+        "televisionModern": [
+          "televisionModern"
+        ],
+        "televisionVintage": [
+          "televisionVintage"
+        ],
+        "toaster": [
+          "toaster"
+        ],
+        "toilet": [
+          "toilet"
+        ],
+        "toiletSquare": [
+          "toiletSquare"
+        ],
+        "trashcan": [
+          "trashcan"
+        ],
+        "wall": [
+          "wall"
+        ],
+        "wallCorner": [
+          "wallCorner"
+        ],
+        "wallCornerRond": [
+          "wallCornerRond"
+        ],
+        "wallDoorway": [
+          "wallDoorway"
+        ],
+        "wallDoorwayWide": [
+          "wallDoorwayWide"
+        ],
+        "wallHalf": [
+          "wallHalf"
+        ],
+        "wallWindow": [
+          "wallWindow"
+        ],
+        "wallWindowSlide": [
+          "wallWindowSlide"
+        ],
+        "washer": [
+          "washer"
+        ],
+        "washerDryerStacked": [
+          "washerDryerStacked"
+        ]
+      }
+    },
+    "dungeon": {
+      "dest": "assets/models/dungeon",
+      "theme": "Modular stone dungeon: corridors, rooms, stairs, gates, props",
+      "glb_count": 39,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "template": [
+          "template-corner",
+          "template-detail",
+          "template-floor",
+          "template-floor-big",
+          "template-floor-detail",
+          "template-floor-detail-a",
+          "template-floor-layer",
+          "template-floor-layer-hole",
+          "template-floor-layer-raised",
+          "template-wall",
+          "template-wall-corner",
+          "template-wall-detail-a",
+          "template-wall-half",
+          "template-wall-stairs",
+          "template-wall-top"
+        ],
+        "corridor": [
+          "corridor",
+          "corridor-corner",
+          "corridor-end",
+          "corridor-intersection",
+          "corridor-junction",
+          "corridor-transition",
+          "corridor-wide",
+          "corridor-wide-corner",
+          "corridor-wide-end",
+          "corridor-wide-intersection",
+          "corridor-wide-junction"
+        ],
+        "room": [
+          "room-corner",
+          "room-large",
+          "room-large-variation",
+          "room-small",
+          "room-small-variation",
+          "room-wide",
+          "room-wide-variation"
+        ],
+        "gate": [
+          "gate",
+          "gate-door",
+          "gate-door-window",
+          "gate-metal-bars"
+        ],
+        "stairs": [
+          "stairs",
+          "stairs-wide"
+        ]
+      }
+    },
+    "prototype": {
+      "dest": "assets/models/prototype",
+      "theme": "Greybox primitives + placeholder animals/items for blockout",
+      "glb_count": 145,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "wall": [
+          "wall",
+          "wall-corner",
+          "wall-corner-low",
+          "wall-corner-rounded",
+          "wall-corner-rounded-low",
+          "wall-diagonal",
+          "wall-diagonal-low",
+          "wall-doorway",
+          "wall-doorway-garage",
+          "wall-doorway-round",
+          "wall-doorway-sliding",
+          "wall-doorway-wide",
+          "wall-doorway-wide-sliding",
+          "wall-low",
+          "wall-round",
+          "wall-round-low",
+          "wall-window-barred-large",
+          "wall-window-barred-medium",
+          "wall-window-barred-small",
+          "wall-window-cutout-large",
+          "wall-window-cutout-medium",
+          "wall-window-cutout-small",
+          "wall-window-large",
+          "wall-window-medium",
+          "wall-window-small"
+        ],
+        "number": [
+          "number-0",
+          "number-1",
+          "number-2",
+          "number-3",
+          "number-4",
+          "number-5",
+          "number-6",
+          "number-7",
+          "number-8",
+          "number-9",
+          "number-double-0",
+          "number-double-1",
+          "number-double-2",
+          "number-double-3",
+          "number-double-4",
+          "number-double-5",
+          "number-double-6",
+          "number-double-7",
+          "number-double-8",
+          "number-double-9"
+        ],
+        "shape": [
+          "shape-cube",
+          "shape-cube-half",
+          "shape-cube-rounded",
+          "shape-cylinder",
+          "shape-cylinder-detailed",
+          "shape-cylinder-half",
+          "shape-cylinder-half-detailed",
+          "shape-hexagon",
+          "shape-hexagon-half",
+          "shape-hollow-cylinder",
+          "shape-hollow-cylinder-detailed",
+          "shape-hollow-cylinder-half",
+          "shape-hollow-cylinder-half-detailed",
+          "shape-hollow-hexagon",
+          "shape-hollow-hexagon-half",
+          "shape-slope",
+          "shape-triangular-prism",
+          "shape-triangular-prism-low"
+        ],
+        "indicator": [
+          "indicator-doorway",
+          "indicator-round-a",
+          "indicator-round-b",
+          "indicator-round-c",
+          "indicator-round-d",
+          "indicator-round-e",
+          "indicator-round-f",
+          "indicator-special-area",
+          "indicator-special-arrow",
+          "indicator-special-cross",
+          "indicator-special-lines",
+          "indicator-square-a",
+          "indicator-square-b",
+          "indicator-square-c",
+          "indicator-square-d",
+          "indicator-square-e",
+          "indicator-square-f"
+        ],
+        "floor": [
+          "floor-diagonal",
+          "floor-small-diagonal",
+          "floor-small-square",
+          "floor-square",
+          "floor-thick",
+          "floor-thick-corner-diagonal",
+          "floor-thick-corner-round",
+          "floor-thick-corner-rounded"
+        ],
+        "stairs": [
+          "stairs",
+          "stairs-diagonal",
+          "stairs-diagonal-narrow",
+          "stairs-diagonal-small",
+          "stairs-diagonal-small-narrow",
+          "stairs-narrow",
+          "stairs-small",
+          "stairs-small-narrow"
+        ],
+        "column": [
+          "column",
+          "column-low",
+          "column-rounded",
+          "column-rounded-low",
+          "column-triangle",
+          "column-triangle-low"
+        ],
+        "door": [
+          "door-garage",
+          "door-rotate",
+          "door-sliding",
+          "door-sliding-double",
+          "door-sliding-double-round",
+          "door-sliding-double-wide"
+        ],
+        "pipe": [
+          "pipe",
+          "pipe-corner",
+          "pipe-half",
+          "pipe-half-section",
+          "pipe-section",
+          "pipe-split"
+        ],
+        "button": [
+          "button-floor-round",
+          "button-floor-round-small",
+          "button-floor-square",
+          "button-floor-square-small"
+        ],
+        "figurine": [
+          "figurine",
+          "figurine-cube",
+          "figurine-cube-detailed",
+          "figurine-large"
+        ],
+        "target": [
+          "target-a-round",
+          "target-a-square",
+          "target-b-round",
+          "target-b-square"
+        ],
+        "animal": [
+          "animal-bison",
+          "animal-dog",
+          "animal-horse"
+        ],
+        "ladder": [
+          "ladder",
+          "ladder-color",
+          "ladder-top"
+        ],
+        "crate": [
+          "crate",
+          "crate-color"
+        ],
+        "hat": [
+          "hat-cap",
+          "hat-hard"
+        ],
+        "lever": [
+          "lever-double",
+          "lever-single"
+        ],
+        "vehicle": [
+          "vehicle",
+          "vehicle-convertible"
+        ],
+        "weapon": [
+          "weapon-shield",
+          "weapon-sword"
+        ],
+        "coin": [
+          "coin"
+        ],
+        "flag": [
+          "flag"
+        ],
+        "wheelchair": [
+          "wheelchair"
+        ]
+      }
+    },
+    "retro_fantasy": {
+      "dest": "assets/models/retro_fantasy",
+      "theme": "Low-poly medieval/fantasy village (multi-texture)",
+      "glb_count": 105,
+      "texture_scheme": "external",
+      "textures": [
+        "barrel.png",
+        "cobblestone.png",
+        "cobblestoneAlternative.png",
+        "cobblestonePainted.png",
+        "details.png",
+        "fence.png",
+        "planks.png",
+        "roof.png",
+        "tree.png",
+        "water.png"
+      ],
+      "groups": {
+        "wall": [
+          "wall",
+          "wall-detail",
+          "wall-door",
+          "wall-flat-gate",
+          "wall-fortified",
+          "wall-fortified-door",
+          "wall-fortified-gate",
+          "wall-fortified-gate-half",
+          "wall-fortified-half",
+          "wall-fortified-paint",
+          "wall-fortified-paint-door",
+          "wall-fortified-paint-gate",
+          "wall-fortified-paint-half",
+          "wall-fortified-paint-window",
+          "wall-fortified-window",
+          "wall-gate",
+          "wall-gate-half",
+          "wall-half",
+          "wall-low",
+          "wall-paint",
+          "wall-paint-detail",
+          "wall-paint-door",
+          "wall-paint-flat",
+          "wall-paint-gate",
+          "wall-paint-half",
+          "wall-paint-window",
+          "wall-pane",
+          "wall-pane-door",
+          "wall-pane-paint",
+          "wall-pane-paint-door",
+          "wall-pane-paint-window",
+          "wall-pane-painted-wood",
+          "wall-pane-painted-wood-door",
+          "wall-pane-painted-wood-window",
+          "wall-pane-window",
+          "wall-pane-wood",
+          "wall-pane-wood-door",
+          "wall-pane-wood-window",
+          "wall-window"
+        ],
+        "roof": [
+          "roof",
+          "roof-corner",
+          "roof-edge",
+          "roof-high-side",
+          "roof-high-side-corner",
+          "roof-high-side-corner-inner",
+          "roof-side",
+          "roof-side-corner",
+          "roof-side-corner-inner"
+        ],
+        "floor": [
+          "floor",
+          "floor-flat",
+          "floor-stairs",
+          "floor-stairs-corner-inner",
+          "floor-stairs-corner-outer",
+          "floor-steps",
+          "floor-steps-corner-inner",
+          "floor-steps-corner-outer"
+        ],
+        "structure": [
+          "structure",
+          "structure-cross",
+          "structure-pole",
+          "structure-poles",
+          "structure-wall",
+          "structure-wall-cross"
+        ],
+        "tower": [
+          "tower",
+          "tower-base",
+          "tower-edge",
+          "tower-paint",
+          "tower-paint-base",
+          "tower-top"
+        ],
+        "column": [
+          "column",
+          "column-damaged",
+          "column-paint",
+          "column-paint-damaged",
+          "column-wood"
+        ],
+        "battlement": [
+          "battlement",
+          "battlement-corner-inner",
+          "battlement-corner-outer",
+          "battlement-half"
+        ],
+        "detail": [
+          "detail-barrel",
+          "detail-crate",
+          "detail-crate-ropes",
+          "detail-crate-small"
+        ],
+        "overhang": [
+          "overhang",
+          "overhang-fence",
+          "overhang-round",
+          "overhang-round-railing"
+        ],
+        "wood": [
+          "wood-floor",
+          "wood-floor-half",
+          "wood-floor-quarter",
+          "wood-floor-railing"
+        ],
+        "fence": [
+          "fence",
+          "fence-top",
+          "fence-wood"
+        ],
+        "stairs": [
+          "stairs-corner",
+          "stairs-stone",
+          "stairs-wood"
+        ],
+        "dock": [
+          "dock-corner",
+          "dock-side"
+        ],
+        "pulley": [
+          "pulley",
+          "pulley-crate"
+        ],
+        "tree": [
+          "tree-large",
+          "tree-shrub"
+        ],
+        "barrels": [
+          "barrels"
+        ],
+        "bricks": [
+          "bricks"
+        ],
+        "ladder": [
+          "ladder"
+        ],
+        "water": [
+          "water"
+        ]
+      }
+    },
+    "space_kit": {
+      "dest": "assets/models/space_kit",
+      "theme": "Original Kenney space kit: rockets, rovers, astronauts, terrain (embedded)",
+      "glb_count": 153,
+      "texture_scheme": "embedded",
+      "textures": [],
+      "groups": {
+        "alien": [
+          "alien"
+        ],
+        "astronautA": [
+          "astronautA"
+        ],
+        "astronautB": [
+          "astronautB"
+        ],
+        "barrel": [
+          "barrel"
+        ],
+        "barrels": [
+          "barrels"
+        ],
+        "barrels_rail": [
+          "barrels_rail"
+        ],
+        "bones": [
+          "bones"
+        ],
+        "chimney": [
+          "chimney"
+        ],
+        "chimney_detailed": [
+          "chimney_detailed"
+        ],
+        "corridor": [
+          "corridor"
+        ],
+        "corridor_corner": [
+          "corridor_corner"
+        ],
+        "corridor_cornerRound": [
+          "corridor_cornerRound"
+        ],
+        "corridor_cornerRoundWindow": [
+          "corridor_cornerRoundWindow"
+        ],
+        "corridor_cross": [
+          "corridor_cross"
+        ],
+        "corridor_detailed": [
+          "corridor_detailed"
+        ],
+        "corridor_end": [
+          "corridor_end"
+        ],
+        "corridor_open": [
+          "corridor_open"
+        ],
+        "corridor_roof": [
+          "corridor_roof"
+        ],
+        "corridor_split": [
+          "corridor_split"
+        ],
+        "corridor_wall": [
+          "corridor_wall"
+        ],
+        "corridor_wallCorner": [
+          "corridor_wallCorner"
+        ],
+        "corridor_window": [
+          "corridor_window"
+        ],
+        "corridor_windowClosed": [
+          "corridor_windowClosed"
+        ],
+        "craft_cargoA": [
+          "craft_cargoA"
+        ],
+        "craft_cargoB": [
+          "craft_cargoB"
+        ],
+        "craft_miner": [
+          "craft_miner"
+        ],
+        "craft_racer": [
+          "craft_racer"
+        ],
+        "craft_speederA": [
+          "craft_speederA"
+        ],
+        "craft_speederB": [
+          "craft_speederB"
+        ],
+        "craft_speederC": [
+          "craft_speederC"
+        ],
+        "craft_speederD": [
+          "craft_speederD"
+        ],
+        "crater": [
+          "crater"
+        ],
+        "craterLarge": [
+          "craterLarge"
+        ],
+        "desk_chair": [
+          "desk_chair"
+        ],
+        "desk_chairArms": [
+          "desk_chairArms"
+        ],
+        "desk_chairStool": [
+          "desk_chairStool"
+        ],
+        "desk_computer": [
+          "desk_computer"
+        ],
+        "desk_computerCorner": [
+          "desk_computerCorner"
+        ],
+        "desk_computerScreen": [
+          "desk_computerScreen"
+        ],
+        "gate_complex": [
+          "gate_complex"
+        ],
+        "gate_simple": [
+          "gate_simple"
+        ],
+        "hangar_largeA": [
+          "hangar_largeA"
+        ],
+        "hangar_largeB": [
+          "hangar_largeB"
+        ],
+        "hangar_roundA": [
+          "hangar_roundA"
+        ],
+        "hangar_roundB": [
+          "hangar_roundB"
+        ],
+        "hangar_roundGlass": [
+          "hangar_roundGlass"
+        ],
+        "hangar_smallA": [
+          "hangar_smallA"
+        ],
+        "hangar_smallB": [
+          "hangar_smallB"
+        ],
+        "machine_barrel": [
+          "machine_barrel"
+        ],
+        "machine_barrelLarge": [
+          "machine_barrelLarge"
+        ],
+        "machine_generator": [
+          "machine_generator"
+        ],
+        "machine_generatorLarge": [
+          "machine_generatorLarge"
+        ],
+        "machine_wireless": [
+          "machine_wireless"
+        ],
+        "machine_wirelessCable": [
+          "machine_wirelessCable"
+        ],
+        "meteor": [
+          "meteor"
+        ],
+        "meteor_detailed": [
+          "meteor_detailed"
+        ],
+        "meteor_half": [
+          "meteor_half"
+        ],
+        "monorail_trackCornerLarge": [
+          "monorail_trackCornerLarge"
+        ],
+        "monorail_trackCornerSmall": [
+          "monorail_trackCornerSmall"
+        ],
+        "monorail_trackSlope": [
+          "monorail_trackSlope"
+        ],
+        "monorail_trackStraight": [
+          "monorail_trackStraight"
+        ],
+        "monorail_trackSupport": [
+          "monorail_trackSupport"
+        ],
+        "monorail_trackSupportCorner": [
+          "monorail_trackSupportCorner"
+        ],
+        "monorail_trainBox": [
+          "monorail_trainBox"
+        ],
+        "monorail_trainCargo": [
+          "monorail_trainCargo"
+        ],
+        "monorail_trainEnd": [
+          "monorail_trainEnd"
+        ],
+        "monorail_trainFlat": [
+          "monorail_trainFlat"
+        ],
+        "monorail_trainFront": [
+          "monorail_trainFront"
+        ],
+        "monorail_trainPassenger": [
+          "monorail_trainPassenger"
+        ],
+        "pipe_corner": [
+          "pipe_corner"
+        ],
+        "pipe_cornerDiagonal": [
+          "pipe_cornerDiagonal"
+        ],
+        "pipe_cornerRound": [
+          "pipe_cornerRound"
+        ],
+        "pipe_cornerRoundLarge": [
+          "pipe_cornerRoundLarge"
+        ],
+        "pipe_cross": [
+          "pipe_cross"
+        ],
+        "pipe_end": [
+          "pipe_end"
+        ],
+        "pipe_entrance": [
+          "pipe_entrance"
+        ],
+        "pipe_open": [
+          "pipe_open"
+        ],
+        "pipe_rampLarge": [
+          "pipe_rampLarge"
+        ],
+        "pipe_rampSmall": [
+          "pipe_rampSmall"
+        ],
+        "pipe_ring": [
+          "pipe_ring"
+        ],
+        "pipe_ringHigh": [
+          "pipe_ringHigh"
+        ],
+        "pipe_ringHighEnd": [
+          "pipe_ringHighEnd"
+        ],
+        "pipe_ringSupport": [
+          "pipe_ringSupport"
+        ],
+        "pipe_split": [
+          "pipe_split"
+        ],
+        "pipe_straight": [
+          "pipe_straight"
+        ],
+        "pipe_supportHigh": [
+          "pipe_supportHigh"
+        ],
+        "pipe_supportLow": [
+          "pipe_supportLow"
+        ],
+        "platform_center": [
+          "platform_center"
+        ],
+        "platform_corner": [
+          "platform_corner"
+        ],
+        "platform_cornerOpen": [
+          "platform_cornerOpen"
+        ],
+        "platform_cornerRound": [
+          "platform_cornerRound"
+        ],
+        "platform_end": [
+          "platform_end"
+        ],
+        "platform_high": [
+          "platform_high"
+        ],
+        "platform_large": [
+          "platform_large"
+        ],
+        "platform_long": [
+          "platform_long"
+        ],
+        "platform_low": [
+          "platform_low"
+        ],
+        "platform_side": [
+          "platform_side"
+        ],
+        "platform_small": [
+          "platform_small"
+        ],
+        "platform_smallDiagonal": [
+          "platform_smallDiagonal"
+        ],
+        "platform_straight": [
+          "platform_straight"
+        ],
+        "rail": [
+          "rail"
+        ],
+        "rail_corner": [
+          "rail_corner"
+        ],
+        "rail_end": [
+          "rail_end"
+        ],
+        "rail_middle": [
+          "rail_middle"
+        ],
+        "rock": [
+          "rock"
+        ],
+        "rock_crystals": [
+          "rock_crystals"
+        ],
+        "rock_crystalsLargeA": [
+          "rock_crystalsLargeA"
+        ],
+        "rock_crystalsLargeB": [
+          "rock_crystalsLargeB"
+        ],
+        "rock_largeA": [
+          "rock_largeA"
+        ],
+        "rock_largeB": [
+          "rock_largeB"
+        ],
+        "rocket_baseA": [
+          "rocket_baseA"
+        ],
+        "rocket_baseB": [
+          "rocket_baseB"
+        ],
+        "rocket_finsA": [
+          "rocket_finsA"
+        ],
+        "rocket_finsB": [
+          "rocket_finsB"
+        ],
+        "rocket_fuelA": [
+          "rocket_fuelA"
+        ],
+        "rocket_fuelB": [
+          "rocket_fuelB"
+        ],
+        "rocket_sidesA": [
+          "rocket_sidesA"
+        ],
+        "rocket_sidesB": [
+          "rocket_sidesB"
+        ],
+        "rocket_topA": [
+          "rocket_topA"
+        ],
+        "rocket_topB": [
+          "rocket_topB"
+        ],
+        "rocks_smallA": [
+          "rocks_smallA"
+        ],
+        "rocks_smallB": [
+          "rocks_smallB"
+        ],
+        "rover": [
+          "rover"
+        ],
+        "satelliteDish": [
+          "satelliteDish"
+        ],
+        "satelliteDish_detailed": [
+          "satelliteDish_detailed"
+        ],
+        "satelliteDish_large": [
+          "satelliteDish_large"
+        ],
+        "stairs": [
+          "stairs"
+        ],
+        "stairs_corner": [
+          "stairs_corner"
+        ],
+        "stairs_short": [
+          "stairs_short"
+        ],
+        "structure": [
+          "structure"
+        ],
+        "structure_closed": [
+          "structure_closed"
+        ],
+        "structure_detailed": [
+          "structure_detailed"
+        ],
+        "structure_diagonal": [
+          "structure_diagonal"
+        ],
+        "supports_high": [
+          "supports_high"
+        ],
+        "supports_low": [
+          "supports_low"
+        ],
+        "terrain": [
+          "terrain"
+        ],
+        "terrain_ramp": [
+          "terrain_ramp"
+        ],
+        "terrain_rampLarge": [
+          "terrain_rampLarge"
+        ],
+        "terrain_rampLarge_detailed": [
+          "terrain_rampLarge_detailed"
+        ],
+        "terrain_roadCorner": [
+          "terrain_roadCorner"
+        ],
+        "terrain_roadCross": [
+          "terrain_roadCross"
+        ],
+        "terrain_roadEnd": [
+          "terrain_roadEnd"
+        ],
+        "terrain_roadSplit": [
+          "terrain_roadSplit"
+        ],
+        "terrain_roadStraight": [
+          "terrain_roadStraight"
+        ],
+        "terrain_side": [
+          "terrain_side"
+        ],
+        "terrain_sideCliff": [
+          "terrain_sideCliff"
+        ],
+        "terrain_sideCorner": [
+          "terrain_sideCorner"
+        ],
+        "terrain_sideCornerInner": [
+          "terrain_sideCornerInner"
+        ],
+        "terrain_sideEnd": [
+          "terrain_sideEnd"
+        ],
+        "turret_double": [
+          "turret_double"
+        ],
+        "turret_single": [
+          "turret_single"
+        ],
+        "weapon_gun": [
+          "weapon_gun"
+        ],
+        "weapon_rifle": [
+          "weapon_rifle"
+        ]
+      }
+    },
+    "space_station": {
+      "dest": "assets/models/space_station",
+      "theme": "Sleek space-station interior: corridors, windows, balconies, props",
+      "glb_count": 97,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "wall": [
+          "wall",
+          "wall-banner",
+          "wall-corner",
+          "wall-corner-banner",
+          "wall-corner-round",
+          "wall-corner-round-banner",
+          "wall-detail",
+          "wall-door",
+          "wall-door-banner",
+          "wall-door-center",
+          "wall-door-edge",
+          "wall-door-edge-banner",
+          "wall-door-wide",
+          "wall-door-wide-banner",
+          "wall-pillar",
+          "wall-pillar-banner",
+          "wall-switch",
+          "wall-window",
+          "wall-window-banner",
+          "wall-window-frame",
+          "wall-window-shutters"
+        ],
+        "stairs": [
+          "stairs",
+          "stairs-corner",
+          "stairs-corner-inner",
+          "stairs-handrail",
+          "stairs-handrail-single",
+          "stairs-ramp",
+          "stairs-small-center",
+          "stairs-small-corner",
+          "stairs-small-corner-inner",
+          "stairs-small-edge",
+          "stairs-small-edge-handrail",
+          "stairs-small-edges",
+          "stairs-small-edges-handrail"
+        ],
+        "floor": [
+          "floor",
+          "floor-corner",
+          "floor-detail",
+          "floor-panel",
+          "floor-panel-corner",
+          "floor-panel-end",
+          "floor-panel-straight"
+        ],
+        "pipe": [
+          "pipe",
+          "pipe-bend",
+          "pipe-bend-diagonal",
+          "pipe-end",
+          "pipe-end-colored",
+          "pipe-ring",
+          "pipe-ring-colored"
+        ],
+        "table": [
+          "table",
+          "table-display",
+          "table-display-planet",
+          "table-display-small",
+          "table-inset",
+          "table-inset-small",
+          "table-large"
+        ],
+        "balcony": [
+          "balcony-floor",
+          "balcony-floor-center",
+          "balcony-floor-corner",
+          "balcony-rail",
+          "balcony-rail-center",
+          "balcony-rail-corner"
+        ],
+        "chair": [
+          "chair",
+          "chair-armrest",
+          "chair-armrest-headrest",
+          "chair-cushion",
+          "chair-cushion-headrest",
+          "chair-headrest"
+        ],
+        "door": [
+          "door-double",
+          "door-double-closed",
+          "door-double-half",
+          "door-single",
+          "door-single-closed",
+          "door-single-half"
+        ],
+        "container": [
+          "container",
+          "container-flat",
+          "container-flat-open",
+          "container-tall",
+          "container-wide"
+        ],
+        "bed": [
+          "bed-double",
+          "bed-double-cover",
+          "bed-single",
+          "bed-single-cover"
+        ],
+        "computer": [
+          "computer",
+          "computer-screen",
+          "computer-system",
+          "computer-wide"
+        ],
+        "structure": [
+          "structure",
+          "structure-barrier",
+          "structure-barrier-high",
+          "structure-panel"
+        ],
+        "display": [
+          "display-wall",
+          "display-wall-wide"
+        ],
+        "rail": [
+          "rail",
+          "rail-narrow"
+        ],
+        "skip": [
+          "skip",
+          "skip-rocks"
+        ],
+        "rocks": [
+          "rocks"
+        ]
+      }
+    }
+  },
+  "texture_packs": {
+    "dev_essentials": {
+      "dest": "assets/textures/dev_essentials",
+      "theme": "Prototype/dev textures: checkerboard, gradient, noise, UV, normal",
+      "png_count": 18
+    },
+    "retro_fantasy": {
+      "dest": "assets/textures/retro_fantasy",
+      "theme": "Fantasy surface textures (PNG)",
+      "png_count": 117
+    }
+  },
+  "needs_conversion": {
+    "road_tiles": {
+      "dest": "assets/staging/road_tiles",
+      "theme": "Road / track tiles (OBJ only - needs OBJ->GLB conversion for Bevy)",
+      "obj_count": 302,
+      "needs_conversion": true
+    }
+  }
+}

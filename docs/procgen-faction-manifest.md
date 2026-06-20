@@ -118,6 +118,33 @@ Examples (illustrative, not final lore):
 
 **Default hypothesis (user correction):** industrial utility (sewer/vent/rail) is often the **baseline** substrate; Kenney “civilized” blocks are **grafted** into it and **release** back into industrial at boundaries — but **all combinations** remain valid (all Kenney, all industrial, 50/50, three-way split, etc.).
 
+### 2.1 Ordering within a level (start → middle → end)
+
+A faction's building tradition appears **on both sides of its camp** — you see it as you *leave* the previous camp and again as you *approach* the next one. For a typical level the default ordering along the main path (spawn → extract) is:
+
+```
+[ START ]            [ MIDDLE ]                 [ END ]
+previous camp's  ──► default industrial   ──►  next camp's
+faction buildings    substrate (sewer /         faction buildings
+(you are leaving)    vent / subway)             (you are entering)
+
+   exit transition         connective tissue        entry transition
+```
+
+- **Start** of the level = openings/exits **out of the previous camp's faction architecture** into the substrate.
+- **Middle** = the **default industrial utility** system (sewer / ventilation / subway) as connective tissue between the two faction bookends. Length varies; in an all-one-faction level it can shrink to nothing.
+- **End** = transition **into the next camp's faction architecture** before extraction.
+
+This is the *default* shape, not a hard rule — §4.2 variety rules still allow all-one-system levels (no industrial middle), 50/50 blends, or three-way splits. But absent those overrides, **previous faction bookends the start, next faction bookends the end, industrial fills the gap.**
+
+**Worked example — priesthood camp → synth camp:**
+
+1. Level opens with the player **exiting priesthood-tradition buildings** (e.g. wide ceremonial Kenney halls — `organicness` high, `planning_vs_splendor` high).
+2. A transition piece (collapsed wall / waste chute / service descent) drops them into the **default sewer / ventilation / subway substrate** for the bulk of the run.
+3. Near the end, a second transition (sealed bulkhead / retrofitted section) brings them **into synth-tradition architecture**, which they traverse to the extraction in the synth camp.
+
+(*"Synth" is used here illustratively — it is not yet one of the placeholder factions in §5.3; add a profile there when it is locked.*)
+
 ---
 
 ## 3. Building systems (two families today)
@@ -142,6 +169,8 @@ Each faction may define:
 
 - Preferred building system (Kenney vs industrial vs bespoke).
 - Overrides within that system (textures, piece subset, sizing rules).
+
+**Available kits inventoried** (`docs/kenney_kits_catalogue.md`, `assets/models/kenney_kits_index.json`): 8 new Kenney kits (901 GLB) are extracted and prepared. Architecture-grade modular systems beyond the current `space/` kit: `dungeon/` (stone — *same modular grammar as `space/`*, ideal for a priesthood/order faction), `space_station/` (sleek high-tech — synth candidate), `building/` (urban brick), `retro_fantasy/` (medieval fort exterior). Dressing kits: `factory/` (industrial pipes/conveyors/machines for the industrial substrate), `furniture/` (interior props), `space_kit/` (exterior/rail/terrain). `prototype/` = blockout only. **None are wired into procgen yet** — each needs a mesh-measured catalogue (§ catalogue doc) before generation, cheapest first target being `dungeon/`.
 
 ---
 
@@ -190,46 +219,100 @@ Variety rules (future):
 
 ---
 
-## 5. Faction procgen profile
+## 5. Procgen variables (the editor slider spec)
 
-Each faction has a **profile** (data, not code). Quantifiable fields are editor-tunable later; qualitative fields guide implementers.
+There are **two variable sets**, and the editor exposes them **together** when you generate a level:
 
-### 5.1 Quantifiable (editor sliders / dropdowns later)
+- **§5.1 Faction profile** — *per faction.* A transition level involves **two** factions (previous-camp and next-camp), so the editor shows **two faction blocks** at once.
+- **§5.2 Level composition** — *per level.* The blend: how much of the level is previous-faction / default substrate / next-faction, plus transition and substrate choice.
 
-| Parameter | Range / type | Effect on layout |
-|-----------|--------------|------------------|
-| `organicness` | 0 = grid / repetitive modules, 1 = winding mission graph, irregular chambers | Industrial → low; priesthood → high on Kenney |
-| `planning_vs_splendor` | 0 = shortest functional paths (military), 1 = long/wide ceremonial routes (priesthood) | Spine length, corridor width, hub size |
-| `room_size_bias` | small / medium / large (or metres) | Tiled chamber radius in modules; industrial “bay” length |
-| `room_count_bias` | low / medium / high | Branch count off main path |
-| `texture_catalogue` | id → asset set | Visual only at render; may constrain piece stems |
-| `floor_preference` | single / multi / mixed | Kenney floor levels; industrial vertical shafts |
-| `hidden_area_prevalence` | 0–1 | Optional branches, secret tiles, duct bypasses |
-| `loop_count` | 0–3 | Shortcuts reconnecting to spine |
-| `hub_count` | 0–2 | Degree-3/4 junctions on spine |
-| `main_path_length_bias` | short / medium / long | Steps spawn→extract on module graph |
-| `building_system` | enum | Primary generator backend |
-| `piece_subset` | list | Allowed GLBs / module defs |
+§5.3 shows the combined editor panel. §5.4–5.5 are qualitative notes + concrete profiles.
 
-### 5.2 Qualitative (manifest notes, not sliders)
+> **Status legend** below: ✅ = already a real knob in `tools/gen_freeform.py`; 🟡 = partially driven by an existing knob; ⛔ = planned, **no generator support yet** (slider would be inert until implemented). This is the honest gap between the wishlist and the current free-form generator.
+
+### 5.1 Faction profile variables (per faction)
+
+Each faction stores its own values. Quantifiable = sliders/dropdowns; qualitative (§5.4) = notes.
+
+| Variable | Type / range | Drives | `gen_freeform` knob | Status |
+|----------|--------------|--------|---------------------|--------|
+| `building_system` | enum (`dungeon`/`space_station`/`building`/`industrial_*`) | Which kit + generator backend | — (kit selection) | ⛔ |
+| `prop_set` | enum (`retro_fantasy`/`furniture`/`factory`/…) | Decoration kit for dressing pass | — | ⛔ |
+| `texture_catalogue` | id → asset set | Render-time skin; may constrain piece stems | — | ⛔ |
+| `room_count_bias` | int / low-med-high | Number of rooms | `max_rooms` | ✅ |
+| `room_size_bias` | min/max cells (or S/M/L) | Room footprint range | `room_min`, `room_max` | ✅ |
+| `loop_count` | 0–N | Shortcut corridors reconnecting the graph | `loops` | ✅ |
+| `main_path_length_bias` | short/med/long | Spawn→extract distance | `cells` (grid extent) | 🟡 |
+| `density` | 0–1 | Filled-vs-empty floor ratio | derived (`max_rooms`×size / `cells`²) | 🟡 |
+| `organicness` | 0–1 | Corridor windiness / room-edge irregularity | — (corridors hard-straight) | ⛔ |
+| `planning_vs_splendor` | 0–1 | Corridor **width**, room scale, path directness | — (corridor width fixed = 1 cell) | ⛔ |
+| `corridor_width` | 1–3 cells | Lane width | — (fixed 1) | ⛔ |
+| `hub_count` | 0–2 | Multi-way junction rooms on the path | — (exactly 1 trap-door hub) | ⛔ |
+| `floor_preference` | single / multi | Vertical levels / shafts | — (single floor + hub levels) | ⛔ |
+| `hidden_area_prevalence` | 0–1 | Secret branches / duct bypasses | — | ⛔ |
+
+**To make the ⛔ rows real (the "fix that" work, later, not now):** add to `gen_freeform.py` — variable corridor width, an `organicness`/wander param for corridor routing, optional extra hubs, a multi-floor pass, and a hidden-branch pass. Each is an isolated addition; the table above is the implementation backlog.
+
+### 5.2 Level-composition variables (per level)
+
+The blend across the run, parallel to (not inside) the faction profile. This is what answers "how much previous / default / next."
+
+| Variable | Type / range | Meaning |
+|----------|--------------|---------|
+| `prev_faction` | enum (faction id) | Previous camp's faction — bookends the **start** (§2.1) |
+| `next_faction` | enum (faction id) | Next camp's faction — bookends the **end** (§2.1) |
+| `default_substrate` | enum (`sewer`/`vent`/`rail`) | Which industrial subtype fills the **middle** |
+| `mix_mode` | preset (`all_one`/`two_blend`/`three_way`) | Sets the three fractions to sensible presets |
+| `prev_fraction` | 0–1 | Share of level in previous-faction architecture |
+| `default_fraction` | 0–1 | Share in the default industrial substrate |
+| `next_fraction` | 0–1 | Share in next-faction architecture (3 fractions sum to 1) |
+| `transition_length` | cells / rooms | Span of each hand-off zone between systems |
+| `transition_style` | enum per boundary (`hatch`/`flood`/`bulkhead`/`ritual_seal`) | Narrative read of each transition (§8) |
+| `seed` | int | Reproducible generation |
+
+> All ⛔ for now — there is no zone planner yet (§6.2 gap). `gen_freeform` builds a single-faction interior; the composition layer is Phase 4.
+
+### 5.3 Editor panel grouping (how the sliders sit together)
+
+When generating a **transition level** the Proc tab shows one panel:
+
+```
+┌── LEVEL COMPOSITION (§5.2) ───────────────────────────────┐
+│ prev_faction ▼   default_substrate ▼   next_faction ▼     │
+│ mix_mode ▼   [prev ░░░|default ░░░|next ░░░]  transition ─ │
+│ seed ___                                                   │
+├── FACTION A  = prev_faction  (§5.1) ──────────────────────┤
+│ rooms ─  size ─  loops ─  length ─  organicness ─  …       │
+├── FACTION B  = next_faction  (§5.1) ──────────────────────┤
+│ rooms ─  size ─  loops ─  length ─  organicness ─  …       │
+└────────────────────────────────────────────────────────────┘
+                          [ Generate ]
+```
+
+All-one-faction level → composition collapses (one faction block, no default/next). The point: **both involved factions' knobs + the blend are tunable in a single generate pass.**
+
+### 5.4 Qualitative (notes, not sliders)
 
 - **Silhouette:** arches vs flat panels vs greeble density.
 - **Verticality:** ladders, pits, stairs-as-story vs single plane.
-- **Symmetry:** military axis vs outlaw asymmetry.
+- **Symmetry:** ceremonial axis vs outlaw asymmetry.
 - **Lighting grammar:** neon strips vs torch niches (layout: where **chokes** and **reveals** go).
 - **Transition vocabulary:** how this faction *meets* others (hatch, gate, flood, ritual seal).
 
 Store as free-text `notes` on the profile until they become rules.
 
-### 5.3 Example profiles (placeholder IDs)
+### 5.5 Concrete profiles (the three real factions + default)
 
-| ID | Building system | organicness | planning_vs_splendor | room_size | notes |
-|----|---------------|-------------|----------------------|-----------|-------|
-| `industrial_default` | sewer/vent/rail | 0.2 | 0.1 | small bays | Repetitive tunnel modules |
-| `kenney_habitation` | Kenney | 0.5 | 0.5 | medium | Current Proc gen target |
-| `priesthood` | Kenney | 0.8 | 0.9 | large | Wide halls, long spine |
-| `military` | Kenney or industrial | 0.3 | 0.0 | small | Shortest graph, few branches |
-| `outlaw` | industrial | 0.6 | 0.2 | mixed | Hidden ducts, irregular loops |
+Maps to prepared kits (see `docs/kenney_kits_catalogue.md`). `organicness`/`planning_vs_splendor` are target values for when those knobs land.
+
+| ID | `building_system` | `prop_set` | organicness | planning_vs_splendor | room_size | notes |
+|----|-------------------|-----------|-------------|----------------------|-----------|-------|
+| `industrial_default` | `industrial_*` (procedural) | `factory` + `space_kit` (pipes/monorail) | 0.2 | 0.1 | small bays | Stale substrate; sewer/vent/rail. Metal PBR + sewer water. |
+| `priesthood` | `dungeon` (+ `retro_fantasy` exterior) | `retro_fantasy` props | 0.7 | 0.9 | large | Wide stone halls; indoor + outdoor sets. |
+| `synth` | `space_station` | `furniture` | 0.4 | 0.6 | medium | Sleek, polished; interior only so far. |
+| `outlaw` | `building` (urban brick) | `furniture` / `factory` salvage | 0.6 | 0.2 | mixed | Improvised hab; barricades, gutters. |
+
+*("synth" / "outlaw" are working names — final faction identities TBD.)*
 
 ---
 
@@ -357,7 +440,8 @@ Resolve during Phase 4; do not block Phase 1.
 
 ## 11. References
 
-- Kenney kit: `docs/kenney_space_kit.md`
+- Kenney space kit detail: `docs/kenney_space_kit.md`
+- All Kenney kits inventory: `docs/kenney_kits_catalogue.md` (+ `assets/models/kenney_kits_index.json`)
 - Hub / extraction pitfalls: `docs/hub-extraction-agent-failures.md`
 - Kenney map gen: `tools/gen_maps.py`
 - Industrial module gen: `crates/shared/src/level.rs` (`gen_grid`, `RoomKind`)
@@ -366,4 +450,4 @@ Resolve during Phase 4; do not block Phase 1.
 
 ---
 
-*Last updated: 2026-06-19 — Phase 0 manifest + §0 agent handoff for Claude Code / fresh sessions.*
+*Last updated: 2026-06-20 — added §2.1 explicit start→middle→end faction ordering (previous-camp bookends start, industrial substrate middle, next-camp bookends end) + priesthood→synth worked example.*

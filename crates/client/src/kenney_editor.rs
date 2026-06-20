@@ -526,7 +526,8 @@ pub fn spawn_piece_record_pub(
     let (sw_x, sw_z) = sw_from_placement(pos, &p.stem, yaw);
     let collide = kenney_catalog::piece(&p.stem)
         .map(|x| x.collide_default)
-        .unwrap_or(true);
+        .unwrap_or(true)
+        && !p.ceiling;
     spawn_module(
         commands,
         asset_server,

@@ -9,3 +9,17 @@
 
 # Oversized local-only assets (GitHub 100MB limit)
 /assets/models/misc/cyberpunk_city.glb
+
+# Transient dev/runtime outputs (regenerated each run; not worth tracking)
+/crash_log.txt
+/crash_err.txt
+/crash_out.txt
+/rt.txt
+/rto*.txt
+/rterr*.txt
+/startingerrors.txt
+/wall_map_verify.txt
+tools/__pycache__/
+# Throwaway generator map dumps (the curated maps live in userinput/maps/pool/)
+/userinput/maps/gen_map_*.json
+/userinput/maps/_roof_test.json

@@ -351,6 +351,16 @@ def mask_open_at(
     return not cells[iz * cx_cells + ix]
 
 
+def uses_floor_cell_collider(stem: str, floor: int, ceiling: bool = False) -> bool:
+    """Mask cuboid instead of trimesh for walkable template-floor tiles."""
+    if stem != "template-floor":
+        return False
+    if ceiling:
+        return False
+    # floor 1+ template-floor is a roof slab (matches is_ceiling_slab).
+    return floor <= 0
+
+
 def mesh_covers_cell(layout: dict, cx: float, cz: float, floor: int, ex: float, ez: float, masks) -> bool:
     if floor < 0:
         # Below ground, any floor-bearing piece (room shell or template-floor tile) counts.
@@ -361,6 +371,8 @@ def mesh_covers_cell(layout: dict, cx: float, cz: float, floor: int, ex: float, 
             stem = p["stem"]
             if skip_physics_collider(stem, fl, float(p["x"]), float(p["z"]), ex, ez, masks, layout):
                 continue
+            if uses_floor_cell_collider(stem, fl, bool(p.get("ceiling", False))):
+                continue
             if not carves_floor(stem):
                 continue
             if piece_contains_xz(p, cx, cz):
@@ -370,11 +382,17 @@ def mesh_covers_cell(layout: dict, cx: float, cz: float, floor: int, ex: float, 
         fl = int(p.get("floor", p.get("floor_level", 0)))
         if fl != floor:
             continue
-        if skip_physics_collider(p["stem"], fl, float(p["x"]), float(p["z"]), ex, ez, masks, layout):
+        stem = p["stem"]
+        if skip_physics_collider(stem, fl, float(p["x"]), float(p["z"]), ex, ez, masks, layout):
             continue
-        if not piece_collides(p["stem"]):
+        if uses_floor_cell_collider(stem, fl, bool(p.get("ceiling", False))):
             continue
-        if piece_contains_xz(p, cx, cz):
+        # Only walkable-surface pieces suppress the mask cuboid (not walls).
+        if stem.startswith("corridor"):
+            if piece_contains_xz(p, cx, cz):
+                return True
+            continue
+        if carves_floor(stem) and piece_contains_xz(p, cx, cz):
             return True
     return False
 

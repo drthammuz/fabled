@@ -321,6 +321,9 @@ fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, in
         if !collide || kenney_skip_piece_collider(p, &inst.layout) {
             continue;
         }
+        if shared::kenney_layout::uses_floor_cell_collider(p) {
+            continue;
+        }
         let yaw = quantize_yaw(p.yaw);
         let path = shared::editor_catalog::glb_asset_path(&p.stem);
         let scale = p.scale.max(0.01);
@@ -377,7 +380,7 @@ fn spawn_instance_floors(commands: &mut Commands, inst: &MountedMap) {
                 }
                 let cx = x0 + (ix as f32 + 0.5) * cell;
                 let cz = z0 + (iz as f32 + 0.5) * cell;
-                if *level < 0 && crate::level::kenney_mesh_covers_cell(layout, ix, iz, *level) {
+                if crate::level::kenney_mesh_covers_cell(layout, ix, iz, *level) {
                     continue;
                 }
                 commands.spawn((

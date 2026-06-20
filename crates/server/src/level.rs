@@ -195,6 +195,11 @@ pub fn kenney_mesh_covers_cell(
                 && kenney_piece_contains_xz(p, cx, cz)
         });
     }
+    // RESTORED (b611031): any collidable, non-skipped piece covering this cell counts
+    // as coverage — INCLUDING template-floor's own baked trimesh. That trimesh sits
+    // flush at the floor surface and reliably catches the player; the cell-cuboid
+    // path (template-floor routed to KenneyFloorCell) let players fall through solid
+    // interior tiles. Cuboids now only fill BARE mask cells with no floor piece.
     layout.pieces.iter().any(|p| {
         if p.floor as i32 != floor_level {
             return false;
@@ -232,6 +237,12 @@ fn spawn_kenney_floor_cells(commands: &mut Commands, test: Option<&TestMode>, ed
         return;
     }
     let cell = layout.grid_unit_m;
+    // Walkable surface of every floor-bearing GLB (corridor, template-floor) sits at
+    // the piece floor_y = level*MOD_H + 0.002 (their meshes have y=0 at the floor).
+    // The cell cuboid rests its TOP flush with that surface (centre = surface - half),
+    // so floor-tile cells line up with the corridor floor instead of standing proud.
+    const FLOOR_HALF_H: f32 = 0.25;
+    const FLOOR_SURFACE_Y: f32 = 0.002;
     let mut n = 0u32;
     for (level, mask) in &layout.floors {
         let y = *level as f32 * MOD_H;
@@ -256,8 +267,13 @@ fn spawn_kenney_floor_cells(commands: &mut Commands, test: Option<&TestMode>, ed
                         map_iz: iz,
                     },
                     RigidBody::Static,
-                    Collider::cuboid(cell * 0.5, 0.12, cell * 0.5),
-                    Transform::from_translation(Vec3::new(cx, y + 0.08, cz)),
+                    Collider::cuboid(cell * 0.5, FLOOR_HALF_H, cell * 0.5),
+                    // Top flush with the floor surface: centre = surface - half-height.
+                    Transform::from_translation(Vec3::new(
+                        cx,
+                        y + FLOOR_SURFACE_Y - FLOOR_HALF_H,
+                        cz,
+                    )),
                 ));
                 n += 1;
             }
@@ -314,6 +330,9 @@ fn spawn_kenney_piece_scenes(
         if !collide || kenney_skip_piece_collider(p, &layout) {
             continue;
         }
+        // RESTORED (b611031): walkable template-floor tiles bake their own flush trimesh
+        // here (not a KenneyFloorCell cuboid). The cuboid path let players fall through
+        // solid interior floor; the trimesh — same path corridors use — holds reliably.
         let yaw = quantize_yaw(p.yaw);
         let floor_y = p.floor as f32 * MOD_H + 0.002;
         let path = shared::editor_catalog::glb_asset_path(&p.stem);
@@ -356,8 +375,8 @@ pub fn kenney_skip_piece_collider(
     p: &shared::kenney_layout::KenneyPlacement,
     layout: &KenneyLayout,
 ) -> bool {
-    // Ceiling slabs are visual-only (flipped template-floor one level up).
-    if p.ceiling {
+    // Ceiling / roof slabs are visual-only (template-floor one level above walkable).
+    if shared::kenney_layout::is_ceiling_slab(p) {
         return true;
     }
     // The hole frame (template-floor-hole) is a raised rim with an open centre: it
