@@ -19,8 +19,13 @@ const DEBOUNCE_SECS: f32 = 0.75;
 pub struct MapGenSettings {
     pub seed: u32,
     pub attempts: u32,
-    pub synth_retries: u32,
-    pub target_degree: f32,
+    // Real free-form generator knobs (forwarded to tools/gen_maps.py --preview).
+    pub cells: u32,
+    pub rooms: u32,
+    pub loops: u32,
+    pub organicness: f32,
+    pub corridor_width: f32,
+    pub hidden: f32,
     pub auto_regen: bool,
 }
 
@@ -29,8 +34,12 @@ impl Default for MapGenSettings {
         Self {
             seed: 1,
             attempts: 30,
-            synth_retries: 12,
-            target_degree: 2.25,
+            cells: 25,
+            rooms: 11,
+            loops: 3,
+            organicness: 0.0,
+            corridor_width: 1.0,
+            hidden: 0.0,
             auto_regen: true,
         }
     }
@@ -40,7 +49,7 @@ impl Default for MapGenSettings {
 pub struct MapGenReport {
     pub spawn: [i32; 2],
     pub end: [i32; 2],
-    pub avg_degree: f32,
+    pub rooms: u32,
     pub pieces: u32,
     pub elapsed_s: f32,
     pub paint: String,
@@ -70,10 +79,18 @@ pub enum MapGenBtn {
     SeedInc,
     AttemptsDec,
     AttemptsInc,
-    SynthDec,
-    SynthInc,
-    DegreeDec,
-    DegreeInc,
+    CellsDec,
+    CellsInc,
+    RoomsDec,
+    RoomsInc,
+    LoopsDec,
+    LoopsInc,
+    OrganicDec,
+    OrganicInc,
+    WidthDec,
+    WidthInc,
+    HiddenDec,
+    HiddenInc,
 }
 
 #[derive(Component)]
@@ -103,10 +120,18 @@ fn run_python_preview(settings: &MapGenSettings) -> MapGenOutcome {
         settings.seed.to_string(),
         "--attempts".into(),
         settings.attempts.to_string(),
-        "--synth-retries".into(),
-        settings.synth_retries.to_string(),
-        "--target-degree".into(),
-        format!("{:.2}", settings.target_degree),
+        "--cells".into(),
+        settings.cells.to_string(),
+        "--rooms".into(),
+        settings.rooms.to_string(),
+        "--loops".into(),
+        settings.loops.to_string(),
+        "--organicness".into(),
+        format!("{:.2}", settings.organicness),
+        "--corridor-width".into(),
+        format!("{:.2}", settings.corridor_width),
+        "--hidden".into(),
+        format!("{:.2}", settings.hidden),
         "--out".into(),
         out.to_string_lossy().into_owned(),
     ];
@@ -260,10 +285,10 @@ pub fn map_gen_poll(
                 runtime.status = "Preview file missing".into();
             }
 
-            if let (Some(sp), Some(en), Some(avg), Some(pieces), Some(elapsed)) = (
+            if let (Some(sp), Some(en), Some(rooms), Some(pieces), Some(elapsed)) = (
                 report.get("spawn").and_then(|v| v.as_array()),
                 report.get("end").and_then(|v| v.as_array()),
-                report.get("avg_degree").and_then(|v| v.as_f64()),
+                report.get("rooms").and_then(|v| v.as_u64()),
                 report.get("pieces").and_then(|v| v.as_u64()),
                 report.get("elapsed_s").and_then(|v| v.as_f64()),
             ) {
@@ -278,7 +303,7 @@ pub fn map_gen_poll(
                 runtime.last_report = Some(MapGenReport {
                     spawn,
                     end,
-                    avg_degree: avg as f32,
+                    rooms: rooms as u32,
                     pieces: pieces as u32,
                     elapsed_s: elapsed as f32,
                     paint: report
@@ -288,8 +313,8 @@ pub fn map_gen_poll(
                         .to_string(),
                 });
                 runtime.status = format!(
-                    "OK {:.1}s · {} pieces · deg {:.2}",
-                    elapsed, pieces, avg
+                    "OK {:.1}s · {} rooms · {} pieces",
+                    elapsed, rooms, pieces
                 );
             } else {
                 runtime.status = "Generated".into();
@@ -353,20 +378,52 @@ pub fn map_gen_button_input(
                 settings.attempts = (settings.attempts + 5).min(200);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
-            MapGenBtn::SynthDec => {
-                settings.synth_retries = settings.synth_retries.saturating_sub(2).max(2);
+            MapGenBtn::CellsDec => {
+                settings.cells = settings.cells.saturating_sub(1).max(12);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
-            MapGenBtn::SynthInc => {
-                settings.synth_retries = (settings.synth_retries + 2).min(40);
+            MapGenBtn::CellsInc => {
+                settings.cells = (settings.cells + 1).min(40);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
-            MapGenBtn::DegreeDec => {
-                settings.target_degree = (settings.target_degree - 0.1).max(1.5);
+            MapGenBtn::RoomsDec => {
+                settings.rooms = settings.rooms.saturating_sub(1).max(2);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
-            MapGenBtn::DegreeInc => {
-                settings.target_degree = (settings.target_degree + 0.1).min(3.5);
+            MapGenBtn::RoomsInc => {
+                settings.rooms = (settings.rooms + 1).min(24);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::LoopsDec => {
+                settings.loops = settings.loops.saturating_sub(1);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::LoopsInc => {
+                settings.loops = (settings.loops + 1).min(8);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::OrganicDec => {
+                settings.organicness = (settings.organicness - 0.1).max(0.0);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::OrganicInc => {
+                settings.organicness = (settings.organicness + 0.1).min(1.0);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::WidthDec => {
+                settings.corridor_width = (settings.corridor_width - 0.1).max(1.0);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::WidthInc => {
+                settings.corridor_width = (settings.corridor_width + 0.1).min(2.0);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::HiddenDec => {
+                settings.hidden = (settings.hidden - 0.1).max(0.0);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::HiddenInc => {
+                settings.hidden = (settings.hidden + 0.1).min(1.0);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
         }
@@ -384,20 +441,14 @@ pub fn spawn_map_gen_panel(
     runtime: &MapGenRuntime,
 ) {
     parent.spawn((
-        Text::new("Procedural map (5×5)"),
-        TextFont {
-            font_size: 13.0,
-            ..default()
-        },
+        Text::new("Procedural map"),
+        TextFont { font_size: 13.0, ..default() },
         TextColor(Color::srgb(0.45, 0.92, 1.0)),
     ));
 
     parent.spawn((
         Text::new(runtime.status.as_str()),
-        TextFont {
-            font_size: 11.5,
-            ..default()
-        },
+        TextFont { font_size: 11.5, ..default() },
         TextColor(if runtime.generating {
             Color::srgb(1.0, 0.85, 0.35)
         } else if runtime.last_report.is_some() {
@@ -411,70 +462,117 @@ pub fn spawn_map_gen_panel(
     row_btn(
         parent,
         MapGenBtn::AutoRegenToggle,
-        if settings.auto_regen {
-            "Auto-regen: ON"
-        } else {
-            "Auto-regen: OFF"
-        },
+        if settings.auto_regen { "Auto-regen: ON" } else { "Auto-regen: OFF" },
     );
 
+    section_label(parent, "Layout");
     param_row(parent, "Seed", &settings.seed.to_string(), MapGenBtn::SeedDec, MapGenBtn::SeedInc);
     parent.spawn((MapGenBtn::RandomSeed, small_btn("Randomize seed")));
+    param_row(parent, "Grid (cells)", &settings.cells.to_string(), MapGenBtn::CellsDec, MapGenBtn::CellsInc);
+    param_row(parent, "Max rooms", &settings.rooms.to_string(), MapGenBtn::RoomsDec, MapGenBtn::RoomsInc);
+    param_row(parent, "Loops", &settings.loops.to_string(), MapGenBtn::LoopsDec, MapGenBtn::LoopsInc);
 
-    param_row(
-        parent,
-        "Attempts",
-        &settings.attempts.to_string(),
-        MapGenBtn::AttemptsDec,
-        MapGenBtn::AttemptsInc,
-    );
-    param_row(
-        parent,
-        "Synth retries",
-        &settings.synth_retries.to_string(),
-        MapGenBtn::SynthDec,
-        MapGenBtn::SynthInc,
-    );
-    param_row(
-        parent,
-        "Target degree",
-        &format!("{:.2}", settings.target_degree),
-        MapGenBtn::DegreeDec,
-        MapGenBtn::DegreeInc,
-    );
+    section_label(parent, "Feel");
+    slider_row(parent, "Organicness", &format!("{:.1}", settings.organicness),
+               settings.organicness, MapGenBtn::OrganicDec, MapGenBtn::OrganicInc);
+    slider_row(parent, "Corridor width", &format!("{:.1}", settings.corridor_width),
+               settings.corridor_width - 1.0, MapGenBtn::WidthDec, MapGenBtn::WidthInc);
+
+    section_label(parent, "Secrets");
+    slider_row(parent, "Hidden areas", &format!("{:.1}", settings.hidden),
+               settings.hidden, MapGenBtn::HiddenDec, MapGenBtn::HiddenInc);
+
+    section_label(parent, "Advanced");
+    param_row(parent, "Attempts", &settings.attempts.to_string(), MapGenBtn::AttemptsDec, MapGenBtn::AttemptsInc);
 
     if let Some(r) = &runtime.last_report {
         parent.spawn((
             Text::new(format!(
-                "spawn {:?}  end {:?}\n{} pcs  deg {:.2}  {:.1}s",
-                r.spawn, r.end, r.pieces, r.avg_degree, r.elapsed_s
+                "spawn {:?}  end {:?}\n{} rooms · {} pcs · {:.1}s",
+                r.spawn, r.end, r.rooms, r.pieces, r.elapsed_s
             )),
-            TextFont {
-                font_size: 10.5,
-                ..default()
-            },
+            TextFont { font_size: 10.5, ..default() },
             TextColor(Color::srgb(0.65, 0.72, 0.82)),
         ));
         if !r.paint.is_empty() {
             parent.spawn((
                 Text::new(r.paint.as_str()),
-                TextFont {
-                    font_size: 9.5,
-                    ..default()
-                },
+                TextFont { font_size: 9.5, ..default() },
                 TextColor(Color::srgb(0.5, 0.58, 0.68)),
             ));
         }
     }
 
     parent.spawn((
-        Text::new("G = playtest after regen\nAdjust sliders — auto-regen waits ~0.75s"),
-        TextFont {
-            font_size: 10.0,
-            ..default()
-        },
+        Text::new("G = playtest after regen\nAuto-regen waits ~0.75s"),
+        TextFont { font_size: 10.0, ..default() },
         TextColor(Color::srgb(0.45, 0.52, 0.62)),
     ));
+}
+
+fn section_label(parent: &mut ChildSpawnerCommands, text: &str) {
+    parent.spawn((
+        Text::new(text),
+        TextFont { font_size: 11.0, ..default() },
+        TextColor(Color::srgb(0.40, 0.86, 1.0)),
+        Node { margin: UiRect::top(Val::Px(7.0)), ..default() },
+    ));
+}
+
+/// Param row with a slider-style fill bar (`fill` is 0..1 of the track).
+fn slider_row(
+    parent: &mut ChildSpawnerCommands,
+    label: &str,
+    value: &str,
+    fill: f32,
+    dec: MapGenBtn,
+    inc: MapGenBtn,
+) {
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(2.0),
+            margin: UiRect::vertical(Val::Px(3.0)),
+            ..default()
+        })
+        .with_children(|col| {
+            col.spawn(Node {
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: Val::Px(4.0),
+                ..default()
+            })
+            .with_children(|row| {
+                row.spawn((
+                    Text::new(label),
+                    TextFont { font_size: 11.0, ..default() },
+                    TextColor(Color::srgb(0.55, 0.65, 0.75)),
+                    Node { width: Val::Px(96.0), ..default() },
+                ));
+                row.spawn((dec, small_btn("−")));
+                row.spawn((
+                    Text::new(value),
+                    TextFont { font_size: 11.0, ..default() },
+                    TextColor(Color::srgb(0.85, 0.95, 1.0)),
+                    Node { width: Val::Px(34.0), justify_content: JustifyContent::Center, ..default() },
+                ));
+                row.spawn((inc, small_btn("+")));
+            });
+            col.spawn((
+                Node { width: Val::Percent(100.0), height: Val::Px(4.0), ..default() },
+                BackgroundColor(Color::srgba(0.10, 0.16, 0.24, 0.95)),
+            ))
+            .with_children(|bar| {
+                bar.spawn((
+                    Node {
+                        width: Val::Percent(fill.clamp(0.0, 1.0) * 100.0),
+                        height: Val::Percent(100.0),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgb(0.30, 0.75, 0.95)),
+                ));
+            });
+        });
 }
 
 fn row_btn(parent: &mut ChildSpawnerCommands, action: MapGenBtn, label: &str) {
