@@ -213,6 +213,9 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
             group_id: Some(BRANCH_GID_L2),
             ceiling: false,
             underside: false,
+            kit: None,
+            tint: None,
+            tags: vec![],
         });
     }
 
@@ -230,6 +233,9 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
             group_id: Some(BRANCH_GID_L3),
             ceiling: false,
             underside: false,
+            kit: None,
+            tint: None,
+            tags: vec![],
         });
     }
 

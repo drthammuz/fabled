@@ -325,7 +325,10 @@ fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, in
             continue;
         }
         let yaw = quantize_yaw(p.yaw);
-        let path = shared::editor_catalog::glb_asset_path(&p.stem);
+        let path = shared::editor_catalog::glb_asset_path_in_kit(
+            &p.stem,
+            p.kit.as_deref().unwrap_or("space"),
+        );
         let scale = p.scale.max(0.01);
         // Compute cutouts in the local frame (local mask + local extraction), then translate
         // the resulting world-space hole/opening centres by the instance offset.

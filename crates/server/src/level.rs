@@ -48,6 +48,15 @@ pub struct KenneyPieceMeta {
 #[derive(Component)]
 pub struct KenneyFloorCell;
 
+/// Procedural stretch-level static colliders (sewer walls/floors). Hidden during
+/// editor Kenney playtest — they overlap the procgen map near world origin.
+#[derive(Component)]
+pub struct StretchStaticCollider;
+
+/// Generation stamp so async trimesh bakes ignore stale `KenneyColliderScene`s.
+#[derive(Component, Clone, Copy)]
+pub struct KenneyColliderEpoch(pub u32);
+
 #[derive(Component, Clone, Copy)]
 pub struct KenneyInstanceTag {
     pub instance_id: u32,
@@ -69,6 +78,12 @@ pub struct KenneyLayoutCache(pub KenneyLayout);
 
 #[derive(Resource, Default)]
 struct KenneyColliderGeneration(u32);
+
+#[derive(Resource, Clone)]
+struct StretchLevelSource {
+    id: String,
+    seed: u64,
+}
 
 pub struct ServerLevelPlugin;
 
@@ -92,12 +107,15 @@ impl Plugin for ServerLevelPlugin {
                     .chain()
                     .in_set(LevelReady),
             )
-            .add_systems(Update, reload_kenney_playtest)
-            // Run AFTER transform propagation so GlobalTransform is correct
-            // when we bake world-space trimesh colliders from GLTF scene meshes.
+            // PostUpdate: reload before bake so despawn commands flush before we
+            // walk `KenneyColliderScene` (Update→PostUpdate ordering).
             .add_systems(
                 PostUpdate,
-                build_kenney_trimesh_colliders
+                (
+                    reload_kenney_playtest,
+                    build_kenney_trimesh_colliders.after(reload_kenney_playtest),
+                )
+                    .chain()
                     .after(TransformSystems::Propagate),
             );
     }
@@ -118,6 +136,10 @@ fn initial_load(
     let (id, seed) = run.single()
         .map(|r| (r.level_id.clone(), r.run_seed))
         .unwrap_or_else(|_| ("sewer_entry".to_string(), 0));
+    commands.insert_resource(StretchLevelSource {
+        id: id.clone(),
+        seed,
+    });
     let def = level::level_by_id(&id, seed);
     load_level(&mut commands, &existing, &def);
 }
@@ -134,7 +156,7 @@ fn spawn_kenney_layout_colliders(
     if test.as_ref().is_some_and(|t| t.style == TestMapStyle::Kenney) {
         if editor.is_some() {
             layout_cache.0 = shared::map_pool::play_layout(true);
-            spawn_kenney_piece_scenes(&mut commands, &asset_server, test.as_deref(), editor.as_deref());
+            spawn_kenney_piece_scenes(&mut commands, &asset_server, test.as_deref(), editor.as_deref(), 0);
             return;
         }
         if let Some(world) = stream.as_ref() {
@@ -156,7 +178,7 @@ fn spawn_kenney_layout_colliders(
         }
         layout_cache.0 = shared::map_pool::test_play_layout();
     }
-    spawn_kenney_piece_scenes(&mut commands, &asset_server, test.as_deref(), editor.as_deref());
+    spawn_kenney_piece_scenes(&mut commands, &asset_server, test.as_deref(), editor.as_deref(), 0);
 }
 
 fn spawn_kenney_floor_colliders(
@@ -168,7 +190,7 @@ fn spawn_kenney_floor_colliders(
     if editor.is_none() && stream.is_some() && stream_enabled(test.as_deref()) {
         return;
     }
-    spawn_kenney_floor_cells(&mut commands, test.as_deref(), editor.as_deref());
+    spawn_kenney_floor_cells(&mut commands, test.as_deref(), editor.as_deref(), 0);
 }
 
 fn stream_enabled(test: Option<&TestMode>) -> bool {
@@ -225,7 +247,12 @@ fn kenney_piece_contains_xz(p: &shared::kenney_layout::KenneyPlacement, cx: f32,
     (p.x - cx).abs() <= half_w + 0.05 && (p.z - cz).abs() <= half_d + 0.05
 }
 
-fn spawn_kenney_floor_cells(commands: &mut Commands, test: Option<&TestMode>, editor: Option<&EditorMode>) {
+fn spawn_kenney_floor_cells(
+    commands: &mut Commands,
+    test: Option<&TestMode>,
+    editor: Option<&EditorMode>,
+    epoch: u32,
+) {
     let Some(test) = test else {
         return;
     };
@@ -261,6 +288,7 @@ fn spawn_kenney_floor_cells(commands: &mut Commands, test: Option<&TestMode>, ed
                 commands.spawn((
                     LevelEntity,
                     KenneyFloorCell,
+                    KenneyColliderEpoch(epoch),
                     KenneyFloorCellMeta {
                         floor: *level,
                         map_ix: ix,
@@ -288,25 +316,57 @@ fn reload_kenney_playtest(
     test: Option<Res<TestMode>>,
     editor: Option<Res<EditorMode>>,
     generation: Res<KenneyPlaytestGeneration>,
+    stretch_src: Option<Res<StretchLevelSource>>,
     mut last: ResMut<KenneyColliderGeneration>,
     mut layout_cache: ResMut<KenneyLayoutCache>,
-    scenes: Query<Entity, With<KenneyColliderScene>>,
-    floors: Query<Entity, With<KenneyFloorCell>>,
+    kenney_collision: Query<
+        Entity,
+        Or<(
+            With<KenneyPieceMeta>,
+            With<KenneyColliderScene>,
+            With<KenneyFloorCell>,
+        )>,
+    >,
+    stretch_statics: Query<Entity, With<StretchStaticCollider>>,
 ) {
     let Some(test) = test else {
         return;
     };
-    if test.style != TestMapStyle::Kenney || last.0 == generation.0 {
+    if last.0 == generation.0 {
         return;
     }
     last.0 = generation.0;
-    layout_cache.0 = shared::map_pool::play_layout(editor.is_some());
+    let epoch = generation.0;
 
-    for e in scenes.iter().chain(floors.iter()) {
+    for e in &kenney_collision {
         commands.entity(e).despawn();
     }
-    spawn_kenney_floor_cells(&mut commands, Some(&test), editor.as_deref());
-    spawn_kenney_piece_scenes(&mut commands, &asset_server, Some(&test), editor.as_deref());
+
+    if test.style != TestMapStyle::Kenney {
+        // Leaving Kenney playtest — restore procedural stretch statics for editor.
+        if editor.is_some() && stretch_statics.is_empty() {
+            if let Some(src) = stretch_src.as_ref() {
+                let def = level::level_by_id(&src.id, src.seed);
+                spawn_stretch_static_colliders(&mut commands, &def);
+            }
+        }
+        return;
+    }
+
+    // Entering Kenney playtest — hide stretch statics that overlap the procgen map.
+    for e in &stretch_statics {
+        commands.entity(e).despawn();
+    }
+
+    layout_cache.0 = shared::map_pool::play_layout(editor.is_some());
+    spawn_kenney_floor_cells(&mut commands, Some(&test), editor.as_deref(), epoch);
+    spawn_kenney_piece_scenes(
+        &mut commands,
+        &asset_server,
+        Some(&test),
+        editor.as_deref(),
+        epoch,
+    );
 }
 
 fn spawn_kenney_piece_scenes(
@@ -314,6 +374,7 @@ fn spawn_kenney_piece_scenes(
     asset_server: &AssetServer,
     test: Option<&TestMode>,
     editor: Option<&EditorMode>,
+    epoch: u32,
 ) {
     let Some(test) = test else {
         return;
@@ -335,7 +396,10 @@ fn spawn_kenney_piece_scenes(
         // solid interior floor; the trimesh — same path corridors use — holds reliably.
         let yaw = quantize_yaw(p.yaw);
         let floor_y = p.floor as f32 * MOD_H + 0.002;
-        let path = shared::editor_catalog::glb_asset_path(&p.stem);
+        let path = shared::editor_catalog::glb_asset_path_in_kit(
+            &p.stem,
+            p.kit.as_deref().unwrap_or("space"),
+        );
         let scale = p.scale.max(0.01);
         let mesh_cutouts = shared::kenney_pit::mesh_cutouts_for_piece(
             &p.stem,
@@ -355,6 +419,7 @@ fn spawn_kenney_piece_scenes(
                 group_id: p.group_id,
                 floor: p.floor,
             },
+            KenneyColliderEpoch(epoch),
             KenneyPieceMeta {
                 group_id: p.group_id,
                 floor: p.floor,
@@ -463,12 +528,18 @@ fn spawn_city_colliders(
 /// Bake trimesh colliders from loaded Kenney meshes (matches visible geometry).
 fn build_kenney_trimesh_colliders(
     mut commands: Commands,
+    generation: Res<KenneyPlaytestGeneration>,
     meshes: Res<Assets<Mesh>>,
-    scenes: Query<(Entity, &KenneyColliderScene, &Children)>,
+    scenes: Query<(Entity, &KenneyColliderScene, Option<&KenneyColliderEpoch>, &Children)>,
     children_q: Query<&Children>,
     mesh_q: Query<(&Mesh3d, &GlobalTransform)>,
 ) {
-    for (scene, meta, _) in &scenes {
+    let epoch = generation.0;
+    for (scene, meta, scene_epoch, _) in &scenes {
+        if scene_epoch.is_some_and(|e| e.0 != epoch) {
+            commands.entity(scene).despawn();
+            continue;
+        }
         let mesh_ents: Vec<(Entity, &Mesh3d, &GlobalTransform)> = children_q
             .iter_descendants(scene)
             .filter_map(|e| mesh_q.get(e).ok().map(|(m, gt)| (e, m, gt)))
@@ -490,6 +561,7 @@ fn build_kenney_trimesh_colliders(
             };
             commands.spawn((
                 LevelEntity,
+                KenneyColliderEpoch(epoch),
                 KenneyPieceMeta {
                     group_id: meta.group_id,
                     floor: meta.floor,
@@ -562,7 +634,7 @@ fn prop_collider(shape: &PropShape) -> Collider {
     }
 }
 
-fn spawn_level_content(commands: &mut Commands, level: &LevelDef) {
+fn spawn_stretch_static_colliders(commands: &mut Commands, level: &LevelDef) {
     let mut channel_id = 0u32;
     for def in &level.statics {
         if def.kind == level::StaticKind::SewerWater {
@@ -570,8 +642,6 @@ fn spawn_level_content(commands: &mut Commands, level: &LevelDef) {
             channel_id += 1;
             continue;
         }
-        // Pipes are solid: a cylinder collider matching the rendered mesh so
-        // players can't walk through them.
         if matches!(def.kind, level::StaticKind::SewerPipe | level::StaticKind::SewerPipeBend) {
             let (radius, length, rotation) = match def.kind {
                 level::StaticKind::SewerPipe => level::straight_pipe(def),
@@ -579,6 +649,7 @@ fn spawn_level_content(commands: &mut Commands, level: &LevelDef) {
             };
             commands.spawn((
                 LevelEntity,
+                StretchStaticCollider,
                 RigidBody::Static,
                 Collider::cylinder(radius, length),
                 Transform::from_translation(def.position).with_rotation(rotation),
@@ -601,11 +672,16 @@ fn spawn_level_content(commands: &mut Commands, level: &LevelDef) {
         }
         commands.spawn((
             LevelEntity,
+            StretchStaticCollider,
             RigidBody::Static,
             Collider::cuboid(def.size.x, def.size.y, def.size.z),
             Transform::from_translation(def.position).with_rotation(def.rotation),
         ));
     }
+}
+
+fn spawn_level_content(commands: &mut Commands, level: &LevelDef) {
+    spawn_stretch_static_colliders(commands, level);
 
     for PropDef {
         shape,

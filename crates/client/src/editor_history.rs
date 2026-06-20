@@ -113,6 +113,9 @@ pub fn record_from_snapshot(s: &PieceSnapshot) -> PieceRecord {
         group_id: s.group_id,
         ceiling: false,
         underside: false,
+        kit: None,
+        tint: None,
+        tags: vec![],
     }
 }
 

@@ -15,6 +15,14 @@ use crate::editor_workspace::EditorWorkspace;
 
 const DEBOUNCE_SECS: f32 = 0.75;
 
+const FACTION_PROFILES: [&str; 5] = [
+    "space_default",
+    "priesthood",
+    "synth",
+    "outlaw",
+    "industrial_default",
+];
+
 #[derive(Resource, Clone, Debug)]
 pub struct MapGenSettings {
     pub seed: u32,
@@ -26,6 +34,7 @@ pub struct MapGenSettings {
     pub organicness: f32,
     pub corridor_width: f32,
     pub hidden: f32,
+    pub faction_profile: String,
     pub auto_regen: bool,
 }
 
@@ -40,6 +49,7 @@ impl Default for MapGenSettings {
             organicness: 0.0,
             corridor_width: 1.0,
             hidden: 0.0,
+            faction_profile: "space_default".into(),
             auto_regen: true,
         }
     }
@@ -91,6 +101,7 @@ pub enum MapGenBtn {
     WidthInc,
     HiddenDec,
     HiddenInc,
+    FactionCycle,
 }
 
 #[derive(Component)]
@@ -132,6 +143,8 @@ fn run_python_preview(settings: &MapGenSettings) -> MapGenOutcome {
         format!("{:.2}", settings.corridor_width),
         "--hidden".into(),
         format!("{:.2}", settings.hidden),
+        "--faction-profile".into(),
+        settings.faction_profile.clone(),
         "--out".into(),
         out.to_string_lossy().into_owned(),
     ];
@@ -426,6 +439,14 @@ pub fn map_gen_button_input(
                 settings.hidden = (settings.hidden + 0.1).min(1.0);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
+            MapGenBtn::FactionCycle => {
+                let idx = FACTION_PROFILES
+                    .iter()
+                    .position(|p| *p == settings.faction_profile.as_str())
+                    .unwrap_or(0);
+                settings.faction_profile = FACTION_PROFILES[(idx + 1) % FACTION_PROFILES.len()].into();
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
         }
         ws.sidebar_dirty = true;
     }
@@ -463,6 +484,13 @@ pub fn spawn_map_gen_panel(
         parent,
         MapGenBtn::AutoRegenToggle,
         if settings.auto_regen { "Auto-regen: ON" } else { "Auto-regen: OFF" },
+    );
+
+    section_label(parent, "Faction");
+    row_btn(
+        parent,
+        MapGenBtn::FactionCycle,
+        &format!("Profile: {}", settings.faction_profile),
     );
 
     section_label(parent, "Layout");

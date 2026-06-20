@@ -1,0 +1,24 @@
+{
+  "id": "synth",
+  "label": "Synth (space station)",
+  "building_system": "space_station",
+  "prop_set": "furniture",
+  "organicness": 0.4,
+  "corridor_width": 1.2,
+  "hidden_area_prevalence": 0.0,
+  "room_min": 3,
+  "room_max": 7,
+  "max_rooms": 11,
+  "loops": 3,
+  "notes": "",
+  "hidden_door": {
+    "stem": "gate-door",
+    "kit": "space",
+    "tint": [
+      0.55,
+      0.95,
+      0.88
+    ],
+    "tag": "hidden_entrance"
+  }
+}

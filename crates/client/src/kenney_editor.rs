@@ -13,7 +13,8 @@ use shared::editor_map::{
     ActiveDocKind, EditorTool, EditorWorkflow, GridSpec, PieceRecord,
 };
 use shared::editor_settings::UserEditorPrefs;
-use shared::editor_catalog::{self, glb_asset_path};
+use crate::door_anim::HiddenEntranceDoor;
+use shared::editor_catalog::{glb_asset_path, glb_asset_path_in_kit};
 use shared::kenney_catalog::{
     self, placement_for_hover, quantize_yaw, rotated_grid_size, sw_from_placement, KENNEY_CELL,
     KENNEY_MOD_M,
@@ -51,7 +52,7 @@ use crate::editor_workspace::{EditorMenuRoot, EditorSidebarRoot, EditorWorkspace
 use crate::process_spawn::relaunch_fabled;
 use crate::test_showcase::{
     cut_kenney_mesh, init_editor_kenney_materials, CyberLaserMaterial, CyberMaterial,
-    CyberMaterialCeiling, KenneyModule, EDITOR_BUILD_TAG,
+    CyberMaterialCeiling, KenneyModule, PieceTint, EDITOR_BUILD_TAG,
 };
 
 fn editor_active(editor: Option<Res<EditorMode>>, playtest: Option<Res<EditorPlaytestActive>>) -> bool {
@@ -392,6 +393,9 @@ fn load_initial_documents(ws: &mut EditorWorkspace) {
             group_id: p.group_id,
             ceiling: p.ceiling,
             underside: p.underside,
+            kit: p.kit.clone(),
+            tint: p.tint,
+            tags: p.tags.clone(),
         });
     }
 }
@@ -475,10 +479,16 @@ fn spawn_module(
     group_id: Option<u32>,
     ceiling: bool,
     underside: bool,
+    kit: Option<&str>,
+    tint: Option<[f32; 3]>,
+    tags: &[String],
 ) {
     let name = stem_static(stem);
-    let path = glb_asset_path(stem);
-    commands.spawn((
+    let path = kit
+        .map(|k| glb_asset_path_in_kit(stem, k))
+        .unwrap_or_else(|| glb_asset_path(stem));
+    let kit_static = kit.map(stem_static);
+    let mut bundle = (
         SceneRoot(asset_server.load_with_settings(
             GltfAssetLabel::Scene(0).from_asset(path),
             |s: &mut GltfLoaderSettings| s.load_meshes = RenderAssetUsages::all(),
@@ -493,6 +503,7 @@ fn spawn_module(
             group_id,
             floor: floor_level,
             ceiling,
+            kit: kit_static,
         },
         EditorPlaced {
             piece_id,
@@ -505,7 +516,20 @@ fn spawn_module(
             underside,
         },
         Visibility::Inherited,
-    ));
+    );
+    let entity = commands.spawn(bundle).id();
+    if let Some(rgb) = tint {
+        commands.entity(entity).insert(crate::test_showcase::PieceTint(rgb));
+    }
+    if let Some(k) = kit {
+        commands
+            .entity(entity)
+            .insert(crate::test_showcase::PieceKit(k.to_string()));
+    }
+    if tags.iter().any(|t| t == "hidden_entrance") {
+        commands.entity(entity).insert(HiddenEntranceDoor);
+    }
+    let _ = tags;
 }
 
 pub fn spawn_piece_record_pub(
@@ -544,6 +568,9 @@ pub fn spawn_piece_record_pub(
         p.group_id,
         p.ceiling,
         p.underside,
+        p.kit.as_deref(),
+        p.tint,
+        &p.tags,
     );
 }
 
@@ -566,6 +593,7 @@ fn spawn_ghost(commands: &mut Commands, asset_server: &AssetServer, state: &Edit
             group_id: None,
             floor: floor_level,
             ceiling: false,
+            kit: None,
         },
         EditorGhost,
         Visibility::Inherited,
@@ -602,6 +630,7 @@ fn spawn_module_ghost(
                 group_id: p.group_id,
                 floor: ws.floor_level + p.floor_level,
                 ceiling: false,
+                kit: None,
             },
             EditorGhost,
             EditorModuleGhostPiece {
@@ -722,6 +751,9 @@ fn sync_pieces_from_world(
             group_id: ep.group_id,
             ceiling: ep.ceiling,
             underside: ep.underside,
+            kit: None,
+            tint: None,
+            tags: vec![],
         })
         .collect()
 }
@@ -1010,6 +1042,9 @@ fn editor_input(
             None,
             false,
             false,
+            None,
+            None,
+            &[],
         );
         state.next_id += 1;
         ws.dirty = true;
@@ -1023,6 +1058,9 @@ fn editor_input(
             group_id: None,
             ceiling: false,
             underside: false,
+            kit: None,
+            tint: None,
+            tags: vec![],
         };
         match ws.workflow {
             EditorWorkflow::MapMaker => ws.map.pieces.push(record.clone()),
@@ -1189,6 +1227,9 @@ fn place_module_on_map(
             group_id: Some(group_id),
             ceiling: p.ceiling,
             underside: p.underside,
+            kit: p.kit.clone(),
+            tint: p.tint,
+            tags: p.tags.clone(),
         };
         spawn_piece_record(
             commands,
@@ -1790,6 +1831,7 @@ fn editor_apply_materials(
             &GlobalTransform,
             &EditorPlaced,
             Option<&EditorGhost>,
+            Option<&PieceTint>,
         ),
         Without<EditorModuleReady>,
     >,
@@ -1803,8 +1845,8 @@ fn editor_apply_materials(
         ..default()
     });
 
-    for (root, module, root_gt, placed, ghost) in &modules {
-        if playtest.is_some() && !placed.ceiling {
+    for (root, module, root_gt, placed, ghost, tint) in &modules {
+        if playtest.is_some() && !placed.ceiling && tint.is_none() {
             continue;
         }
         let mesh_ents: Vec<Entity> = children_q
@@ -1854,6 +1896,14 @@ fn editor_apply_materials(
 
         let mat = if ghost.is_some() {
             ghost_mat.clone()
+        } else if let Some(PieceTint(rgb)) = tint {
+            materials.add(StandardMaterial {
+                base_color: Color::srgb(rgb[0], rgb[1], rgb[2]),
+                emissive: LinearRgba::rgb(rgb[0] * 0.35, rgb[1] * 0.35, rgb[2] * 0.35),
+                metallic: 0.4,
+                perceptual_roughness: 0.55,
+                ..default()
+            })
         } else if module.name == "gate-lasers" {
             let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
             cyber_lasers.0.clone()

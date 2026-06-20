@@ -122,6 +122,12 @@ pub fn init_editor_kenney_materials(
 #[derive(Component)]
 struct ModuleReady;
 
+#[derive(Component, Clone, Copy)]
+pub struct PieceTint(pub [f32; 3]);
+
+#[derive(Component, Clone)]
+pub struct PieceKit(pub String);
+
 #[derive(Component)]
 pub struct KenneyModule {
     pub name: &'static str,
@@ -130,6 +136,7 @@ pub struct KenneyModule {
     pub group_id: Option<u32>,
     pub floor: i32,
     pub ceiling: bool,
+    pub kit: Option<&'static str>,
 }
 
 #[derive(Component)]
@@ -404,6 +411,7 @@ fn sync_stream_showcase(
                 group_id: p.group_id,
                 floor: p.floor,
                 ceiling: p.ceiling,
+                kit: None,
             },
         ));
     }
@@ -457,6 +465,7 @@ fn spawn_showcase(
                 group_id: p.group_id,
                 floor: p.floor,
                 ceiling: p.ceiling,
+                kit: None,
             },
         ));
     }

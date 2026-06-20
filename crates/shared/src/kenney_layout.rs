@@ -225,6 +225,12 @@ pub struct KenneyPlacement {
     pub ceiling: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub underside: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tint: Option<[f32; 3]>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }
 
 fn default_placement_scale() -> f32 {

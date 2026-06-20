@@ -128,6 +128,23 @@ class FreeformMap:
     wide_cells: Set[Cell] = field(default_factory=set)
     # Indices into `rooms` of single-entrance dead-end "secret" rooms.
     hidden_rooms: List[int] = field(default_factory=list)
+    # (world_x, world_z, yaw) of gate-door pieces sealing each hidden entrance.
+    secret_doors: List[Tuple[float, float, float]] = field(default_factory=list)
+    # Per-door geometry audit trail (parallel to secret_doors / hidden_rooms).
+    secret_door_meta: List["SecretDoorMeta"] = field(default_factory=list)
+    # Faction profile used for door kit/tint and future kit-specific tiles.
+    faction_profile_id: str = "space_default"
+
+
+@dataclass(frozen=True)
+class SecretDoorMeta:
+    """Ground-truth entrance cells recorded when a hidden room is linked."""
+    parent_room: int
+    hidden_room: int
+    room_cell: Cell          # parent boundary cell (carve ax, az)
+    corridor_cell: Cell      # chosen link cell touching room_cell
+    link_cells: frozenset    # full corridor link at placement time
+    adjacent_link: Tuple[Cell, ...]  # all link cells touching room_cell
 
 
 # ─── geometry ────────────────────────────────────────────────────────────────
@@ -142,9 +159,32 @@ def world_z(gz: int, iz: int) -> float:
 
 # ─── generation ──────────────────────────────────────────────────────────────
 
+def _jitter_room(rng: random.Random, room: Room, strength: float, rmin: int) -> Room:
+    """Chop random edges off a rectangle — finishes organicness for room silhouettes."""
+    if strength < 0.05:
+        return room
+    x0, z0, w, h = room.x0, room.z0, room.w, room.h
+    n = int(strength * 4) + (1 if rng.random() < strength * 0.5 else 0)
+    for _ in range(n):
+        if w <= rmin and h <= rmin:
+            break
+        side = rng.randint(0, 3)
+        if side == 0 and h > rmin:
+            z0 += 1
+            h -= 1
+        elif side == 1 and h > rmin:
+            h -= 1
+        elif side == 2 and w > rmin:
+            x0 += 1
+            w -= 1
+        elif side == 3 and w > rmin:
+            w -= 1
+    return Room(x0, z0, w, h)
+
+
 def place_rooms(
     rng: random.Random, gx: int, gz: int, max_rooms: int,
-    rmin: int, rmax: int, tries: int,
+    rmin: int, rmax: int, tries: int, organicness: float = 0.0,
 ) -> List[Room]:
     rooms: List[Room] = []
     for _ in range(tries):
@@ -156,7 +196,7 @@ def place_rooms(
             continue
         x0 = rng.randint(1, gx - w - 1)
         z0 = rng.randint(1, gz - h - 1)
-        cand = Room(x0, z0, w, h)
+        cand = _jitter_room(rng, Room(x0, z0, w, h), organicness, rmin)
         if any(cand.overlaps(r) for r in rooms):
             continue
         rooms.append(cand)
@@ -268,22 +308,64 @@ def carve_corridor(
     return cells, wide
 
 
+def _hidden_entrance_pose(
+    parent: Room, cand: Room, link: Set[Cell], gx: int, gz: int,
+) -> Tuple[float, float, float, Cell, Cell, Tuple[Cell, ...]]:
+    """Wall-plane pose + the cells used to derive it (for probes).
+
+    Returns (wx, wz, yaw, room_cell, corridor_cell, adjacent_link).
+    """
+    bx, bz = cand.nearest_cell(parent.cx, parent.cz)
+    border = [
+        c for c in parent.cells()
+        if any((c[0] + dx, c[1] + dz) in link for dx, dz in DELTA.values())
+    ]
+    if border:
+        ax, az = min(border, key=lambda c: (c[0] - bx) ** 2 + (c[1] - bz) ** 2)
+    else:
+        ax, az = parent.nearest_cell(cand.cx, cand.cz)
+    adjacent = [
+        (ax + dx, az + dz)
+        for dx, dz in DELTA.values()
+        if (ax + dx, az + dz) in link
+    ]
+    if adjacent:
+        nx, nz = min(adjacent, key=lambda c: (c[0] - bx) ** 2 + (c[1] - bz) ** 2)
+        dx, dz = nx - ax, nz - az
+    else:
+        nx, nz = ax, az
+        ex, ez = bx - ax, bz - az
+        dx, dz = (
+            (1 if ex > 0 else -1, 0) if abs(ex) >= abs(ez)
+            else (0, 1 if ez > 0 else -1)
+        )
+    yaw = 0.0 if dz != 0 else math.pi / 2
+    return (
+        world_x(gx, ax) + dx * CELL * 0.5,
+        world_z(gz, az) + dz * CELL * 0.5,
+        yaw,
+        (ax, az),
+        (nx, nz),
+        tuple(adjacent),
+    )
+
+
 def place_hidden_rooms(
     rng: random.Random, rooms: List[Room], room_cells: Set[Cell],
     corridor_cells: Set[Cell], wide_cells: Set[Cell],
     gx: int, gz: int, room_min: int, prevalence: float,
-) -> List[int]:
-    """Append small single-entrance dead-end rooms; return their indices in `rooms`.
+) -> Tuple[List[int], List[Tuple[float, float, float]], List[SecretDoorMeta]]:
+    """Append small single-entrance dead-end rooms.
 
-    Mutates `rooms` (append), `room_cells` and `corridor_cells` (in place). Each
-    hidden room is isolated by a 1-cell halo from all existing walkable space, then
-    linked back to its nearest room by ONE 1-wide corridor — a lone entrance, the
-    site a future secret door will seal.
+    Returns (hidden_room_indices, secret_doors, secret_door_meta). Mutates
+    `rooms`, `room_cells`, and `corridor_cells` in place.
     """
     n_target = round(prevalence * 4)
     if n_target <= 0:
-        return []
+        return [], [], []
     hidden: List[int] = []
+    doors: List[Tuple[float, float, float]] = []
+    meta: List[SecretDoorMeta] = []
     occupied = room_cells | corridor_cells | wide_cells
     for _ in range(n_target * 10):
         if len(hidden) >= n_target:
@@ -304,12 +386,23 @@ def place_hidden_rooms(
         link, _ = carve_corridor(rng, rooms[parent], cand, room_cells, gx, gz, 0.0, 1.0)
         if not link:
             continue
+        wx, wz, yaw, room_cell, corridor_cell, adjacent = _hidden_entrance_pose(
+            rooms[parent], cand, link, gx, gz)
+        doors.append((wx, wz, yaw))
+        meta.append(SecretDoorMeta(
+            parent_room=parent,
+            hidden_room=len(rooms),  # index after append
+            room_cell=room_cell,
+            corridor_cell=corridor_cell,
+            link_cells=frozenset(link),
+            adjacent_link=adjacent,
+        ))
         rooms.append(cand)
         hidden.append(len(rooms) - 1)
         room_cells |= cc
         corridor_cells |= link - room_cells
         occupied |= cc | link | halo
-    return hidden
+    return hidden, doors, meta
 
 
 HUB_SIZE = 7        # hub room is HUB_SIZE×HUB_SIZE cells on floor -1
@@ -408,11 +501,12 @@ def generate_map(
     organicness: float = 0.0,
     corridor_width: float = 1.0,
     hidden_area_prevalence: float = 0.0,
+    faction_profile_id: str = "space_default",
     room_tries: int = 400,
 ) -> Optional[FreeformMap]:
     rng = random.Random(seed)
     gx = gz = cells
-    rooms = place_rooms(rng, gx, gz, max_rooms, room_min, room_max, room_tries)
+    rooms = place_rooms(rng, gx, gz, max_rooms, room_min, room_max, room_tries, organicness)
     if len(rooms) < 2:
         return None
 
@@ -450,7 +544,7 @@ def generate_map(
     # Hidden areas: small single-entrance dead-end rooms appended AFTER spawn/end
     # are chosen, so a secret can never become spawn or extraction. Reachable for
     # now (no seal); the runtime secret-door mechanic seals/opens them later.
-    hidden_rooms = place_hidden_rooms(
+    hidden_rooms, secret_doors, secret_door_meta = place_hidden_rooms(
         rng, rooms, room_cells, corridor_cells, wide_cells, gx, gz,
         room_min, hidden_area_prevalence)
     if hidden_rooms:
@@ -461,6 +555,9 @@ def generate_map(
         seed=seed if seed is not None else 0,
         wide_cells=wide_cells,
         hidden_rooms=hidden_rooms,
+        secret_doors=secret_doors,
+        secret_door_meta=secret_door_meta,
+        faction_profile_id=faction_profile_id,
     )
     hub_rng = random.Random((fm.seed * 2654435761) & 0xFFFFFFFF)
     for _ in range(32):
@@ -693,6 +790,10 @@ def _mask(gx: int, gz: int, footprint: Set[Cell], holes: Set[Cell]) -> dict:
 
 
 def to_doc(fm: FreeformMap, name: str) -> dict:
+    import faction_profiles as fp
+
+    profile = fp.load_profile(fm.faction_profile_id)
+    hd = profile.hidden_door
     hub = fm.hub
     gx, gz = fm.gx, fm.gz
     holes0 = {hub.trap0} if hub else set()
@@ -717,6 +818,16 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
                 "floor": -2, "kind": ex.kind, "label": f"Next level {i + 1}",
             }
 
+    # Hidden-room doors — stem/kit/tint from faction profile (gate-door + baked anim).
+    for (wx, wz, yaw) in fm.secret_doors:
+        piece = {
+            "stem": hd.stem,
+            "x": wx, "z": wz, "yaw": yaw,
+            "floor_level": 0, "scale": 1.0,
+            **hd.to_piece_extras(),
+        }
+        pieces.append(piece)
+
     # Roofs last — normal template-floor one level up, only where empty.
     emit_all_roofs(pieces, fm, hub, gx, gz, holes0)
 
@@ -724,6 +835,8 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
     return {
         "version": 1,
         "name": name,
+        "faction_profile": fm.faction_profile_id,
+        "building_system": profile.building_system,
         "hub_model": "freeform_v1",
         "modules_x": max(1, gx // 5),
         "modules_z": max(1, gz // 5),
@@ -926,6 +1039,7 @@ def run(
     organicness: float = 0.0,
     corridor_width: float = 1.0,
     hidden_area_prevalence: float = 0.0,
+    faction_profile_id: str = "space_default",
 ) -> dict:
     """Generate one free-form map, write it, export the layout, return a report.
 
@@ -943,6 +1057,7 @@ def run(
             room_min=room_min, room_max=room_max, loops=loops,
             organicness=organicness, corridor_width=corridor_width,
             hidden_area_prevalence=hidden_area_prevalence,
+            faction_profile_id=faction_profile_id,
         )
         if cand and not validate(cand):
             fm = cand
@@ -990,6 +1105,8 @@ def main() -> None:
                     help='1.0=all 1-wide, 2.0=all 2-wide, 1.3=~30%% 2-wide')
     ap.add_argument('--hidden', type=float, default=0.0,
                     help='hidden-area prevalence 0-1 (dead-end secret rooms)')
+    ap.add_argument('--faction-profile', default='space_default',
+                    help='faction profile id (userinput/factions/*.json)')
     ap.add_argument('--attempts', type=int, default=20, help='Generation retries')
     ap.add_argument('--out', default=None)
     ap.add_argument('--preview', action='store_true')
@@ -1007,6 +1124,7 @@ def main() -> None:
         cells=args.cells, max_rooms=args.rooms, room_min=args.room_min,
         room_max=args.room_max, loops=args.loops, organicness=args.organicness,
         corridor_width=args.corridor_width, hidden_area_prevalence=args.hidden,
+        faction_profile_id=args.faction_profile,
     )
     if args.preview:
         print(json.dumps(report))

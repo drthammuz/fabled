@@ -9,7 +9,7 @@ use shared::config;
 use shared::level;
 use shared::protocol::{
     ClassPick, InventoryUpdate, NetTransform, Player, PlayerAlive, PlayerClass, PlayerInput,
-    PlayerName, PlayTrainSound, YouAre,
+    PlayerName, YouAre,
 };
 use bevy::ecs::schedule::common_conditions::not;
 use shared::EditorMode;
@@ -31,7 +31,6 @@ pub struct ServerPlayersPlugin;
 impl Plugin for ServerPlayersPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpawnCounter>()
-            .init_resource::<TrainSoundTimer>()
             .add_plugins(super::character::CharacterControllerPlugin)
             .add_observer(on_client_connected)
             .add_observer(on_client_disconnected)
@@ -39,7 +38,6 @@ impl Plugin for ServerPlayersPlugin {
                 FixedUpdate,
                 (
                     handle_class_pick,
-                    tick_train_sound,
                     test_respawn,
                 )
                     .run_if(in_state(ClientState::Disconnected)),
@@ -66,47 +64,6 @@ impl Plugin for ServerPlayersPlugin {
 /// Spawned only during in-process editor playtest; despawned when leaving playtest.
 #[derive(Component)]
 struct EditorPlaytestPlayer;
-
-/// Counts down until the next train-passing sound is broadcast to all clients.
-#[derive(Resource)]
-struct TrainSoundTimer {
-    remaining: f32,
-    /// Simple LCG state for pseudo-random interval generation.
-    rng: u64,
-}
-
-impl Default for TrainSoundTimer {
-    fn default() -> Self {
-        Self { remaining: 60.0, rng: 0xdeadbeef_cafef00d }
-    }
-}
-
-impl TrainSoundTimer {
-    /// Next pseudo-random float in [0, 1).
-    fn next_f32(&mut self) -> f32 {
-        self.rng ^= self.rng << 13;
-        self.rng ^= self.rng >> 7;
-        self.rng ^= self.rng << 17;
-        (self.rng as f32) / (u64::MAX as f32)
-    }
-}
-
-fn tick_train_sound(
-    time: Res<Time>,
-    mut timer: ResMut<TrainSoundTimer>,
-    mut writer: MessageWriter<ToClients<PlayTrainSound>>,
-) {
-    timer.remaining -= time.delta_secs();
-    if timer.remaining <= 0.0 {
-        // Broadcast to every connected client (and host).
-        writer.write(ToClients {
-            targets: SendTargets::All,
-            message: PlayTrainSound,
-        });
-        // Next interval: 90–200 seconds.
-        timer.remaining = 90.0 + timer.next_f32() * 110.0;
-    }
-}
 
 /// Cycles through level player spawn points by join order.
 #[derive(Resource, Default)]

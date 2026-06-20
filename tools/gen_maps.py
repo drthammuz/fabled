@@ -1618,6 +1618,9 @@ def export_kenney_layout(doc: dict) -> None:
                 **({"group_id": p["group_id"]} if p.get("group_id") is not None else {}),
                 **({"ceiling": True} if p.get("ceiling") else {}),
                 **({"underside": True} if p.get("underside") else {}),
+                **({"kit": p["kit"]} if p.get("kit") else {}),
+                **({"tint": p["tint"]} if p.get("tint") else {}),
+                **({"tags": p["tags"]} if p.get("tags") else {}),
             }
             for p in doc["pieces"]
         ],
@@ -1920,6 +1923,7 @@ def generate_map_report(
     organicness: float = 0.0,
     corridor_width: float = 1.0,
     hidden_area_prevalence: float = 0.0,
+    faction_profile_id: str = "space_default",
 ) -> dict:
     """Generate one map; return a JSON-serializable report for the editor.
 
@@ -1943,6 +1947,7 @@ def generate_map_report(
         organicness=organicness,
         corridor_width=corridor_width,
         hidden_area_prevalence=hidden_area_prevalence,
+        faction_profile_id=faction_profile_id,
     )
 
 
@@ -1971,6 +1976,8 @@ def main() -> None:
                     help='1.0=1-wide, 2.0=2-wide, 1.3=~30%% 2-wide')
     ap.add_argument('--hidden', type=float, default=0.0,
                     help='hidden-area prevalence 0-1')
+    ap.add_argument('--faction-profile', default='space_default',
+                    help='faction profile id (userinput/factions/*.json)')
     ap.add_argument('--preview', action='store_true',
                     help='Editor mode: write map and print JSON report on stdout')
     ap.add_argument('--no-layout-export', action='store_true',
@@ -2007,6 +2014,7 @@ def main() -> None:
         cells=args.cells, max_rooms=args.rooms, room_min=args.room_min,
         room_max=args.room_max, loops=args.loops, organicness=args.organicness,
         corridor_width=args.corridor_width, hidden_area_prevalence=args.hidden,
+        faction_profile_id=args.faction_profile,
     )
 
     if args.preview:

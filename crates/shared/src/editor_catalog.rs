@@ -144,13 +144,23 @@ pub fn misc_stems() -> Vec<String> {
     stems
 }
 
-/// Asset path for a stem (Kenney or misc).
+/// Asset path for a stem (Kenney or misc) in the default `space` kit.
 pub fn glb_asset_path(stem: &str) -> String {
-    if kenney_catalog::piece(stem).is_some() {
+    glb_asset_path_in_kit(stem, "space")
+}
+
+/// Asset path for a stem in a specific Kenney kit folder.
+pub fn glb_asset_path_in_kit(stem: &str, kit: &str) -> String {
+    if kit == "space" && kenney_catalog::piece(stem).is_some() {
         format!("models/space/{stem}.glb")
     } else {
-        format!("models/misc/{stem}.glb")
+        format!("models/{kit}/{stem}.glb")
     }
+}
+
+/// Resolve GLB path from a placed piece record.
+pub fn glb_asset_path_for_piece(p: &crate::editor_map::PieceRecord) -> String {
+    glb_asset_path_in_kit(&p.stem, p.kit.as_deref().unwrap_or("space"))
 }
 
 /// Metadata for one entry in a `gen_index.json` gallery file.

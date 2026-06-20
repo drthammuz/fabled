@@ -258,7 +258,10 @@ fn own_player_footsteps(
     if let Some(h) = &handles.step {
         commands.spawn((
             AudioPlayer::<AudioSource>(h.clone()),
-            PlaybackSettings::DESPAWN,
+            PlaybackSettings {
+                volume: bevy::audio::Volume::Linear(0.5),
+                ..PlaybackSettings::DESPAWN
+            },
         ));
     }
 

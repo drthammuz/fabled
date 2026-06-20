@@ -226,6 +226,15 @@ pub struct PieceRecord {
     /// Walkable space exists on the floor below — render floor slab double-sided (not a duplicate piece).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub underside: bool,
+    /// Kenney kit folder under `assets/models/` (default `space`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kit: Option<String>,
+    /// sRGB tint multiplier for recognisable variants (e.g. hidden-room doors).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tint: Option<[f32; 3]>,
+    /// Semantic tags (`hidden_entrance`, …) for gameplay systems.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -329,6 +338,12 @@ pub struct MapDocument {
     /// `freeform_v1` skips legacy west-stairs hub patching.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hub_model: Option<String>,
+    /// Faction procgen profile id (`userinput/factions/*.json`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub faction_profile: Option<String>,
+    /// Modular architecture kit folder used for this map.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub building_system: Option<String>,
 }
 
 impl Default for MapDocument {
@@ -356,6 +371,8 @@ impl MapDocument {
             branch_levels: HashMap::new(),
             hub_exits: HashMap::new(),
             hub_model: None,
+            faction_profile: None,
+            building_system: None,
         }
     }
 
@@ -440,6 +457,27 @@ impl MapDocument {
                             group_id: p.get("group_id").and_then(|x| x.as_u64()).map(|x| x as u32),
                             ceiling: p.get("ceiling").and_then(|x| x.as_bool()).unwrap_or(false),
                             underside: p.get("underside").and_then(|x| x.as_bool()).unwrap_or(false),
+                            kit: p.get("kit").and_then(|x| x.as_str()).map(str::to_string),
+                            tint: p.get("tint").and_then(|t| {
+                                let arr = t.as_array()?;
+                                if arr.len() != 3 {
+                                    return None;
+                                }
+                                Some([
+                                    arr[0].as_f64()? as f32,
+                                    arr[1].as_f64()? as f32,
+                                    arr[2].as_f64()? as f32,
+                                ])
+                            }),
+                            tags: p
+                                .get("tags")
+                                .and_then(|x| x.as_array())
+                                .map(|arr| {
+                                    arr.iter()
+                                        .filter_map(|v| v.as_str().map(str::to_string))
+                                        .collect()
+                                })
+                                .unwrap_or_default(),
                         })
                     })
                     .collect()
@@ -489,6 +527,14 @@ impl MapDocument {
             branch_levels,
             hub_exits,
             hub_model,
+            faction_profile: v
+                .get("faction_profile")
+                .and_then(|x| x.as_str())
+                .map(str::to_string),
+            building_system: v
+                .get("building_system")
+                .and_then(|x| x.as_str())
+                .map(str::to_string),
         })
     }
 
@@ -519,6 +565,9 @@ impl MapDocument {
                     group_id: p.group_id,
                     ceiling: p.ceiling,
                     underside: p.underside,
+                    kit: p.kit.clone(),
+                    tint: p.tint,
+                    tags: p.tags.clone(),
                 })
                 .collect(),
             spawn_xz: self.spawn_xz,
@@ -551,6 +600,9 @@ impl MapDocument {
                 group_id: p.group_id,
                 ceiling: p.ceiling,
                 underside: p.underside,
+                kit: p.kit.clone(),
+                tint: p.tint,
+                tags: p.tags.clone(),
             })
             .collect();
         self.floors = layout.floors;
