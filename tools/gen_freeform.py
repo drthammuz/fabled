@@ -199,29 +199,56 @@ def loop_edges(
     return [(a, b) for _, a, b in pool[:count]]
 
 
+def _hline(path: Set[Cell], x0: int, x1: int, z: int) -> None:
+    for x in range(min(x0, x1), max(x0, x1) + 1):
+        path.add((x, z))
+
+
+def _vline(path: Set[Cell], z0: int, z1: int, x: int) -> None:
+    for z in range(min(z0, z1), max(z0, z1) + 1):
+        path.add((x, z))
+
+
 def carve_corridor(
     rng: random.Random, a: Room, b: Room, room_cells: Set[Cell],
-    gx: int, gz: int,
+    gx: int, gz: int, organicness: float = 0.0,
 ) -> Set[Cell]:
-    """1-wide L-shaped path between the rooms' nearest-facing boundary cells.
+    """Path between the rooms' nearest-facing boundary cells.
 
     Connecting the boundary cell each room presents toward the other (rather than
-    centre-to-centre) keeps the corridor short and makes it meet each room at a
-    single perpendicular cell — a clean doorway instead of a long edge seam.
+    centre-to-centre) keeps the corridor short and meets each room at a single
+    perpendicular cell — a clean doorway instead of a long edge seam.
+
+    `organicness` (0–1): at 0 the path is a clean 1-bend L; with probability
+    `organicness` it becomes a 2-bend Z (jog through an intermediate offset),
+    giving winding, less grid-like routes. The emission picks `corridor-corner`
+    pieces for the extra bends automatically.
     """
     ax, az = a.nearest_cell(b.cx, b.cz)
     bx, bz = b.nearest_cell(a.cx, a.cz)
     path: Set[Cell] = set()
-    if rng.random() < 0.5:
-        for x in range(min(ax, bx), max(ax, bx) + 1):
-            path.add((x, az))
-        for z in range(min(az, bz), max(az, bz) + 1):
-            path.add((bx, z))
+
+    jog = organicness > 0.0 and rng.random() < organicness
+    if jog and abs(bx - ax) >= 2 and rng.random() < 0.5:
+        # Horizontal-dominant Z: A → (mx,az) → (mx,bz) → B
+        lo, hi = sorted((ax, bx))
+        mx = rng.randint(lo + 1, hi - 1)
+        _hline(path, ax, mx, az)
+        _vline(path, az, bz, mx)
+        _hline(path, mx, bx, bz)
+    elif jog and abs(bz - az) >= 2:
+        # Vertical-dominant Z: A → (ax,mz) → (bx,mz) → B
+        lo, hi = sorted((az, bz))
+        mz = rng.randint(lo + 1, hi - 1)
+        _vline(path, az, mz, ax)
+        _hline(path, ax, bx, mz)
+        _vline(path, mz, bz, bx)
+    elif rng.random() < 0.5:
+        _hline(path, ax, bx, az)
+        _vline(path, az, bz, bx)
     else:
-        for z in range(min(az, bz), max(az, bz) + 1):
-            path.add((ax, z))
-        for x in range(min(ax, bx), max(ax, bx) + 1):
-            path.add((x, bz))
+        _vline(path, az, bz, ax)
+        _hline(path, ax, bx, bz)
     return {
         (x, z) for (x, z) in path
         if 0 <= x < gx and 0 <= z < gz and (x, z) not in room_cells
@@ -321,6 +348,7 @@ def generate_map(
     room_min: int = 3,
     room_max: int = 7,
     loops: int = 3,
+    organicness: float = 0.0,
     room_tries: int = 400,
 ) -> Optional[FreeformMap]:
     rng = random.Random(seed)
@@ -339,7 +367,7 @@ def generate_map(
 
     corridor_cells: Set[Cell] = set()
     for a, b in edges:
-        corridor_cells |= carve_corridor(rng, rooms[a], rooms[b], room_cells, gx, gz)
+        corridor_cells |= carve_corridor(rng, rooms[a], rooms[b], room_cells, gx, gz, organicness)
     corridor_cells -= room_cells
 
     walkable = room_cells | corridor_cells
@@ -810,6 +838,7 @@ def run(
     room_min: int = 3,
     room_max: int = 7,
     loops: int = 3,
+    organicness: float = 0.0,
 ) -> dict:
     """Generate one free-form map, write it, export the layout, return a report.
 
@@ -825,6 +854,7 @@ def run(
         cand = generate_map(
             base_seed + k, cells=cells, max_rooms=max_rooms,
             room_min=room_min, room_max=room_max, loops=loops,
+            organicness=organicness,
         )
         if cand and not validate(cand):
             fm = cand
@@ -866,6 +896,8 @@ def main() -> None:
     ap.add_argument('--room-min', type=int, default=3)
     ap.add_argument('--room-max', type=int, default=7)
     ap.add_argument('--loops', type=int, default=3)
+    ap.add_argument('--organicness', type=float, default=0.0,
+                    help='0=clean L corridors, 1=winding jogged routes')
     ap.add_argument('--attempts', type=int, default=20, help='Generation retries')
     ap.add_argument('--out', default=None)
     ap.add_argument('--preview', action='store_true')
@@ -881,7 +913,7 @@ def main() -> None:
         seed=args.seed, attempts=args.attempts, out_path=out_path,
         export_layout=not args.no_layout_export,
         cells=args.cells, max_rooms=args.rooms, room_min=args.room_min,
-        room_max=args.room_max, loops=args.loops,
+        room_max=args.room_max, loops=args.loops, organicness=args.organicness,
     )
     if args.preview:
         print(json.dumps(report))

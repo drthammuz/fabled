@@ -244,7 +244,7 @@ Each faction stores its own values. Quantifiable = sliders/dropdowns; qualitativ
 | `loop_count` | 0–N | Shortcut corridors reconnecting the graph | `loops` | ✅ |
 | `main_path_length_bias` | short/med/long | Spawn→extract distance | `cells` (grid extent) | 🟡 |
 | `density` | 0–1 | Filled-vs-empty floor ratio | derived (`max_rooms`×size / `cells`²) | 🟡 |
-| `organicness` | 0–1 | Corridor windiness / room-edge irregularity | — (corridors hard-straight) | ⛔ |
+| `organicness` | 0–1 | Corridor windiness (clean L → jogged Z routes) | `organicness` | ✅ (corridor wander; room-edge jitter still TODO) |
 | `planning_vs_splendor` | 0–1 | Corridor **width**, room scale, path directness | — (corridor width fixed = 1 cell) | ⛔ |
 | `corridor_width` | 1–3 cells | Lane width | — (fixed 1) | ⛔ |
 | `hub_count` | 0–2 | Multi-way junction rooms on the path | — (exactly 1 trap-door hub) | ⛔ |
@@ -300,6 +300,24 @@ All-one-faction level → composition collapses (one faction block, no default/n
 - **Transition vocabulary:** how this faction *meets* others (hatch, gate, flood, ritual seal).
 
 Store as free-text `notes` on the profile until they become rules.
+
+### 5.4b Faction structural archetypes (asset-gated, not sliders)
+
+Beyond the numeric knobs, a faction may declare **named structural archetypes** — distinctive room/space setups that read as *that culture* and that the generator places **only when the faction owns the assets to dress them**. These are not continuous sliders; they're discrete, asset-gated layout patterns.
+
+Each archetype carries:
+
+| Field | Meaning |
+|-------|---------|
+| `id` | e.g. `inner_garden`, `ritual_apse`, `scrap_market`, `cryo_bay` |
+| `structure` | the layout requirement (e.g. *enclosed courtyard: a room whose centre cells are open-air/floorless inside a full wall ring*) |
+| `requires_assets` | prop/GLB set the archetype needs (e.g. garden/foliage props) — **archetype is skipped if the faction's `prop_set` lacks them** |
+| `frequency` | 0–1 chance per eligible room, or a count cap per level |
+| `placement_rule` | where it's eligible (dead-end chamber, hub, spine-adjacent, min size) |
+
+Example: **priesthood `inner_garden`** — a room with a walled perimeter but a floorless/planted centre courtyard, placed only because `retro_fantasy` supplies trees/foliage/fence props. A faction without garden assets never gets it; an outlaw faction might instead declare `scrap_market` reusing `factory` salvage props in the same "open-centre room" structural slot.
+
+This keeps lore-specific spaces **data-driven and self-disabling**: add the assets + an archetype entry, and the faction starts producing that space; no generator code per faction. Implement after the base knobs (§5.1) and profile schema land — it's a Phase 2–3 extension of the profile.
 
 ### 5.5 Concrete profiles (the three real factions + default)
 
