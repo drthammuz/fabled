@@ -245,13 +245,16 @@ Each faction stores its own values. Quantifiable = sliders/dropdowns; qualitativ
 | `main_path_length_bias` | short/med/long | Spawn→extract distance | `cells` (grid extent) | 🟡 |
 | `density` | 0–1 | Filled-vs-empty floor ratio | derived (`max_rooms`×size / `cells`²) | 🟡 |
 | `organicness` | 0–1 | Corridor windiness (clean L → jogged Z routes) | `organicness` | ✅ (corridor wander; room-edge jitter still TODO) |
-| `planning_vs_splendor` | 0–1 | Corridor **width**, room scale, path directness | — (corridor width fixed = 1 cell) | ⛔ |
-| `corridor_width` | 1–3 cells | Lane width | — (fixed 1) | ⛔ |
-| `hub_count` | 0–2 | Multi-way junction rooms on the path | — (exactly 1 trap-door hub) | ⛔ |
+| `planning_vs_splendor` | 0–1 | room scale + path directness (corridor width now its own knob) | composes `corridor_width` + `room_size` | 🟡 (building blocks exist; not yet a single mapped knob) |
+| `corridor_width` | 1.0–2.0 | Lane width as a **fraction** of corridors that are 2-wide (1.3 = ~30% wide) | `corridor_width` | ✅ (2-wide emitted as room-style floor+walls) |
 | `floor_preference` | single / multi | Vertical levels / shafts | — (single floor + hub levels) | ⛔ |
-| `hidden_area_prevalence` | 0–1 | Secret branches / duct bypasses | — | ⛔ |
+| `hidden_area_prevalence` | 0–1 | Secret side rooms, single entrance | — (+ runtime open mechanic, below) | ⛔ |
 
-**To make the ⛔ rows real (the "fix that" work, later, not now):** add to `gen_freeform.py` — variable corridor width, an `organicness`/wander param for corridor routing, optional extra hubs, a multi-floor pass, and a hidden-branch pass. Each is an isolated addition; the table above is the implementation backlog.
+> **`hub_count` dropped** — it meant "extra central junction rooms," but in the free-form model that's **emergent** from `loop_count` + room degree, and "hub" collides with the *extraction* hub (trap → hub room → landings). Not a separate knob.
+
+> **Hidden-area open mechanic (user spec):** a generated secret room is sealed by a **secret-door wall**; the player opens it by **left-clicking the wall**, and *both* the visual mesh and its collider **slide aside (side/up/down)** to reveal the room. This is a **runtime gameplay feature** (click raycast → identify secret-door entity → animate slide + toggle collider), paired with — but separate from — the generation that places the room and tags the wall. Build the generation half first; the interaction half is its own task.
+
+**To make the remaining ⛔ rows real:** add to `gen_freeform.py` — a multi-floor pass, a hidden-branch pass (+ the runtime secret-door interaction in Rust), and room-edge jitter (finishing `organicness`). Each is an isolated addition. Done so far: `organicness` ✅, `corridor_width` ✅.
 
 ### 5.2 Level-composition variables (per level)
 

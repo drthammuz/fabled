@@ -123,6 +123,9 @@ class FreeformMap:
     end_room: int
     seed: int = 0
     hub: Optional[Hub] = None
+    # 2-wide corridor cells: walkable but emitted as room-style floor+walls (not
+    # 1-wide corridor GLBs). Kept out of corridor_cells so emit_pieces walls them.
+    wide_cells: Set[Cell] = field(default_factory=set)
 
 
 # ─── geometry ────────────────────────────────────────────────────────────────
@@ -199,60 +202,68 @@ def loop_edges(
     return [(a, b) for _, a, b in pool[:count]]
 
 
-def _hline(path: Set[Cell], x0: int, x1: int, z: int) -> None:
+def _hline(path: Set[Cell], x0: int, x1: int, z: int, wide: bool = False) -> None:
     for x in range(min(x0, x1), max(x0, x1) + 1):
         path.add((x, z))
+        if wide:  # widen a horizontal run perpendicular (in z)
+            path.add((x, z + 1))
 
 
-def _vline(path: Set[Cell], z0: int, z1: int, x: int) -> None:
+def _vline(path: Set[Cell], z0: int, z1: int, x: int, wide: bool = False) -> None:
     for z in range(min(z0, z1), max(z0, z1) + 1):
         path.add((x, z))
+        if wide:  # widen a vertical run perpendicular (in x)
+            path.add((x + 1, z))
 
 
 def carve_corridor(
     rng: random.Random, a: Room, b: Room, room_cells: Set[Cell],
-    gx: int, gz: int, organicness: float = 0.0,
-) -> Set[Cell]:
-    """Path between the rooms' nearest-facing boundary cells.
+    gx: int, gz: int, organicness: float = 0.0, corridor_width: float = 1.0,
+) -> Tuple[Set[Cell], bool]:
+    """Path between the rooms' nearest-facing boundary cells; returns (cells, is_wide).
 
     Connecting the boundary cell each room presents toward the other (rather than
     centre-to-centre) keeps the corridor short and meets each room at a single
     perpendicular cell — a clean doorway instead of a long edge seam.
 
     `organicness` (0–1): at 0 the path is a clean 1-bend L; with probability
-    `organicness` it becomes a 2-bend Z (jog through an intermediate offset),
-    giving winding, less grid-like routes. The emission picks `corridor-corner`
-    pieces for the extra bends automatically.
+    `organicness` it becomes a 2-bend Z (jog through an intermediate offset).
+
+    `corridor_width` (1.0–2.0): fraction of corridors that come out 2-wide. 1.0 =
+    all 1-wide, 2.0 = all 2-wide, 1.3 = ~30% 2-wide. Wide corridors are emitted as
+    room-style floor + perimeter walls (see emit_pieces), not 1-wide corridor GLBs.
     """
     ax, az = a.nearest_cell(b.cx, b.cz)
     bx, bz = b.nearest_cell(a.cx, a.cz)
     path: Set[Cell] = set()
+    wide = corridor_width > 1.0 and rng.random() < (corridor_width - 1.0)
 
     jog = organicness > 0.0 and rng.random() < organicness
     if jog and abs(bx - ax) >= 2 and rng.random() < 0.5:
         # Horizontal-dominant Z: A → (mx,az) → (mx,bz) → B
         lo, hi = sorted((ax, bx))
         mx = rng.randint(lo + 1, hi - 1)
-        _hline(path, ax, mx, az)
-        _vline(path, az, bz, mx)
-        _hline(path, mx, bx, bz)
+        _hline(path, ax, mx, az, wide)
+        _vline(path, az, bz, mx, wide)
+        _hline(path, mx, bx, bz, wide)
     elif jog and abs(bz - az) >= 2:
         # Vertical-dominant Z: A → (ax,mz) → (bx,mz) → B
         lo, hi = sorted((az, bz))
         mz = rng.randint(lo + 1, hi - 1)
-        _vline(path, az, mz, ax)
-        _hline(path, ax, bx, mz)
-        _vline(path, mz, bz, bx)
+        _vline(path, az, mz, ax, wide)
+        _hline(path, ax, bx, mz, wide)
+        _vline(path, mz, bz, bx, wide)
     elif rng.random() < 0.5:
-        _hline(path, ax, bx, az)
-        _vline(path, az, bz, bx)
+        _hline(path, ax, bx, az, wide)
+        _vline(path, az, bz, bx, wide)
     else:
-        _vline(path, az, bz, ax)
-        _hline(path, ax, bx, bz)
-    return {
+        _vline(path, az, bz, ax, wide)
+        _hline(path, ax, bx, bz, wide)
+    cells = {
         (x, z) for (x, z) in path
         if 0 <= x < gx and 0 <= z < gz and (x, z) not in room_cells
     }
+    return cells, wide
 
 
 HUB_SIZE = 7        # hub room is HUB_SIZE×HUB_SIZE cells on floor -1
@@ -349,6 +360,7 @@ def generate_map(
     room_max: int = 7,
     loops: int = 3,
     organicness: float = 0.0,
+    corridor_width: float = 1.0,
     room_tries: int = 400,
 ) -> Optional[FreeformMap]:
     rng = random.Random(seed)
@@ -366,11 +378,19 @@ def generate_map(
     edges += loop_edges(rng, rooms, eset, loops)
 
     corridor_cells: Set[Cell] = set()
+    wide_cells: Set[Cell] = set()
     for a, b in edges:
-        corridor_cells |= carve_corridor(rng, rooms[a], rooms[b], room_cells, gx, gz, organicness)
-    corridor_cells -= room_cells
+        cells_set, is_wide = carve_corridor(
+            rng, rooms[a], rooms[b], room_cells, gx, gz, organicness, corridor_width)
+        if is_wide:
+            wide_cells |= cells_set
+        else:
+            corridor_cells |= cells_set
+    # A cell carved by both a wide and a narrow corridor reads as wide (room-style).
+    corridor_cells -= room_cells | wide_cells
+    wide_cells -= room_cells
 
-    walkable = room_cells | corridor_cells
+    walkable = room_cells | corridor_cells | wide_cells
 
     # Spawn / extraction = farthest-apart room pair (Euclidean on centres).
     spawn_i, end_i, best = 0, 1, -1.0
@@ -383,6 +403,7 @@ def generate_map(
     fm = FreeformMap(
         gx, gz, rooms, walkable, room_cells, corridor_cells, spawn_i, end_i,
         seed=seed if seed is not None else 0,
+        wide_cells=wide_cells,
     )
     hub_rng = random.Random((fm.seed * 2654435761) & 0xFFFFFFFF)
     for _ in range(32):
@@ -674,6 +695,8 @@ def ascii_map(fm: FreeformMap) -> str:
                 row.append('#')
             elif c in fm.corridor_cells:
                 row.append('+')
+            elif c in fm.wide_cells:
+                row.append('=')  # 2-wide corridor (room-style floor)
             else:
                 row.append('·')
         lines.append(''.join(row))
@@ -839,6 +862,7 @@ def run(
     room_max: int = 7,
     loops: int = 3,
     organicness: float = 0.0,
+    corridor_width: float = 1.0,
 ) -> dict:
     """Generate one free-form map, write it, export the layout, return a report.
 
@@ -854,7 +878,7 @@ def run(
         cand = generate_map(
             base_seed + k, cells=cells, max_rooms=max_rooms,
             room_min=room_min, room_max=room_max, loops=loops,
-            organicness=organicness,
+            organicness=organicness, corridor_width=corridor_width,
         )
         if cand and not validate(cand):
             fm = cand
@@ -898,6 +922,8 @@ def main() -> None:
     ap.add_argument('--loops', type=int, default=3)
     ap.add_argument('--organicness', type=float, default=0.0,
                     help='0=clean L corridors, 1=winding jogged routes')
+    ap.add_argument('--corridor-width', type=float, default=1.0,
+                    help='1.0=all 1-wide, 2.0=all 2-wide, 1.3=~30%% 2-wide')
     ap.add_argument('--attempts', type=int, default=20, help='Generation retries')
     ap.add_argument('--out', default=None)
     ap.add_argument('--preview', action='store_true')
@@ -914,6 +940,7 @@ def main() -> None:
         export_layout=not args.no_layout_export,
         cells=args.cells, max_rooms=args.rooms, room_min=args.room_min,
         room_max=args.room_max, loops=args.loops, organicness=args.organicness,
+        corridor_width=args.corridor_width,
     )
     if args.preview:
         print(json.dumps(report))
