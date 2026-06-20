@@ -1907,17 +1907,26 @@ def generate_map_report(
     *,
     seed: Optional[int],
     attempts: int,
-    target_avg_degree: float,
-    synth_retries: int,
+    target_avg_degree: float = 0.0,
+    synth_retries: int = 0,
     out_path: Path,
     export_layout: bool,
     name: str = "preview",
+    cells: int = 25,
+    max_rooms: int = 11,
+    room_min: int = 3,
+    room_max: int = 7,
+    loops: int = 3,
+    organicness: float = 0.0,
+    corridor_width: float = 1.0,
+    hidden_area_prevalence: float = 0.0,
 ) -> dict:
     """Generate one map; return a JSON-serializable report for the editor.
 
     Delegates to the free-form generator (`gen_freeform`): rooms + corridors on a
     flat tile grid, no module slots.  `target_avg_degree` / `synth_retries` are
-    accepted for editor/CLI signature compatibility but unused by free-form.
+    accepted for legacy editor/CLI signature compatibility but unused by free-form;
+    the real knobs are cells/rooms/loops/organicness/corridor_width/hidden.
     """
     import gen_freeform
     return gen_freeform.run(
@@ -1926,6 +1935,14 @@ def generate_map_report(
         out_path=out_path,
         export_layout=export_layout,
         name=name,
+        cells=cells,
+        max_rooms=max_rooms,
+        room_min=room_min,
+        room_max=room_max,
+        loops=loops,
+        organicness=organicness,
+        corridor_width=corridor_width,
+        hidden_area_prevalence=hidden_area_prevalence,
     )
 
 
@@ -1942,6 +1959,18 @@ def main() -> None:
                     help=f'Target average module connections (default: {TARGET_AVG_DEGREE})')
     ap.add_argument('--synth-retries', type=int, default=SYNTH_RETRIES,
                     help=f'Corridor routing retries per slot (default: {SYNTH_RETRIES})')
+    # Free-form generator knobs (the real ones; legacy --target-degree/--synth-retries ignored).
+    ap.add_argument('--cells', type=int, default=25, help='Grid size in cells (square)')
+    ap.add_argument('--rooms', type=int, default=11, help='Max rooms')
+    ap.add_argument('--room-min', type=int, default=3)
+    ap.add_argument('--room-max', type=int, default=7)
+    ap.add_argument('--loops', type=int, default=3)
+    ap.add_argument('--organicness', type=float, default=0.0,
+                    help='0=clean corridors, 1=winding')
+    ap.add_argument('--corridor-width', type=float, default=1.0,
+                    help='1.0=1-wide, 2.0=2-wide, 1.3=~30%% 2-wide')
+    ap.add_argument('--hidden', type=float, default=0.0,
+                    help='hidden-area prevalence 0-1')
     ap.add_argument('--preview', action='store_true',
                     help='Editor mode: write map and print JSON report on stdout')
     ap.add_argument('--no-layout-export', action='store_true',
@@ -1974,16 +2003,21 @@ def main() -> None:
     if not args.preview:
         print("Free-form tile generation (rooms + corridors, no modules / room GLBs)")
 
+    freeform_knobs = dict(
+        cells=args.cells, max_rooms=args.rooms, room_min=args.room_min,
+        room_max=args.room_max, loops=args.loops, organicness=args.organicness,
+        corridor_width=args.corridor_width, hidden_area_prevalence=args.hidden,
+    )
+
     if args.preview:
         out_path = Path(args.out) if args.out else MAP_DIR / "_editor_preview.json"
         report = generate_map_report(
             seed=args.seed,
             attempts=args.attempts,
-            target_avg_degree=args.target_degree,
-            synth_retries=args.synth_retries,
             out_path=out_path,
             export_layout=not args.no_layout_export,
             name=out_path.stem,
+            **freeform_knobs,
         )
         print(json.dumps(report))
         sys.exit(0 if report.get("ok") else 1)
@@ -1992,10 +2026,9 @@ def main() -> None:
     report = generate_map_report(
         seed=args.seed,
         attempts=args.attempts,
-        target_avg_degree=args.target_degree,
-        synth_retries=args.synth_retries,
         out_path=Path(args.out) if args.out else MAP_DIR / f"gen_map_{time.strftime('%m%d%H%M%S')}.json",
         export_layout=True,
+        **freeform_knobs,
     )
     if not report.get("ok"):
         print(f"Failed: {report.get('error', 'unknown')}")
