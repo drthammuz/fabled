@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "gen_0023_s87",
+  "pool": "generated3",
+  "floor_mask": {
+    "cells_x": 5,
+    "cells_z": 5,
+    "cells": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "extra_floor_masks": {},
+  "pieces": [
+    {
+      "stem": "template-floor-big",
+      "x": 0.0,
+      "z": 0.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 1.0
+    },
+    {
+      "stem": "corridor-transition",
+      "x": 4.0,
+      "z": 0.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 1.0
+    },
+    {
+      "stem": "corridor-transition",
+      "x": 0.0,
+      "z": 4.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 1.0
+    }
+  ]
+}

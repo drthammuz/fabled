@@ -6,20 +6,21 @@ use avian3d::{math::*, prelude::*};
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use shared::config;
-use shared::level;
-use shared::props::PropShape;
-use shared::protocol::{Item, InventoryUpdate, NetTransform, Player};
+use shared::items::{self, CREDITS};
+use shared::protocol::{InventoryUpdate, Item, Player, PlayerName};
 
 use crate::character::CharacterSystems;
+use crate::level::spawn_world_item;
 use crate::players::{LatestInput, PlayerOwner};
+use crate::run::RunEntity;
 
 pub struct ServerItemsPlugin;
 
 impl Plugin for ServerItemsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_level_items).add_systems(
+        app.add_systems(
             FixedUpdate,
-            (pickup_items, drop_items)
+            (pickup_items, drop_items, map_holder_rules)
                 .chain()
                 .after(CharacterSystems)
                 .run_if(in_state(ClientState::Disconnected)),
@@ -35,73 +36,6 @@ impl Default for Inventory {
     fn default() -> Self {
         Self(vec![None; config::INVENTORY_SLOTS])
     }
-}
-
-fn item_catalog() -> Vec<Item> {
-    vec![
-        Item {
-            id: 1,
-            name: "Medkit".into(),
-            weight: 2.0,
-            value: 50,
-        },
-        Item {
-            id: 2,
-            name: "Battery".into(),
-            weight: 1.0,
-            value: 30,
-        },
-        Item {
-            id: 3,
-            name: "Gold Bar".into(),
-            weight: 8.0,
-            value: 500,
-        },
-    ]
-}
-
-fn spawn_level_items(mut commands: Commands) {
-    let spawns = level::active_level().item_spawns;
-    let catalog = item_catalog();
-    for (i, pos) in spawns.iter().enumerate() {
-        let item = catalog[i % catalog.len()].clone();
-        spawn_world_item(&mut commands, item, *pos, Vec3::ZERO);
-    }
-    info!("spawned {} world items", spawns.len());
-}
-
-/// Spawns a pickup item as a physics object in the world. Used for both
-/// initial level spawns and player drops.
-pub fn spawn_world_item(
-    commands: &mut Commands,
-    item: Item,
-    position: Vec3,
-    velocity: Vec3,
-) -> Entity {
-    let size = config::ITEM_SIZE;
-    commands
-        .spawn((
-            Replicated,
-            RigidBody::Dynamic,
-            Collider::cuboid(size, size, size),
-            ColliderDensity(80.0),
-            Friction::new(0.5),
-            Restitution::new(config::PROP_RESTITUTION),
-            AngularDamping(config::PROP_ANGULAR_DAMPING),
-            // Small fast objects tunnel through level geometry without CCD.
-            SweptCcd::default(),
-            PropShape::Crate {
-                size: Vec3::splat(size),
-            },
-            item,
-            LinearVelocity(velocity.adjust_precision()),
-            NetTransform {
-                translation: position,
-                rotation: Quat::IDENTITY,
-            },
-            Transform::from_translation(position),
-        ))
-        .id()
 }
 
 fn look_direction(yaw: f32, pitch: f32) -> Vec3 {
@@ -127,21 +61,17 @@ fn pickup_items(
     colliders: Query<&ColliderOf>,
     items: Query<&Item>,
     mut players: Query<
-        (Entity, &Transform, &mut LatestInput, &mut Inventory, &PlayerOwner),
+        (Entity, &Transform, &mut LatestInput, &mut Inventory, &PlayerOwner, &PlayerName),
         With<Player>,
     >,
+    mut run: Query<&mut shared::run::RunState, With<RunEntity>>,
     mut writer: MessageWriter<ToClients<InventoryUpdate>>,
 ) {
-    for (player, transform, mut input, mut inventory, owner) in &mut players {
+    for (player, transform, mut input, mut inventory, owner, name) in &mut players {
         if !input.0.interact {
             continue;
         }
         input.0.interact = false;
-
-        let Some(free_slot) = inventory.0.iter().position(Option::is_none) else {
-            info!("player {player} tried to pick up with a full inventory");
-            continue;
-        };
 
         let eye = transform.translation + Vec3::Y * config::PLAYER_EYE_HEIGHT;
         let dir =
@@ -164,6 +94,33 @@ fn pickup_items(
             continue;
         };
 
+        if item.id == CREDITS {
+            if let Ok(mut run) = run.single_mut() {
+                run.credits += item.value;
+                info!("{} picked up {} credits (party: {})", name.0, item.value, run.credits);
+            }
+            commands.entity(body).despawn();
+            continue;
+        }
+
+        if items::is_map(item) {
+            if let Ok(mut run) = run.single_mut() {
+                if let Some(holder) = &run.map_holder {
+                    if holder != &name.0 {
+                        info!("map already held by {holder}");
+                        continue;
+                    }
+                } else {
+                    run.map_holder = Some(name.0.clone());
+                }
+            }
+        }
+
+        let Some(free_slot) = inventory.0.iter().position(Option::is_none) else {
+            info!("player {player} tried to pick up with a full inventory");
+            continue;
+        };
+
         info!("player picked up '{}' into slot {free_slot}", item.name);
         inventory.0[free_slot] = Some(item.clone());
         commands.entity(body).despawn();
@@ -174,12 +131,13 @@ fn pickup_items(
 fn drop_items(
     mut commands: Commands,
     mut players: Query<
-        (&Transform, &mut LatestInput, &mut Inventory, &PlayerOwner),
+        (&Transform, &mut LatestInput, &mut Inventory, &PlayerOwner, &PlayerName),
         With<Player>,
     >,
+    mut run: Query<&mut shared::run::RunState, With<RunEntity>>,
     mut writer: MessageWriter<ToClients<InventoryUpdate>>,
 ) {
-    for (transform, mut input, mut inventory, owner) in &mut players {
+    for (transform, mut input, mut inventory, owner, name) in &mut players {
         let Some(slot) = input.0.drop_slot.take() else {
             continue;
         };
@@ -191,6 +149,14 @@ fn drop_items(
             continue;
         };
 
+        if items::is_map(&item) {
+            if let Ok(mut run) = run.single_mut() {
+                if run.map_holder.as_deref() == Some(name.0.as_str()) {
+                    run.map_holder = None;
+                }
+            }
+        }
+
         let dir = look_direction(input.0.yaw, input.0.pitch);
         let position =
             transform.translation + Vec3::Y * config::PLAYER_EYE_HEIGHT + dir * 1.2;
@@ -200,7 +166,27 @@ fn drop_items(
             item,
             position,
             dir * config::ITEM_DROP_SPEED,
+            false,
         );
         send_inventory(&mut writer, owner.0, &inventory);
+    }
+}
+
+/// Clear map holder if they no longer carry a map.
+fn map_holder_rules(
+    mut run: Query<&mut shared::run::RunState, With<RunEntity>>,
+    players: Query<(&PlayerName, &Inventory), With<Player>>,
+) {
+    let Ok(mut run) = run.single_mut() else {
+        return;
+    };
+    let Some(holder) = run.map_holder.clone() else {
+        return;
+    };
+    let still_has = players.iter().any(|(name, inv)| {
+        name.0 == holder && inv.0.iter().any(|s| s.as_ref().is_some_and(items::is_map))
+    });
+    if !still_has {
+        run.map_holder = None;
     }
 }

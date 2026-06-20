@@ -3,10 +3,16 @@ use bevy::prelude::*;
 use shared::config;
 
 pub mod character;
+pub mod combat;
 pub mod grab;
 pub mod items;
+pub mod map_stream;
 pub mod level;
+pub mod liquids;
 pub mod players;
+pub mod run;
+// Village intermezzo parked at git tag `base`. Enable with `--features village`.
+#[cfg(feature = "village")]
 pub mod village_live;
 
 /// Core server-side gameplay plugin. Added in both `--server` (headless)
@@ -27,10 +33,13 @@ impl Plugin for ServerCorePlugin {
             )
             .add_plugins((
                 level::ServerLevelPlugin,
+                map_stream::KenneyStreamPlugin,
+                liquids::LiquidsPlugin,
                 players::ServerPlayersPlugin,
                 grab::ServerGrabPlugin,
                 items::ServerItemsPlugin,
-                village_live::VillageLivePlugin,
+                combat::CombatPlugin,
+                run::RunPlugin,
             ))
             .init_resource::<ServerTick>()
             .add_systems(Startup, log_startup)

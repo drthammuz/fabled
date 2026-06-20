@@ -1,0 +1,25 @@
+{
+  "coord_system": {
+    "origin": "SW",
+    "y_axis": "north",
+    "cell_meters": 4.0,
+    "world_x0": -16.0,
+    "note": "5×5 Kenney sandbox (20 m × 20 m). Empty — layout lives in kenney_layout.json."
+  },
+  "grid": {
+    "max_x": 4,
+    "max_y": 4
+  },
+  "outer_walls": [],
+  "inner_walls": [],
+  "doors": [],
+  "stairs": {
+    "corners": [
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [0, 0]
+    ],
+    "climb": { "from": [0, 0], "to": [0, 0] }
+  }
+}

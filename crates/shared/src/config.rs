@@ -52,15 +52,50 @@ pub const PLAYER_AIR_ACCEL_RATE: f32 = 1.8;
 /// Scale on the impulse players impart when walking into dynamic bodies
 /// (applied on top of the physically-correct reduced-mass impulse).
 pub const PLAYER_PUSH_STRENGTH: f32 = 0.5;
-/// Capsule dimensions: radius and cylinder length (total height = length + 2r).
+/// Character body width (full X/Z extent). Quake-style controllers use an AABB
+/// hull; a box avoids capsule “rolling” off stair treads and trap-door lips.
+pub const PLAYER_BODY_WIDTH: f32 = 0.6;
+/// Standing body height (full Y extent).
+pub const PLAYER_BODY_HEIGHT: f32 = 1.8;
+/// Legacy capsule radius — kept for camera / spawn height math on the client.
 pub const PLAYER_CAPSULE_RADIUS: f32 = 0.4;
+/// Legacy capsule cylinder length — kept for camera / spawn height math.
 pub const PLAYER_CAPSULE_LENGTH: f32 = 1.0;
+
+/// `--city` player spawn (capsule centre). Colliders load async — may take a moment.
+pub const CITY_SPAWN: bevy::prelude::Vec3 = bevy::prelude::Vec3::new(0.0, 18.0, 40.0);
 /// Player mass in kg (used when pushing dynamic props).
 pub const PLAYER_MASS: f32 = 75.0;
 /// Camera eye height above the capsule center.
 pub const PLAYER_EYE_HEIGHT: f32 = 0.6;
-/// Max distance below the capsule bottom that still counts as grounded.
-pub const PLAYER_GROUND_PROBE: f32 = 0.15;
+/// Crouched capsule cylinder length (total height = length + 2r).
+pub const PLAYER_CROUCH_LENGTH: f32 = 0.45;
+/// Eye height while crouched.
+pub const PLAYER_CROUCH_EYE_HEIGHT: f32 = 0.25;
+/// Walk speed while crouched, m/s.
+pub const PLAYER_CROUCH_SPEED: f32 = 4.5;
+/// Upward cast distance required before standing up from crouch.
+pub const PLAYER_STAND_UP_CLEARANCE: f32 = 0.55;
+/// Max height of a step/ledge the player climbs automatically (no jump).
+/// Kenney `stairs` rise ~0.29 m per tread; 0.65 m matches Quake STEPSIZE headroom.
+pub const PLAYER_STEP_HEIGHT: f32 = 0.65;
+/// Short downward trace for grounded tests (Quake `PM_GroundTrace` ≈ 0.25 units).
+/// Must stay small — a large value causes “suck to ground” while falling and pulls
+/// players off narrow ledges.
+pub const PLAYER_GROUND_TRACE_DIST: f32 = 0.08;
+/// Relaxed walkable normal for stair tread snap during step-up only (not global ground).
+pub const PLAYER_STAIR_WALK_NORMAL: f32 = 0.55;
+/// Minimum surface normal Y for walkable ground (Quake `MIN_WALK_NORMAL` = 0.7).
+pub const PLAYER_MIN_WALK_NORMAL: f32 = 0.7;
+/// When moving up, ignore ground if velocity pushes away from the surface this fast
+/// (Quake kickoff check, scaled to m/s).
+pub const PLAYER_GROUND_KICKOFF_SPEED: f32 = 2.5;
+/// Upward speed above which ground traces are skipped entirely (Quake: 180 ups).
+pub const PLAYER_JUMP_GROUND_CUTOFF: f32 = 4.0;
+/// Grace period after leaving the ground where a jump still counts as grounded.
+pub const PLAYER_COYOTE_TIME: f32 = 0.1;
+/// Wading: only count as grounded when feet are this close to the bed (not swimming).
+pub const PLAYER_WADE_GROUND_PROBE: f32 = 0.12;
 /// Max look pitch the server accepts, radians (just under straight up/down).
 pub const PLAYER_MAX_PITCH: f32 = 1.55;
 
@@ -104,6 +139,11 @@ pub const ITEM_DROP_SPEED: f32 = 3.0;
 /// World-item cube size (full extent), meters.
 pub const ITEM_SIZE: f32 = 0.35;
 
+/// Y-world offset for hub rooms. They generate this many metres below the
+/// stretch floor so players physically fall from the extraction pit into the
+/// hub without an abrupt teleport.
+pub const HUB_Y_OFFSET: f32 = -22.0;
+
 // --- Fly camera (debug/inspection, client-side only) ---
 
 /// Base fly speed in m/s.
@@ -112,3 +152,41 @@ pub const FLY_CAM_SPEED: f32 = 12.0;
 pub const FLY_CAM_FAST_MULT: f32 = 4.0;
 /// Mouse look sensitivity in radians per pixel of mouse motion.
 pub const FLY_CAM_SENSITIVITY: f32 = 0.002;
+
+// --- Client atmosphere (M1) ---
+
+/// Toxic steam above water channels.
+pub const FOG_CHANNEL_DENSITY: f32 = 0.18;
+/// General tunnel haze along walkways.
+pub const FOG_TUNNEL_DENSITY: f32 = 0.06;
+/// Hanabi spawn rate for water-channel boil bubbles (per second).
+pub const WATER_BOIL_RATE: f32 = 20.0;
+/// Hanabi spawn rate for sparse tunnel air motes (per second, per zone).
+pub const AIR_MOTE_RATE: f32 = 5.0;
+/// Max wall panel length before splitting (client visual only).
+pub const WALL_PANEL_MAX_M: f32 = 3.5;
+
+// --- Water (M5–M6) ---
+
+/// World-space Y of the animated water surface.
+pub const WATER_SURFACE_HEIGHT: f32 = 0.02;
+/// Gerstner-style wave height for sewer channels, metres.
+pub const WATER_WAVE_AMPLITUDE: f32 = 0.035;
+/// Toxic green base tint (matches flat-water fallback).
+pub const WATER_BASE_COLOR: (f32, f32, f32, f32) = (0.05, 0.45, 0.18, 0.92);
+/// Shallow channel tint.
+pub const WATER_SHALLOW_COLOR: (f32, f32, f32, f32) = (0.08, 0.55, 0.22, 1.0);
+/// Deep channel tint.
+pub const WATER_DEEP_COLOR: (f32, f32, f32, f32) = (0.02, 0.25, 0.10, 1.0);
+/// Liquid density for buoyancy (kg/m³).
+pub const WATER_DENSITY: f32 = 1000.0;
+/// Walk speed multiplier while wading. Sewer channels are narrower than the
+/// player capsule, so you almost always straddle a channel edge — a heavy
+/// penalty here read as the whole tunnel being "sticky". Keep it subtle: a
+/// mild slow that barely registers when brushing an edge but adds a little
+/// weight in open water. (The old compounding per-tick water drag is gone.)
+pub const PLAYER_WADE_SPEED_MULT: f32 = 0.85;
+/// Minimum entry speed to emit a splash event, m/s.
+pub const WATER_SPLASH_MIN_SPEED: f32 = 0.8;
+/// Footfall ripple interval while wading on ground, seconds.
+pub const WATER_FOOTFALL_INTERVAL: f32 = 0.45;

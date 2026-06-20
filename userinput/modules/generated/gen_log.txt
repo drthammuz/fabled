@@ -1,0 +1,519 @@
+=== gen_modules.py run started 2026-06-17 03:51:08 ===
+[03:51:08] INFO  Pool      : generated
+[03:51:08] INFO  Output    : C:\Users\Benji\fabled\userinput\modules\generated
+[03:51:08] INFO  Max hours : 8.0  |  Target modules: 300
+[03:51:08] INFO  Seed      : 2026
+[03:51:08] INFO  Quit: type 'q' + Enter,  or  create file 'userinput/gen_stop.flag'
+[03:51:08] INFO  Initial threshold: 0.58  weights: {}
+[03:51:08] INFO  Starting — initial threshold 0.58
+[03:51:08] INFO  Phases: [(0, 0.58), (300, 0.87), (500, 0.91)]
+[03:51:08] INFO  SAVE #   1 | score=0.932 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE #   2 | score=0.942 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #   3 | score=0.959 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #   4 | score=0.905 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #   5 | score=0.964 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #   6 | score=0.923 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #   7 | score=0.942 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #   8 | score=0.809 str=planned            | ent=1 (S      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE #   9 | score=0.900 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  10 | score=0.927 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  11 | score=0.951 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  12 | score=0.891 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE #  13 | score=0.957 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  14 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE #  15 | score=0.895 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE #  16 | score=0.910 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  17 | score=0.952 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  18 | score=0.947 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  19 | score=0.953 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  20 | score=0.905 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  21 | score=0.932 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE #  22 | score=0.918 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  23 | score=0.947 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  24 | score=0.969 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  25 | score=0.923 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  26 | score=0.891 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE #  27 | score=0.953 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  28 | score=0.790 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=0.35 | pc= 1
+[03:51:08] INFO  SAVE #  29 | score=0.951 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  30 | score=0.783 str=planned            | ent=1 (W      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 2
+[03:51:08] INFO  SAVE #  31 | score=0.952 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  32 | score=0.918 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  33 | score=0.896 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  34 | score=0.895 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE #  35 | score=0.953 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  36 | score=0.953 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  37 | score=0.947 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  38 | score=0.842 str=planned            | ent=1 (E      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  39 | score=0.969 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  40 | score=0.918 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=14
+[03:51:08] INFO  SAVE #  41 | score=0.900 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  42 | score=0.957 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  43 | score=0.942 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  44 | score=0.953 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  45 | score=0.918 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  46 | score=0.842 str=planned            | ent=1 (W      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  47 | score=0.952 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  48 | score=0.952 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  49 | score=0.930 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  50 | score=0.921 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE #  51 | score=0.952 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  52 | score=0.952 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  53 | score=0.953 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:08] INFO  SAVE #  54 | score=0.964 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  55 | score=0.980 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE #  56 | score=0.896 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  57 | score=0.969 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  58 | score=0.926 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  59 | score=0.929 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE #  60 | score=0.925 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  61 | score=0.904 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:08] INFO  SAVE #  62 | score=0.923 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  63 | score=0.942 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  64 | score=0.947 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  65 | score=0.957 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  66 | score=0.947 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  67 | score=0.947 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  68 | score=0.953 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  69 | score=0.909 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  70 | score=0.947 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  71 | score=0.918 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  72 | score=0.831 str=planned            | ent=1 (N      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE #  73 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  74 | score=0.937 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:08] INFO  SAVE #  75 | score=0.923 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  76 | score=0.891 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE #  77 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  78 | score=0.896 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE #  79 | score=0.900 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  80 | score=0.927 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  81 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  82 | score=0.900 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  83 | score=0.847 str=planned            | ent=1 (N      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  84 | score=0.952 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  85 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  86 | score=0.953 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  87 | score=0.951 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE #  88 | score=0.923 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE #  89 | score=0.842 str=planned            | ent=1 (E      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  90 | score=0.955 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE #  91 | score=0.840 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=0.35 | pc= 1
+[03:51:08] INFO  SAVE #  92 | score=0.891 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE #  93 | score=0.953 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE #  94 | score=0.868 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  95 | score=0.959 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE #  96 | score=0.927 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  97 | score=0.927 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE #  98 | score=0.900 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE #  99 | score=0.947 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 100 | score=0.905 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 101 | score=0.951 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 102 | score=0.947 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 103 | score=0.891 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 2
+[03:51:08] INFO  SAVE # 104 | score=0.947 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 105 | score=0.930 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 106 | score=0.809 str=planned            | ent=1 (N      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 107 | score=0.809 str=planned            | ent=1 (E      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 108 | score=0.891 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 109 | score=0.926 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 110 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 111 | score=0.900 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 112 | score=0.941 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:08] INFO  SAVE # 113 | score=0.953 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 114 | score=0.942 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 115 | score=0.951 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 116 | score=0.968 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 117 | score=0.930 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 118 | score=0.952 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 119 | score=0.926 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 120 | score=0.923 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 121 | score=0.841 str=planned            | ent=1 (E      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 122 | score=0.979 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 123 | score=0.953 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 124 | score=0.905 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 125 | score=0.957 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 126 | score=0.914 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=13
+[03:51:08] INFO  SAVE # 127 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 128 | score=0.968 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 129 | score=0.923 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 130 | score=0.840 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=0.35 | pc= 1
+[03:51:08] INFO  SAVE # 131 | score=0.893 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 132 | score=0.932 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 133 | score=0.930 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 134 | score=0.900 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 135 | score=0.905 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 136 | score=0.955 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 137 | score=0.968 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 138 | score=0.918 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 139 | score=0.947 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 140 | score=0.953 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 141 | score=0.969 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 142 | score=0.918 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 143 | score=0.942 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 144 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 145 | score=0.809 str=planned            | ent=1 (S      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 146 | score=0.973 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 147 | score=0.923 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 148 | score=0.787 str=planned            | ent=1 (N      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 149 | score=0.953 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 150 | score=0.973 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 151 | score=0.964 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 152 | score=0.926 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 153 | score=0.923 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 154 | score=0.923 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 155 | score=0.959 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 156 | score=0.951 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 157 | score=0.913 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 158 | score=0.783 str=planned            | ent=1 (W      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE # 159 | score=0.959 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 160 | score=0.927 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 161 | score=0.783 str=planned            | ent=1 (E      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE # 162 | score=0.951 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 163 | score=0.905 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 164 | score=0.955 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 165 | score=0.953 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 166 | score=0.891 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE # 167 | score=0.973 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 168 | score=0.918 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 169 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 170 | score=0.964 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 171 | score=0.950 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:08] INFO  SAVE # 172 | score=0.969 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 173 | score=0.909 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:08] INFO  SAVE # 174 | score=0.896 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 175 | score=0.968 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 176 | score=0.932 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 177 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 178 | score=0.942 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 179 | score=0.927 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 180 | score=0.891 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 181 | score=0.952 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 182 | score=0.937 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:08] INFO  SAVE # 183 | score=0.953 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 184 | score=0.932 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 185 | score=0.841 str=planned            | ent=1 (W      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 186 | score=0.923 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE # 187 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 188 | score=0.947 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 189 | score=0.964 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 190 | score=0.973 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 191 | score=0.947 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 192 | score=0.964 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 193 | score=0.909 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:08] INFO  SAVE # 194 | score=0.930 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 195 | score=0.923 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 196 | score=0.951 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 197 | score=0.918 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 198 | score=0.914 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 199 | score=0.953 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 200 | score=0.840 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=0.35 | pc= 1
+[03:51:08] INFO  SAVE # 201 | score=0.953 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 202 | score=0.927 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 203 | score=0.822 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=0.35 | pc= 1
+[03:51:08] INFO  SAVE # 204 | score=0.923 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 205 | score=0.927 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 206 | score=0.957 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 207 | score=0.957 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 208 | score=0.840 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=0.35 | pc= 1
+[03:51:08] INFO  SAVE # 209 | score=0.968 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 210 | score=0.950 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 211 | score=0.963 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 212 | score=0.842 str=planned            | ent=1 (S      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 213 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 214 | score=0.963 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 215 | score=0.957 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 216 | score=0.953 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 217 | score=0.927 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 218 | score=0.909 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 219 | score=0.923 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 220 | score=0.909 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:08] INFO  SAVE # 221 | score=0.930 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 222 | score=0.930 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 223 | score=0.923 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 224 | score=0.900 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 225 | score=0.963 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 226 | score=0.904 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:08] INFO  SAVE # 227 | score=0.957 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 228 | score=1.000 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 229 | score=0.842 str=planned            | ent=1 (N      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 230 | score=0.923 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 231 | score=0.930 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 232 | score=1.000 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 233 | score=0.923 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 234 | score=0.980 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 235 | score=0.918 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 236 | score=0.953 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 237 | score=0.951 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 238 | score=0.959 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 239 | score=0.951 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 240 | score=0.732 str=planned            | ent=1 (S      ) | acc=1.00 safe=1.00 creat=0.35 | pc= 1
+[03:51:08] INFO  SAVE # 241 | score=0.927 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 242 | score=0.947 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 243 | score=0.926 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 244 | score=0.957 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 245 | score=0.930 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 246 | score=0.951 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 247 | score=0.893 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 248 | score=0.955 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 249 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 250 | score=0.842 str=planned            | ent=1 (E      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 251 | score=0.957 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 252 | score=0.951 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 253 | score=0.927 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 254 | score=0.955 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 255 | score=0.801 str=planned            | ent=1 (E      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 256 | score=0.952 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 257 | score=0.951 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 258 | score=0.953 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 259 | score=0.905 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 260 | score=0.968 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 261 | score=0.942 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 262 | score=0.923 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 263 | score=0.809 str=planned            | ent=1 (N      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 264 | score=0.915 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 265 | score=0.950 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:08] INFO  SAVE # 266 | score=0.968 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 267 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 268 | score=0.896 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 269 | score=0.942 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 270 | score=0.923 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 271 | score=0.953 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 272 | score=0.914 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=13
+[03:51:08] INFO  SAVE # 273 | score=0.947 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:08] INFO  SAVE # 274 | score=0.809 str=planned            | ent=1 (S      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 275 | score=0.963 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 276 | score=0.947 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 277 | score=0.918 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 278 | score=0.957 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 279 | score=0.964 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 280 | score=0.963 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 281 | score=0.930 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:08] INFO  SAVE # 282 | score=0.931 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:08] INFO  SAVE # 283 | score=0.905 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 284 | score=0.787 str=planned            | ent=1 (W      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 285 | score=0.942 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 286 | score=0.979 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 287 | score=0.953 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 288 | score=0.914 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=13
+[03:51:08] INFO  SAVE # 289 | score=0.884 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE # 290 | score=0.927 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:08] INFO  SAVE # 291 | score=0.942 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:08] INFO  SAVE # 292 | score=0.923 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:08] INFO  SAVE # 293 | score=0.963 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:08] INFO  SAVE # 294 | score=0.809 str=planned            | ent=1 (W      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:08] INFO  SAVE # 295 | score=0.891 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 296 | score=0.930 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 297 | score=0.932 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 298 | score=0.947 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 299 | score=0.831 str=planned            | ent=1 (S      ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:09] INFO  SAVE # 300 | score=0.953 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  *** Phase 2 - quality bar raised (threshold floor -> 0.87) ***
+[03:51:09] INFO  SAVE # 301 | score=0.915 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 302 | score=0.923 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:09] INFO  SAVE # 303 | score=1.000 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 304 | score=0.927 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 305 | score=0.918 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 306 | score=0.918 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 307 | score=0.964 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 308 | score=0.947 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 309 | score=0.957 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 310 | score=0.963 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 311 | score=0.953 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 312 | score=0.923 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 313 | score=0.937 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 314 | score=0.951 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 315 | score=0.957 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 316 | score=0.950 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 317 | score=0.964 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 318 | score=0.951 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 319 | score=0.914 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=13
+[03:51:09] INFO  SAVE # 320 | score=0.955 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 321 | score=0.947 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 322 | score=0.964 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 323 | score=0.895 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 324 | score=0.964 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 325 | score=0.927 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 326 | score=0.963 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 327 | score=0.951 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 328 | score=0.952 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 329 | score=0.905 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 330 | score=0.952 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 331 | score=0.942 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 332 | score=0.963 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 333 | score=0.968 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 334 | score=0.963 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 335 | score=0.953 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 336 | score=0.923 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 337 | score=0.950 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 338 | score=0.989 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 339 | score=0.942 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 340 | score=0.973 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 341 | score=0.952 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 342 | score=0.909 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 343 | score=0.884 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:09] INFO  SAVE # 344 | score=0.953 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 345 | score=0.923 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 346 | score=0.900 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 347 | score=0.980 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 348 | score=0.964 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 349 | score=0.909 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:09] INFO  SAVE # 350 | score=0.947 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 351 | score=0.923 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 352 | score=0.893 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 353 | score=0.951 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 354 | score=0.947 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 355 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 356 | score=0.887 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 357 | score=0.923 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 358 | score=0.905 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 359 | score=0.904 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:09] INFO  SAVE # 360 | score=0.923 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 361 | score=0.896 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 362 | score=0.952 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 363 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 364 | score=0.951 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 365 | score=0.918 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 366 | score=0.930 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 367 | score=0.932 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 368 | score=0.896 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 369 | score=0.932 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 370 | score=0.923 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 371 | score=1.000 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 372 | score=0.910 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 373 | score=0.963 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 374 | score=0.895 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 375 | score=0.963 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 376 | score=0.953 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 377 | score=0.905 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 378 | score=0.923 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 379 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 380 | score=0.918 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 381 | score=0.923 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 382 | score=0.964 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 383 | score=0.891 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 384 | score=0.964 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 385 | score=0.923 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 386 | score=0.955 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 387 | score=0.947 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 388 | score=0.959 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 389 | score=0.947 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 390 | score=0.923 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 391 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 392 | score=0.968 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 393 | score=0.926 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 394 | score=0.910 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 395 | score=0.904 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 396 | score=0.910 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 397 | score=0.937 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 398 | score=0.957 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 399 | score=0.952 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 400 | score=0.909 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:09] INFO  SAVE # 401 | score=0.933 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 402 | score=0.914 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 403 | score=0.968 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 404 | score=0.952 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 405 | score=0.942 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 406 | score=0.905 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 407 | score=0.951 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 408 | score=0.921 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:09] INFO  SAVE # 409 | score=0.909 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:09] INFO  SAVE # 410 | score=0.942 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 411 | score=0.900 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 412 | score=0.968 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 413 | score=0.980 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:09] INFO  SAVE # 414 | score=0.942 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 415 | score=0.905 str=planned            | ent=2 (E,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 416 | score=0.909 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 417 | score=0.905 str=planned            | ent=2 (S,N    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 418 | score=0.942 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 419 | score=0.947 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 420 | score=0.914 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=13
+[03:51:09] INFO  SAVE # 421 | score=0.909 str=planned            | ent=4 (N,S,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:09] INFO  SAVE # 422 | score=0.918 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 423 | score=0.952 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 424 | score=0.923 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 425 | score=0.932 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 426 | score=0.932 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 427 | score=0.918 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 428 | score=0.923 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 429 | score=0.980 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 430 | score=0.963 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 431 | score=0.973 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 432 | score=0.969 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 433 | score=0.964 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 434 | score=0.925 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 435 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 436 | score=0.980 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 437 | score=0.923 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 438 | score=0.969 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 439 | score=0.904 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 440 | score=0.927 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 441 | score=0.952 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 442 | score=0.918 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 443 | score=0.953 str=planned            | ent=3 (S,N,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 444 | score=0.905 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 445 | score=0.947 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 446 | score=0.923 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 447 | score=0.927 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 448 | score=0.980 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 449 | score=0.891 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 450 | score=0.895 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 451 | score=0.904 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 452 | score=0.955 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 453 | score=0.953 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 454 | score=0.927 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 455 | score=0.900 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 456 | score=0.914 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=13
+[03:51:09] INFO  SAVE # 457 | score=0.973 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 458 | score=0.891 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 3
+[03:51:09] INFO  SAVE # 459 | score=0.979 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 460 | score=0.995 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 461 | score=0.963 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 462 | score=0.928 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 463 | score=0.926 str=planned            | ent=3 (N,S,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 464 | score=0.947 str=planned            | ent=2 (N,S    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 465 | score=0.968 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 466 | score=0.918 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=14
+[03:51:09] INFO  SAVE # 467 | score=0.953 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 468 | score=0.953 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 469 | score=0.952 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 470 | score=0.950 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 471 | score=0.953 str=planned            | ent=3 (S,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 472 | score=0.964 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 473 | score=0.952 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 474 | score=0.927 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 9
+[03:51:09] INFO  SAVE # 475 | score=0.918 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=14
+[03:51:09] INFO  SAVE # 476 | score=0.891 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 477 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 478 | score=0.980 str=planned            | ent=3 (N,E,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=11
+[03:51:09] INFO  SAVE # 479 | score=0.947 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 480 | score=0.963 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 481 | score=0.905 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 482 | score=0.953 str=planned            | ent=3 (S,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 483 | score=0.923 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 484 | score=0.909 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:09] INFO  SAVE # 485 | score=0.973 str=planned            | ent=2 (N,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 486 | score=0.891 str=planned            | ent=3 (N,S,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 487 | score=0.941 str=planned            | ent=2 (S,W    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 488 | score=0.932 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 489 | score=0.964 str=planned            | ent=2 (S,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 490 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 491 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=10
+[03:51:09] INFO  SAVE # 492 | score=0.942 str=planned            | ent=3 (S,N,W  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 493 | score=0.955 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 4
+[03:51:09] INFO  SAVE # 494 | score=0.891 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 495 | score=0.923 str=planned            | ent=4 (S,N,E,W) | acc=1.00 safe=1.00 creat=1.00 | pc= 8
+[03:51:09] INFO  SAVE # 496 | score=0.909 str=planned            | ent=4 (S,N,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc=12
+[03:51:09] INFO  SAVE # 497 | score=0.923 str=planned            | ent=4 (N,S,W,E) | acc=1.00 safe=1.00 creat=1.00 | pc= 5
+[03:51:09] INFO  SAVE # 498 | score=0.957 str=planned            | ent=2 (N,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  SAVE # 499 | score=0.905 str=planned            | ent=2 (W,E    ) | acc=1.00 safe=1.00 creat=1.00 | pc= 6
+[03:51:09] INFO  SAVE # 500 | score=0.918 str=planned            | ent=3 (N,W,E  ) | acc=1.00 safe=1.00 creat=1.00 | pc= 7
+[03:51:09] INFO  *** Phase 3 - best-of-the-best (threshold floor -> 0.91) ***
+[03:51:09] INFO  All phases complete (500 modules saved) — stopping.
+[03:51:09] INFO  ============================================================
+[03:51:09] INFO  DONE  candidates=663  saved=500  accept_rate=75.4%  elapsed=0.0 min
+[03:51:09] INFO    planned               count= 500  avg_score=0.929
+[03:51:09] INFO  Structural layouts explored : 498
+[03:51:09] INFO  Index   -> userinput\modules\generated\gen_index.json
+[03:51:09] INFO  Modules -> userinput\modules\generated
+[03:51:09] INFO  ============================================================

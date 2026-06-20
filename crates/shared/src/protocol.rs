@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use crate::classes::ClassKind;
 use crate::props::PropShape;
 
 /// Marker for player entities. Replicated to all clients.
@@ -37,10 +38,12 @@ pub struct PlayerInput {
     pub yaw: f32,
     /// Look pitch in radians (negative = look down).
     pub pitch: f32,
-    /// True if jump was pressed since the last input message.
+    /// True on the client tick where jump was pressed (`just_pressed`), not while held.
     pub jump: bool,
     /// Hold Shift to sprint.
     pub sprint: bool,
+    /// Hold Ctrl to crouch (reduced capsule, duck under ducts).
+    pub crouch: bool,
     /// Hold to grab a dynamic object in view.
     pub grab: bool,
     /// True if throw was pressed since the last input message.
@@ -49,6 +52,14 @@ pub struct PlayerInput {
     pub interact: bool,
     /// Set when drop was pressed: which inventory slot to drop.
     pub drop_slot: Option<u8>,
+    /// Hub shop: buy item by catalog id (10=flashlight, 11=map, 12=bat).
+    pub shop_buy: Option<u32>,
+    /// Hub routing: index into `RunState.route_options`.
+    pub route_select: Option<u8>,
+    /// Melee attack this tick (pipe bat).
+    pub attack: bool,
+    /// Toggle flashlight (if owned).
+    pub flashlight_toggle: bool,
 }
 
 /// A pickup item. On world entities this is replicated to everyone;
@@ -108,6 +119,43 @@ pub struct VillageClock {
     pub minute_of_day: u64,
 }
 
+/// Whether this player is alive in the current run.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, Default)]
+pub struct PlayerAlive(pub bool);
+
+/// Physics-authoritative grounded state, replicated so clients can use it
+/// for footstep logic and future airborne effects.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, Default, PartialEq)]
+pub struct PlayerGrounded(pub bool);
+
+/// Server → all clients: play the train-passing ambient sound now.
+/// The server fires this at random intervals (45–120 s) so all clients
+/// hear it simultaneously.
+#[derive(Message, Serialize, Deserialize, Clone, Copy)]
+pub struct PlayTrainSound;
+
+/// Server → all clients: something hit the water (splash / ripple trigger).
+#[derive(Message, Serialize, Deserialize, Clone, Copy, Debug)]
+pub struct WaterImpact {
+    pub channel_id: u32,
+    pub position: Vec3,
+    pub impulse: f32,
+}
+
+/// Which class this player has chosen. Replicated so all clients can
+/// display the correct capsule colour.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PlayerClass(pub ClassKind);
+
+/// Client → server: sent once when the player picks a class on the
+/// selection screen.
+#[derive(Message, Serialize, Deserialize, Clone, Copy)]
+pub struct ClassPick(pub ClassKind);
+
+/// Hostile creature in a stretch.
+#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+pub struct Enemy;
+
 /// Server -> owning client: "this replicated entity is your player".
 #[derive(Event, Serialize, Deserialize, Clone, Copy)]
 pub struct YouAre {
@@ -133,8 +181,16 @@ impl Plugin for ProtocolPlugin {
             .replicate::<VillagerState>()
             .replicate::<VillagerStats>()
             .replicate::<VillageClock>()
+            .replicate::<crate::run::RunState>()
+            .replicate::<PlayerAlive>()
+            .replicate::<PlayerClass>()
+            .replicate::<PlayerGrounded>()
+            .replicate::<Enemy>()
             .add_client_message::<PlayerInput>(Channel::Unreliable)
+            .add_client_message::<ClassPick>(Channel::Ordered)
             .add_server_message::<InventoryUpdate>(Channel::Ordered)
+            .add_server_message::<PlayTrainSound>(Channel::Ordered)
+            .add_server_message::<WaterImpact>(Channel::Unreliable)
             .add_mapped_server_event::<YouAre>(Channel::Ordered);
     }
 }

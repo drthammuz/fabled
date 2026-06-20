@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo:*)",
+      "Bash(powershell:*)",
+      "Bash(7z:*)",
+      "Bash(sleep:*)",
+      "Bash(taskkill:*)",
+      "Bash(taskkill.exe:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(echo:*)",
+      "Bash(node:*)",
+      "Bash(FFMPEG=*)",
+      "WebSearch",
+      "WebFetch(domain:opengameart.org)",
+      "WebFetch(domain:freesound.org)",
+      "WebFetch(domain:pixabay.com)",
+      "Bash(mv sfx100v2_footstep_wet_01.ogg step_walk.ogg)",
+      "Bash(rm -f sfx100v2_footstep_02.ogg step_sprint.ogg step_crouch.ogg)",
+      "Bash(unzip -l assets/downloads/kenney_animated-characters-protagonists.zip)",
+      "Bash(unzip -o assets/downloads/kenney_animated-characters-protagonists.zip -d assets/characters/)",
+      "Bash(python -c \"import numpy; print\\(''''numpy ok''''\\)\")",
+      "Bash(where ffmpeg:*)",
+      "Bash(ffmpeg -y -i /c/Users/Benji/fabled/assets/downloads/titlemusic.mp3 -q:a 4 /c/Users/Benji/fabled/assets/audio/titlemusic.ogg)",
+      "Bash(ffmpeg -y -i /c/Users/Benji/fabled/assets/downloads/electricbuzzproximitybased.mp3 -q:a 4 /c/Users/Benji/fabled/assets/audio/electricbuzz.ogg)",
+      "Bash(ffmpeg -y -i /c/Users/Benji/fabled/assets/downloads/sewerlevelbased.mp3 -q:a 4 /c/Users/Benji/fabled/assets/audio/sewer_ambient.ogg)",
+      "Bash(ffmpeg -y -i /c/Users/Benji/fabled/assets/downloads/trainrandom.mp3 -q:a 4 /c/Users/Benji/fabled/assets/audio/train_random.ogg)",
+      "Bash(unzip -l /c/Users/Benji/fabled/assets/downloads/kenney_animated-characters-protagonists.zip)",
+      "Bash(where blender:*)",
+      "Read(//c/Program Files/Blender Foundation//**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Bash(unzip -o /c/Users/Benji/fabled/assets/downloads/kenney_animated-characters-protagonists.zip \"Model/*\" -d /c/Users/Benji/fabled/assets/models/kenney_characters/)",
+      "Bash(cargo build:*)",
+      "Bash(unzip:*)",
+      "Bash(\"/c/Program Files/Blender Foundation/Blender 4.0/blender.exe\" --background --python-expr \":*)"
+    ]
+  }
+}

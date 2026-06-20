@@ -5,6 +5,7 @@
 use bevy::prelude::*;
 use shared::config;
 use shared::protocol::{Item, InventoryUpdate};
+use shared::EditorMode;
 
 pub struct HotbarPlugin;
 
@@ -44,7 +45,10 @@ struct HotbarSlotText(usize);
 const SLOT_BG: Color = Color::srgba(0.1, 0.1, 0.12, 0.75);
 const SLOT_BG_SELECTED: Color = Color::srgba(0.35, 0.3, 0.1, 0.9);
 
-fn setup_hotbar(mut commands: Commands) {
+fn setup_hotbar(mut commands: Commands, editor: Option<Res<EditorMode>>) {
+    if editor.is_some() {
+        return;
+    }
     commands
         .spawn(Node {
             position_type: PositionType::Absolute,

@@ -1,0 +1,304 @@
+# MULTIPLAYER ROGUELIKE GAME DESIGN
+## Class Roles, Mechanics, Faction System & Economy
+
+---
+
+# CLASS ROLES & MECHANICS
+
+## MEDIC
+**Role:** Lifeline. Shows mission stakes. Enables comeback mechanics.
+
+**Core Abilities:**
+- **Mission Assessment:** Displays mission difficulty at hub (before descent). Lets team evaluate risk.
+- **Revive:** Restore downed teammate to 1 HP (costs 1 use of medical supply). Once per supply. If all supplies used, no revives available.
+- **Team Buff:** Poison/toxin resistance in sewer zones (negates recurring damage from contaminated water/air)
+
+**Inventory:** 3 slots (starter Medical Supply Bag + 2 additional slots)
+
+**Hub Role:** Assess team condition after run. Flag if team is too injured for next mission (morale/safety check).
+
+**Economic Role:** Only class that can craft without station. Medical Scrap crafting (2-3 scrap = consumable item). Makes quick investments in healing items viable.
+
+---
+
+## SCOUT
+**Role:** Eyes & escape. Maps unknown, relocates team safely.
+
+**Core Abilities:**
+- **Speed Boost:** Movement 20-30% faster than other classes
+- **Silent Movement:** Reduced noise while sneaking. Enemies have shorter detection range when Scout is crouching.
+- **Sneak Speed:** Crouch movement nearly full speed (instead of half-speed for others)
+- **Tradeoff:** Reduced max health (to balance mobility advantage)
+
+**Equipment:** 
+- **Ekolod** (local map, Swedish for "recognition/survey map") 
+  - Shows all rooms Scout has entered (layout/architecture)
+  - Displays current vision range in real-time
+  - Marks enemy/hazard icons within line-of-sight
+  - Upgraded versions: larger vision range, enemy type icons, hazard warnings ahead
+
+**Inventory:** 2 slots
+
+**Hub Role:** Report next sector intel. Difficulty estimate, enemy types, hazard warnings. Helps team decide risk/reward for next run.
+
+---
+
+## SOLDIER
+**Role:** Tank. Absorbs damage, deals damage. Party priority for loot.
+
+**Core Abilities:**
+- **Increased Max Health:** 50% more health than other classes
+- **Increased Damage Output:** Melee + applicable ranged weapons deal more damage
+- **Threat Generation:** Enemies prioritize Soldier in combat (draws aggro). Allows team repositioning.
+- **Implicit Buff:** Team naturally gives Soldier first dibs on loot (because durability upgrades benefit the group most). Makes Soldier the "anchor" of economic priority.
+
+**Equipment:** 
+- **Bat** (starter weapon, upgradeable to better melee weapons: sledgehammer, electro-bat, etc.)
+
+**Inventory:** 2 slots
+
+**Hub Role:** Trades with faction vendors. Gets +10% better prices due to intimidation/respect. Carries heavy loot back to hub.
+
+---
+
+## TECH
+**Role:** Lockpick & reprogrammer. Opens what others can't.
+
+**Core Abilities:**
+- **Hacking:** Skill + luck-based. Attempts to open:
+  - Locked doors (opens new routes)
+  - Electronic caches (access hidden loot)
+  - Faction terminals (gain intel/hints)
+  - Enemy drones (reprogram as temporary ally OR disable turrets/defenses)
+  
+- **Starter Device:** Low success rate but non-zero chance on every attempt. Fumbles risk alerting nearby enemies.
+
+- **Device Upgrades:** Better hacker devices = higher success %, faster hacking time, lower fumble risk. Enables hacking high-level faction locks.
+
+**Equipment:** 
+- **Hacker Device** (electronic, upgradeable via Tech Scrap at Tech Stations)
+
+**Inventory:** 2 slots
+
+**Hub Role:** Upgrades hacker device (if Tech Station available at current camp). Decrypts looted faction data. Unlocks faction terminal intel for bonus rewards (hints to other camps, faction locations, loot locations).
+
+---
+
+# SCRAP ECONOMY SYSTEM
+
+## Scrap Types
+
+| Scrap Type | Role | Primary Use | Crafting Difficulty | Conversion |
+|------------|------|-------------|---------------------|------------|
+| **Medical Scrap** | Medic | Healing items, revive charges | EASY (2-3 scrap per item) | Sell: 10 credits per scrap |
+| **Tech Scrap** | Tech | Hacker device upgrades | HARD (12-16 scrap per upgrade) | Sell: 15 credits per scrap |
+| **Metal Scrap** | Soldier | Weapons, armor, durability | HARD (10-14 scrap per upgrade) | Sell: 15 credits per scrap |
+| **Textile Scrap** | Scout | Speed gear, stealth upgrades, bag expansion | MEDIUM (6-8 scrap per upgrade) | Sell: 12 credits per scrap |
+
+**Scrap Properties:**
+- Each scrap piece has **weight** (takes inventory space)
+- Scrap is **perishable** — if team wipes before returning to camp, all scrap is lost
+- Incentivizes selling early vs. hoarding for crafting
+- Forces constant resource prioritization
+
+---
+
+## Crafting Stations (Camp-Specific)
+
+Not all camps have all stations. Availability depends on faction affiliation.
+
+| Station | Crafts | Availability | Notes |
+|---------|--------|--------------|-------|
+| **Medical Station** | Medical Scrap items | All camps | Universal; Medic can also craft without station |
+| **Tech Station** | Tech device upgrades | Tech/Military faction camps | Rare; found in research outposts, secure facilities |
+| **Forge/Armory** | Soldier weapons/armor | Military faction camps | Scarce; secured locations only |
+| **Workbench** | Scout speed/stealth gear | Civilian/Scavenger camps | Moderate availability |
+
+**Impact:** Players must discover camps to access specific upgrades. Creates exploration incentive + strategic route planning.
+
+---
+
+# FACTION SYSTEM
+
+## Overview
+
+Multiple factions control different underground territories. Each faction has:
+- Distinct ideology (from their perspective)
+- Vendor/trading presence at camps
+- Unique quest lines (one active per faction at a time)
+- Reputation tracking (affects prices, quest access)
+- Later-game: potential hostility/betrayal
+
+## The Factions
+
+### FACTION 1: [MILITARY/SECURITY FACTION] 
+*Name TBD (authoritarian, control-focused)*
+
+- **Territory:** Military bunkers, command centers, secured subway segments
+- **Crafting:** Forge/Armory (Soldier focus)
+- **Quest Type:** Defense/suppression. "Eliminate encroachment," "Secure sector," "Retrieve weapon cache"
+- **Rewards:** Weapons, armor, supplies
+- **Vendor:** Military-grade equipment, higher prices but better quality
+- **Reputation Mechanic:** Gained by completing faction quests, helping military NPCs. Lost if you side with rival factions.
+
+### FACTION 2: [SCAVENGER/CIVILIAN FACTION]
+*Name TBD (pragmatic, survival-focused)*
+
+- **Territory:** Civilian settlements, makeshift camps, sewer stations repurposed as shelters
+- **Crafting:** Workbench (Scout/general focus)
+- **Quest Type:** Supply runs. "Find medicine," "Locate food caches," "Map safe routes"
+- **Rewards:** Food, shelter, maps, intel
+- **Vendor:** Consumables, tools, cheaper than military but lower quality
+- **Reputation Mechanic:** Gained by helping NPCs, completing low-risk missions. Lost if you're seen as too violent/reckless.
+
+### FACTION 3: [TECH/RESEARCH FACTION]
+*Name TBD (knowledge-focused, morally ambiguous)*
+
+- **Territory:** Research labs, server farms, tech caches, ventilation systems with hidden tech
+- **Crafting:** Tech Station (Tech focus)
+- **Quest Type:** Data/tech retrieval. "Recover server data," "Find drone chip," "Retrieve prototype"
+- **Rewards:** Upgraded tech, hacker tools, schematics
+- **Vendor:** High-tech upgrades, very expensive, only accessible with high reputation
+- **Reputation Mechanic:** Gained by hacking/unlocking faction terminals, retrieving their tech. Lost if you damage faction tech.
+
+### FACTION 4: [THE SIGNED / THE SEALED]
+*Name finalized: The Signed (or The Sealed)*
+
+The augmented humans. Those who took implants/upgrades and were rejected by baseline society.
+
+- **Perspective:** They see themselves as evolved, necessary, pragmatic. They made survival choices.
+- **Outsider Perspective:** They're compromised, unreliable, potential corporate puppets. Can't trust them.
+- **Territory:** Deep underground (overworld is lethal, they avoid it). Hidden enclaves, sealed tunnels, tech-integrated spaces.
+- **Crafting:** Tech Station (similar to Tech faction, but different tech philosophy)
+- **Quest Type:** Infiltration/networking. "Contact our people," "Disable anti-augment tech," "Retrieve implant schematics"
+- **Rewards:** Implant tech, network access, special abilities
+- **Vendor:** Augmentation-focused. Can sell implants/bio-tech mods (if team trusts them)
+- **Reputation Mechanic:** Gained by accepting their quests, treating them as equals. Lost if you work against other factions or show bias against augmentation.
+- **Special Mechanic:** If team has member who accepts Signed tech/implants, they become part-Signed. Other factions may distrust them. High risk/reward.
+
+---
+
+## Faction Quest System
+
+### Quest Mechanics:
+- **One active quest per faction at a time** — Choose which faction's quest to prioritize each run cycle
+- **Underground quests:** Early access, lower risk, smaller rewards
+- **Overworld quests:** Requires finding map (purchased or looted), higher difficulty, significantly better rewards
+
+### Quest Types:
+
+**Underground Example (Tech Faction):**
+- "Retrieve server data from Sector 7 research facility"
+- Descend into marked map, hack terminal, collect data chip
+- Return to Tech-affiliated camp with same faction
+- Collect reward (hacker upgrade + reputation)
+
+**Overworld Example (Tech Faction):**
+- "Find drone chip in overworld Sector 12"
+- Requires map purchase/discovery (shows Sector 12 layout)
+- Navigate surface (harder enemies, environmental hazards)
+- Find chip (in cache or enemy drop)
+- Return to Tech-affiliated camp to complete quest
+- Reward: Advanced hacker device + significant reputation
+
+### Faction Conflict:
+- **Mid-Game:** Theft missions unlock. "Steal from rival faction camp." Higher risk, exclusive rewards.
+- **Late-Game:** Faction camps may become **hostile on arrival.** Betrayal mechanic (reputation cascades). Must fight for loot instead of trade.
+
+---
+
+## Camp Types & Faction Affiliation
+
+Camps are underground structures. Each has:
+- **Type:** Subway station, sewer station, ventilation central, evacuation shaft
+- **Faction Control:** Which faction runs it (affects vendors, quests, stations available)
+- **Crafting Stations:** Depends on faction
+- **NPCs:** Faction vendors, quest-givers, story characters
+
+### Camp Discovery & Mapping:
+
+**Without Map:**
+- Team arrives at unknown camp
+- Don't know faction, stations, dangers
+- Must interact to discover (vendor dialogue, exploration)
+- High risk, potential reward if camp is friendly
+
+**With Map:**
+- Shows faction affiliation
+- Shows which crafting stations available
+- Shows estimated enemy density/hazards
+- Allows strategic route planning
+- Maps are limited (only one team member can hold)
+- Maps can be purchased at hubs or looted
+
+---
+
+## Faction Reputation & Late-Game Consequences
+
+### Reputation System:
+- Each faction tracks reputation independently
+- Positive actions: complete their quests, help their NPCs, don't sabotage their stuff
+- Negative actions: work for rival factions, steal from them, kill their members
+
+### Late-Game Hostility (Run 20+):
+- If reputation drops below threshold, camp becomes hostile
+- Team must fight NPC faction members instead of trading
+- Looting faction camp triggers combat
+- High risk, high reward (can loot faction tech/supplies directly)
+- Permanent consequence: that faction becomes permanently hostile (can't trade with them again that playthrough)
+
+**Impact:** Forces long-term strategic choices. Can't side with everyone forever.
+
+---
+
+## Faction Graffiti & World Hints
+
+As team moves through sewers toward faction camps, faction graffiti appears:
+- Wormwood Collective tags → moving toward their territory
+- Military markings (numbered sectors) → approaching military zone
+- Tech symbols (circuit patterns) → near research facility
+- Signed/Sealed glyphs (augmentation markers) → deep Signed territory
+
+Graffiti helps team orient without revealing camp location. Builds world immersion.
+
+---
+
+# HUB ROLES SUMMARY
+
+| Role | Hub Function |
+|------|--------------|
+| **Medic** | Assess team condition. Flag dangerous missions. Craft medical items from Medical Scrap (no station needed). |
+| **Scout** | Report sector intel. Difficulty estimate, enemy composition, hazards. Helps team choose next run strategy. |
+| **Soldier** | Trade with faction vendors (10% price discount). Carries heavy loot. Negotiates with faction NPCs (gets better prices/more options than other classes). |
+| **Tech** | Upgrade hacker device (if Tech Station available at current camp). Decrypt looted faction data. Unlock faction terminal intel for bonus rewards/hints. |
+
+---
+
+# GAME FLOW SUMMARY
+
+## Per-Run Cycle:
+1. **Hub Phase:** Team selects next map/faction quest. Medic assesses risk. Purchases map if desired (only one holder).
+2. **Descent:** Team enters underground map (sewer, subway, vent, etc.). 
+3. **Exploration:** Scout maps layout. Tech hacks caches/doors. Soldier tanks combat. Medic keeps team alive.
+4. **Combat:** Enemies vary by faction territory (Signed drones, Military guards, etc.). Enemies prioritize Soldier.
+5. **Looting:** Scrap collected (weight-based, limited inventory).
+6. **Quest Completion (if applicable):** Find objective, return to correct faction camp for reward.
+7. **Return to Hub:** Team trades scrap, buys items from vendors, assigns loot priority to Soldier.
+
+## Progression:
+- **Early Game (Runs 1-5):** Underground only. Learn mechanics. Build reputation.
+- **Mid Game (Runs 6-15):** Unlock overworld maps. Faction theft quests appear. Reputation matters.
+- **Late Game (Runs 16+):** Faction hostility possible. High-risk/high-reward playstyle emerges. Team must choose faction alignment.
+
+---
+
+# DESIGN PHILOSOPHY
+
+**Core Tensions:**
+- Individual class power vs. team dependency
+- Immediate vendor purchases vs. long-term crafting investment
+- Faction loyalty vs. opportunistic theft
+- Safe underground vs. dangerous but rewarding overworld
+- Risk (permadeath) vs. reward (scrap/loot)
+
+**Each decision forces tradeoffs. No dominant strategy. Emergent replayability.**

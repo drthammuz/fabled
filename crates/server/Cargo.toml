@@ -3,11 +3,14 @@ name = "server"
 version.workspace = true
 edition.workspace = true
 
+[features]
+village = ["dep:sim", "dep:rand", "dep:rand_chacha"]
+
 [dependencies]
 bevy.workspace = true
 avian3d.workspace = true
 bevy_replicon.workspace = true
 shared.workspace = true
-sim = { path = "../sim" }
-rand.workspace = true
-rand_chacha.workspace = true
+sim = { path = "../sim", optional = true }
+rand = { workspace = true, optional = true }
+rand_chacha = { workspace = true, optional = true }

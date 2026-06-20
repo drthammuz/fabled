@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "modules": 5,
+  "grid_unit_m": 4.0,
+  "start_id": "map_001",
+  "maps": [
+    {
+      "id": "map_001",
+      "path": "pool/map_001.json",
+      "spawn_xz": [
+        -40.0,
+        -40.0
+      ],
+      "extraction_xz": [
+        40.0,
+        40.0
+      ],
+      "hub_exits": {
+        "2": {
+          "x": 26.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West gate",
+          "kind": "walk"
+        },
+        "3": {
+          "x": 40.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "Centre pit",
+          "kind": "drop"
+        },
+        "4": {
+          "x": 32.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West drop",
+          "kind": "drop"
+        }
+      },
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_002",
+      "path": "pool/map_002.json",
+      "spawn_xz": [
+        -40.0,
+        -40.0
+      ],
+      "extraction_xz": [
+        40.0,
+        40.0
+      ],
+      "hub_exits": {
+        "2": {
+          "x": 26.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West gate",
+          "kind": "walk"
+        },
+        "3": {
+          "x": 40.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "Centre pit",
+          "kind": "drop"
+        },
+        "4": {
+          "x": 32.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West drop",
+          "kind": "drop"
+        }
+      },
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_003",
+      "path": "pool/map_003.json",
+      "spawn_xz": [
+        -40.0,
+        -40.0
+      ],
+      "extraction_xz": [
+        40.0,
+        40.0
+      ],
+      "hub_exits": {
+        "2": {
+          "x": 26.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West gate",
+          "kind": "walk"
+        },
+        "3": {
+          "x": 40.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "Centre pit",
+          "kind": "drop"
+        },
+        "4": {
+          "x": 32.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West drop",
+          "kind": "drop"
+        }
+      },
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_004",
+      "path": "pool/map_004.json",
+      "spawn_xz": [
+        40.0,
+        -40.0
+      ],
+      "extraction_xz": [
+        -40.0,
+        40.0
+      ],
+      "hub_exits": {},
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_005",
+      "path": "pool/map_005.json",
+      "spawn_xz": [
+        40.0,
+        40.0
+      ],
+      "extraction_xz": [
+        -40.0,
+        -40.0
+      ],
+      "hub_exits": {},
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_006",
+      "path": "pool/map_006.json",
+      "spawn_xz": [
+        -40.0,
+        40.0
+      ],
+      "extraction_xz": [
+        40.0,
+        -40.0
+      ],
+      "hub_exits": {
+        "2": {
+          "x": 26.0,
+          "z": -40.0,
+          "floor": -1,
+          "label": "West gate",
+          "kind": "walk"
+        },
+        "3": {
+          "x": 40.0,
+          "z": -40.0,
+          "floor": -1,
+          "label": "Centre pit",
+          "kind": "drop"
+        },
+        "4": {
+          "x": 32.0,
+          "z": -40.0,
+          "floor": -1,
+          "label": "West drop",
+          "kind": "drop"
+        }
+      },
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_007",
+      "path": "pool/map_007.json",
+      "spawn_xz": [
+        -40.0,
+        -40.0
+      ],
+      "extraction_xz": [
+        40.0,
+        40.0
+      ],
+      "hub_exits": {
+        "2": {
+          "x": 26.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West gate",
+          "kind": "walk"
+        },
+        "3": {
+          "x": 40.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "Centre pit",
+          "kind": "drop"
+        },
+        "4": {
+          "x": 32.0,
+          "z": 40.0,
+          "floor": -1,
+          "label": "West drop",
+          "kind": "drop"
+        }
+      },
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_008",
+      "path": "pool/map_008.json",
+      "spawn_xz": [
+        -40.0,
+        40.0
+      ],
+      "extraction_xz": [
+        40.0,
+        -40.0
+      ],
+      "hub_exits": {
+        "2": {
+          "x": 26.0,
+          "z": -40.0,
+          "floor": -1,
+          "label": "West gate",
+          "kind": "walk"
+        },
+        "3": {
+          "x": 40.0,
+          "z": -40.0,
+          "floor": -1,
+          "label": "Centre pit",
+          "kind": "drop"
+        },
+        "4": {
+          "x": 32.0,
+          "z": -40.0,
+          "floor": -1,
+          "label": "West drop",
+          "kind": "drop"
+        }
+      },
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_009",
+      "path": "pool/map_009.json",
+      "spawn_xz": [
+        40.0,
+        -40.0
+      ],
+      "extraction_xz": [
+        -40.0,
+        40.0
+      ],
+      "hub_exits": {},
+      "modules_x": 5,
+      "modules_z": 5
+    },
+    {
+      "id": "map_010",
+      "path": "pool/map_010.json",
+      "spawn_xz": [
+        40.0,
+        40.0
+      ],
+      "extraction_xz": [
+        -40.0,
+        -40.0
+      ],
+      "hub_exits": {},
+      "modules_x": 5,
+      "modules_z": 5
+    }
+  ]
+}
