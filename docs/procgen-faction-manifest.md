@@ -248,13 +248,13 @@ Each faction stores its own values. Quantifiable = sliders/dropdowns; qualitativ
 | `planning_vs_splendor` | 0–1 | room scale + path directness (corridor width now its own knob) | composes `corridor_width` + `room_size` | 🟡 (building blocks exist; not yet a single mapped knob) |
 | `corridor_width` | 1.0–2.0 | Lane width as a **fraction** of corridors that are 2-wide (1.3 = ~30% wide) | `corridor_width` | ✅ (2-wide emitted as room-style floor+walls) |
 | `floor_preference` | single / multi | Vertical levels / shafts | — (single floor + hub levels) | ⛔ |
-| `hidden_area_prevalence` | 0–1 | Secret side rooms, single entrance | — (+ runtime open mechanic, below) | ⛔ |
+| `hidden_area_prevalence` | 0–1 | Secret side rooms, single entrance | `hidden_area_prevalence` | ✅ generation (dead-end rooms); 🟡 runtime open mechanic still TODO |
 
 > **`hub_count` dropped** — it meant "extra central junction rooms," but in the free-form model that's **emergent** from `loop_count` + room degree, and "hub" collides with the *extraction* hub (trap → hub room → landings). Not a separate knob.
 
 > **Hidden-area open mechanic (user spec):** a generated secret room is sealed by a **secret-door wall**; the player opens it by **left-clicking the wall**, and *both* the visual mesh and its collider **slide aside (side/up/down)** to reveal the room. This is a **runtime gameplay feature** (click raycast → identify secret-door entity → animate slide + toggle collider), paired with — but separate from — the generation that places the room and tags the wall. Build the generation half first; the interaction half is its own task.
 
-**To make the remaining ⛔ rows real:** add to `gen_freeform.py` — a multi-floor pass, a hidden-branch pass (+ the runtime secret-door interaction in Rust), and room-edge jitter (finishing `organicness`). Each is an isolated addition. Done so far: `organicness` ✅, `corridor_width` ✅.
+**To make the remaining ⛔ rows real:** add to `gen_freeform.py` — a multi-floor pass, and room-edge jitter (finishing `organicness`); plus the runtime secret-door interaction in Rust (seal/open hidden rooms). Each is an isolated addition. Done so far: `organicness` ✅, `corridor_width` ✅, `hidden_area_prevalence` ✅ (generation half).
 
 ### 5.2 Level-composition variables (per level)
 

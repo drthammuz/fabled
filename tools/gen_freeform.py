@@ -126,6 +126,8 @@ class FreeformMap:
     # 2-wide corridor cells: walkable but emitted as room-style floor+walls (not
     # 1-wide corridor GLBs). Kept out of corridor_cells so emit_pieces walls them.
     wide_cells: Set[Cell] = field(default_factory=set)
+    # Indices into `rooms` of single-entrance dead-end "secret" rooms.
+    hidden_rooms: List[int] = field(default_factory=list)
 
 
 # ─── geometry ────────────────────────────────────────────────────────────────
@@ -266,6 +268,50 @@ def carve_corridor(
     return cells, wide
 
 
+def place_hidden_rooms(
+    rng: random.Random, rooms: List[Room], room_cells: Set[Cell],
+    corridor_cells: Set[Cell], wide_cells: Set[Cell],
+    gx: int, gz: int, room_min: int, prevalence: float,
+) -> List[int]:
+    """Append small single-entrance dead-end rooms; return their indices in `rooms`.
+
+    Mutates `rooms` (append), `room_cells` and `corridor_cells` (in place). Each
+    hidden room is isolated by a 1-cell halo from all existing walkable space, then
+    linked back to its nearest room by ONE 1-wide corridor — a lone entrance, the
+    site a future secret door will seal.
+    """
+    n_target = round(prevalence * 4)
+    if n_target <= 0:
+        return []
+    hidden: List[int] = []
+    occupied = room_cells | corridor_cells | wide_cells
+    for _ in range(n_target * 10):
+        if len(hidden) >= n_target:
+            break
+        w = rng.randint(room_min, room_min + 1)
+        h = rng.randint(room_min, room_min + 1)
+        if w + 2 >= gx or h + 2 >= gz:
+            continue
+        cand = Room(rng.randint(1, gx - w - 1), rng.randint(1, gz - h - 1), w, h)
+        cc = set(cand.cells())
+        halo = {(cx + dx, cz + dz) for (cx, cz) in cc
+                for dx in (-1, 0, 1) for dz in (-1, 0, 1)}
+        if halo & occupied:
+            continue
+        parent = min(
+            range(len(rooms)),
+            key=lambda i: (rooms[i].cx - cand.cx) ** 2 + (rooms[i].cz - cand.cz) ** 2)
+        link, _ = carve_corridor(rng, rooms[parent], cand, room_cells, gx, gz, 0.0, 1.0)
+        if not link:
+            continue
+        rooms.append(cand)
+        hidden.append(len(rooms) - 1)
+        room_cells |= cc
+        corridor_cells |= link - room_cells
+        occupied |= cc | link | halo
+    return hidden
+
+
 HUB_SIZE = 7        # hub room is HUB_SIZE×HUB_SIZE cells on floor -1
 LANDING_SIZE = 3    # each next-level landing room on floor -2
 DOORWAY_LEN = 2     # corridor cells from hub wall to the doorway's trap
@@ -361,6 +407,7 @@ def generate_map(
     loops: int = 3,
     organicness: float = 0.0,
     corridor_width: float = 1.0,
+    hidden_area_prevalence: float = 0.0,
     room_tries: int = 400,
 ) -> Optional[FreeformMap]:
     rng = random.Random(seed)
@@ -400,10 +447,20 @@ def generate_map(
             if d > best:
                 best, spawn_i, end_i = d, i, j
 
+    # Hidden areas: small single-entrance dead-end rooms appended AFTER spawn/end
+    # are chosen, so a secret can never become spawn or extraction. Reachable for
+    # now (no seal); the runtime secret-door mechanic seals/opens them later.
+    hidden_rooms = place_hidden_rooms(
+        rng, rooms, room_cells, corridor_cells, wide_cells, gx, gz,
+        room_min, hidden_area_prevalence)
+    if hidden_rooms:
+        walkable = room_cells | corridor_cells | wide_cells
+
     fm = FreeformMap(
         gx, gz, rooms, walkable, room_cells, corridor_cells, spawn_i, end_i,
         seed=seed if seed is not None else 0,
         wide_cells=wide_cells,
+        hidden_rooms=hidden_rooms,
     )
     hub_rng = random.Random((fm.seed * 2654435761) & 0xFFFFFFFF)
     for _ in range(32):
@@ -682,6 +739,9 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
 def ascii_map(fm: FreeformMap) -> str:
     spawn = (fm.rooms[fm.spawn_room].cx, fm.rooms[fm.spawn_room].cz)
     end = (fm.rooms[fm.end_room].cx, fm.rooms[fm.end_room].cz)
+    hidden_cells: Set[Cell] = set()
+    for i in fm.hidden_rooms:
+        hidden_cells |= set(fm.rooms[i].cells())
     lines = []
     for iz in range(fm.gz):
         row = []
@@ -691,6 +751,8 @@ def ascii_map(fm: FreeformMap) -> str:
                 row.append('S')
             elif c == end:
                 row.append('X')
+            elif c in hidden_cells:
+                row.append('h')  # hidden / secret dead-end room
             elif c in fm.room_cells:
                 row.append('#')
             elif c in fm.corridor_cells:
@@ -863,6 +925,7 @@ def run(
     loops: int = 3,
     organicness: float = 0.0,
     corridor_width: float = 1.0,
+    hidden_area_prevalence: float = 0.0,
 ) -> dict:
     """Generate one free-form map, write it, export the layout, return a report.
 
@@ -879,6 +942,7 @@ def run(
             base_seed + k, cells=cells, max_rooms=max_rooms,
             room_min=room_min, room_max=room_max, loops=loops,
             organicness=organicness, corridor_width=corridor_width,
+            hidden_area_prevalence=hidden_area_prevalence,
         )
         if cand and not validate(cand):
             fm = cand
@@ -924,6 +988,8 @@ def main() -> None:
                     help='0=clean L corridors, 1=winding jogged routes')
     ap.add_argument('--corridor-width', type=float, default=1.0,
                     help='1.0=all 1-wide, 2.0=all 2-wide, 1.3=~30%% 2-wide')
+    ap.add_argument('--hidden', type=float, default=0.0,
+                    help='hidden-area prevalence 0-1 (dead-end secret rooms)')
     ap.add_argument('--attempts', type=int, default=20, help='Generation retries')
     ap.add_argument('--out', default=None)
     ap.add_argument('--preview', action='store_true')
@@ -940,7 +1006,7 @@ def main() -> None:
         export_layout=not args.no_layout_export,
         cells=args.cells, max_rooms=args.rooms, room_min=args.room_min,
         room_max=args.room_max, loops=args.loops, organicness=args.organicness,
-        corridor_width=args.corridor_width,
+        corridor_width=args.corridor_width, hidden_area_prevalence=args.hidden,
     )
     if args.preview:
         print(json.dumps(report))
