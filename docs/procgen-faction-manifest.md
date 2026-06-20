@@ -248,7 +248,7 @@ Each faction stores its own values. Quantifiable = sliders/dropdowns; qualitativ
 | `planning_vs_splendor` | 0–1 | room scale + path directness (corridor width now its own knob) | composes `corridor_width` + `room_size` | 🟡 (building blocks exist; not yet a single mapped knob) |
 | `corridor_width` | 1.0–2.0 | Lane width as a **fraction** of corridors that are 2-wide (1.3 = ~30% wide) | `corridor_width` | ✅ (2-wide emitted as room-style floor+walls) |
 | `floor_preference` | single / multi | Vertical levels / shafts | — (single floor + hub levels) | ⛔ |
-| `hidden_area_prevalence` | 0–1 | Secret side rooms, single entrance | `hidden_area_prevalence` | ✅ generation (dead-end rooms); 🟡 runtime open mechanic still TODO |
+| `hidden_area_prevalence` | 0–1 | Secret side rooms, single entrance + `gate-door` | `hidden_area_prevalence` | ✅ generation; 🟡 runtime: animated door **visual prototype** (proximity open/close via baked glTF clips, `door_anim.rs`); collider-seal + click-to-open + networked state TODO |
 
 > **`hub_count` dropped** — it meant "extra central junction rooms," but in the free-form model that's **emergent** from `loop_count` + room degree, and "hub" collides with the *extraction* hub (trap → hub room → landings). Not a separate knob.
 
