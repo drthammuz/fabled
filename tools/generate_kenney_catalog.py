@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""Generate assets/models/space/kenney_catalog.json from GLB bounds + mesh cell grids.
+"""Generate a Kenney kit catalogue (kenney_catalog.json) from GLB bounds + mesh cell grids.
 
 Floor cells: vertical ray through (x, z) — hit in y≈0 band counts as floor (hollow rooms).
 Edge openings: ray hits absent in player-height band on outer perimeter segments.
 
+Works on any kit folder under assets/models/ that uses the 4 m modular grammar
+(space, dungeon, …). The mesh measurement is per-GLB; MANUAL only supplies
+category/role/open_faces/purpose, which transfer across kits that share stem names.
+
 Run from repo root:
-  python tools/generate_kenney_catalog.py
+  python tools/generate_kenney_catalog.py            # default kit: space
+  python tools/generate_kenney_catalog.py --kit dungeon
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import struct
@@ -17,8 +23,6 @@ import glob
 from typing import Any
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SPACE = os.path.join(ROOT, "assets", "models", "space")
-OUT = os.path.join(SPACE, "kenney_catalog.json")
 
 GRID_UNIT = 4.0
 OPENING_W = 4.0
@@ -182,6 +186,12 @@ MANUAL: dict[str, dict[str, Any]] = {
         "variant_of": "gate-door",
         "open_faces": ["south", "north"],
         "purpose": "Door frame with window insert.",
+    },
+    "gate-metal-bars": {
+        "category": "gate",
+        "role": "door",
+        "open_faces": ["south", "north"],
+        "purpose": "Barred gate (dungeon kit); straddles wall plane like gate-door.",
     },
     "gate-lasers": {
         "category": "gate",
@@ -672,9 +682,21 @@ def build_piece(stem: str, mins: list[float], maxs: list[float], tris: list) -> 
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--kit", default="space",
+                    help="kit folder under assets/models/ (e.g. space, dungeon)")
+    args = ap.parse_args()
+    kit_dir = os.path.join(ROOT, "assets", "models", args.kit)
+    out = os.path.join(kit_dir, "kenney_catalog.json")
+    if not os.path.isdir(kit_dir):
+        raise SystemExit(f"kit folder not found: {kit_dir}")
+
     pieces = []
-    for path in sorted(glob.glob(os.path.join(SPACE, "*.glb"))):
+    unknown: list[str] = []
+    for path in sorted(glob.glob(os.path.join(kit_dir, "*.glb"))):
         stem = os.path.splitext(os.path.basename(path))[0]
+        if stem not in MANUAL:
+            unknown.append(stem)
         j, bin_data = read_glb(path)
         tris = extract_triangles(j, bin_data)
         mins, maxs = scene_bounds(j, bin_data)
@@ -700,13 +722,21 @@ def main() -> None:
         "pieces": pieces,
     }
 
-    with open(OUT, "w", encoding="utf-8") as f:
+    with open(out, "w", encoding="utf-8") as f:
         json.dump(catalog, f, indent=2)
         f.write("\n")
 
-    print(f"wrote {OUT} ({len(pieces)} pieces)")
+    print(f"wrote {out} ({len(pieces)} pieces)")
+    if unknown:
+        print(f"  NOTE: {len(unknown)} stem(s) had no MANUAL metadata (category=unknown): "
+              + ", ".join(unknown))
+    review = [p["stem"] for p in pieces if p["cell_grid"]["confidence"] == "review"]
+    if review:
+        print(f"  REVIEW: {len(review)} piece(s) measured no floor cells: " + ", ".join(review))
     for stem in ("room-small", "corridor", "room-corner", "stairs", "template-wall"):
-        p = next(x for x in pieces if x["stem"] == stem)
+        p = next((x for x in pieces if x["stem"] == stem), None)
+        if p is None:
+            continue
         g = p["cell_grid"]
         print(f"\n{stem} ({g['confidence']}):")
         for row in g["cells"]:

@@ -1,0 +1,2848 @@
+{
+  "version": 2,
+  "grid_unit_m": 4.0,
+  "opening_w_m": 4.0,
+  "opening_h_m": 4.25,
+  "ceiling_m": 4.25,
+  "floor_plane_y": 0.0,
+  "slot_l_m": 2.0,
+  "slot_c_m": 6.0,
+  "slot_r_m": 10.0,
+  "module_m": 12.0,
+  "cell_values": [
+    "floor",
+    "wall",
+    "void",
+    "stairs",
+    "door",
+    "prop",
+    "hole"
+  ],
+  "placement_fields": {
+    "cell_grid.cells": "2D array [south\u2192north][west\u2192east]; floor = y\u22480 hit + player clearance",
+    "cell_grid.edges": "outer perimeter: open | wall per unit segment",
+    "cell_grid.confidence": "mesh | mesh_variant | review"
+  },
+  "pieces": [
+    {
+      "stem": "corridor-corner",
+      "file": "corridor-corner.glb",
+      "category": "corridor",
+      "role": "connector",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.23,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "east"
+      ],
+      "purpose": "90\u00b0 L-turn (4 m lanes)."
+    },
+    {
+      "stem": "corridor-end",
+      "file": "corridor-end.glb",
+      "category": "corridor",
+      "role": "connector",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": -0.0,
+        "y_max": 4.15
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.15,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "north"
+      ],
+      "purpose": "Dead-end cap; one open face opposite the blank wall."
+    },
+    {
+      "stem": "corridor-intersection",
+      "file": "corridor-intersection.glb",
+      "category": "corridor",
+      "role": "connector",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": -0.0,
+        "y_max": 4.05
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.05,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "purpose": "4-way cross (4 m lanes)."
+    },
+    {
+      "stem": "corridor-junction",
+      "file": "corridor-junction.glb",
+      "category": "corridor",
+      "role": "connector",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.01,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": -0.0,
+        "y_max": 4.15
+      },
+      "mesh_extent_m": {
+        "x": 4.01,
+        "y": 4.15,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east"
+      ],
+      "purpose": "T-junction (3 openings)."
+    },
+    {
+      "stem": "corridor-transition",
+      "file": "corridor-transition.glb",
+      "category": "corridor",
+      "role": "adapter",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -6.0,
+        "x_max": 2.0,
+        "z_min": -4.0,
+        "z_max": 4.0,
+        "y_min": -0.0,
+        "y_max": 4.15
+      },
+      "mesh_extent_m": {
+        "x": 8.0,
+        "y": 4.15,
+        "z": 8.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "open",
+            "open"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "wall",
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east"
+      ],
+      "purpose": "Adapts 4 m lane to 8 m wide corridor (8\u00d78 footprint)."
+    },
+    {
+      "stem": "corridor-wide-corner",
+      "file": "corridor-wide-corner.glb",
+      "category": "corridor_wide",
+      "role": "connector",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -4.0,
+        "x_max": 4.0,
+        "z_min": -4.0,
+        "z_max": 4.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 8.0,
+        "y": 4.23,
+        "z": 8.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "open",
+            "wall"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "east"
+      ],
+      "purpose": "90\u00b0 L-turn (8 m lanes)."
+    },
+    {
+      "stem": "corridor-wide-end",
+      "file": "corridor-wide-end.glb",
+      "category": "corridor_wide",
+      "role": "connector",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -4.0,
+        "x_max": 4.0,
+        "z_min": -4.0,
+        "z_max": 4.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 8.0,
+        "y": 4.23,
+        "z": 8.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "open",
+            "open"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "north"
+      ],
+      "purpose": "Wide dead-end cap."
+    },
+    {
+      "stem": "corridor-wide-intersection",
+      "file": "corridor-wide-intersection.glb",
+      "category": "corridor_wide",
+      "role": "connector",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -4.0,
+        "x_max": 4.0,
+        "z_min": -4.0,
+        "z_max": 4.0,
+        "y_min": -0.0,
+        "y_max": 4.05
+      },
+      "mesh_extent_m": {
+        "x": 8.0,
+        "y": 4.05,
+        "z": 8.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "open",
+            "open"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "purpose": "4-way cross (8 m lanes)."
+    },
+    {
+      "stem": "corridor-wide-junction",
+      "file": "corridor-wide-junction.glb",
+      "category": "corridor_wide",
+      "role": "connector",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -4.0,
+        "x_max": 4.0,
+        "z_min": -4.0,
+        "z_max": 4.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 8.0,
+        "y": 4.23,
+        "z": 8.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "open",
+            "open"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east"
+      ],
+      "purpose": "T-junction (8 m lanes)."
+    },
+    {
+      "stem": "corridor-wide",
+      "file": "corridor-wide.glb",
+      "category": "corridor_wide",
+      "role": "connector",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -4.0,
+        "x_max": 4.0,
+        "z_min": -4.0,
+        "z_max": 4.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 8.0,
+        "y": 4.23,
+        "z": 8.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "open",
+            "open"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "purpose": "Straight 8 m wide corridor segment."
+    },
+    {
+      "stem": "corridor",
+      "file": "corridor.glb",
+      "category": "corridor",
+      "role": "connector",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": -0.0,
+        "y_max": 4.15
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.15,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "purpose": "Straight 4 m corridor; chains end-to-end."
+    },
+    {
+      "stem": "gate-door-window",
+      "file": "gate-door-window.glb",
+      "category": "gate",
+      "role": "door",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 1.4
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 0.35
+      },
+      "bounds": {
+        "x_min": -2.2,
+        "x_max": 2.2,
+        "z_min": -0.7,
+        "z_max": 0.7,
+        "y_min": -0.0,
+        "y_max": 4.4
+      },
+      "mesh_extent_m": {
+        "x": 4.4,
+        "y": 4.4,
+        "z": 1.4
+      },
+      "collide_default": false,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "door"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "mesh_variant",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "variant_of": "gate-door",
+      "purpose": "Door frame with window insert."
+    },
+    {
+      "stem": "gate-door",
+      "file": "gate-door.glb",
+      "category": "gate",
+      "role": "door",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 1.4
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 0.35
+      },
+      "bounds": {
+        "x_min": -2.2,
+        "x_max": 2.2,
+        "z_min": -0.7,
+        "z_max": 0.7,
+        "y_min": -0.0,
+        "y_max": 4.4
+      },
+      "mesh_extent_m": {
+        "x": 4.4,
+        "y": 4.4,
+        "z": 1.4
+      },
+      "collide_default": false,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "door"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "purpose": "Animated door frame; straddles wall plane."
+    },
+    {
+      "stem": "gate-metal-bars",
+      "file": "gate-metal-bars.glb",
+      "category": "gate",
+      "role": "door",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 1.4
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 0.35
+      },
+      "bounds": {
+        "x_min": -2.2,
+        "x_max": 2.2,
+        "z_min": -0.7,
+        "z_max": 0.7,
+        "y_min": 0.0,
+        "y_max": 4.4
+      },
+      "mesh_extent_m": {
+        "x": 4.4,
+        "y": 4.4,
+        "z": 1.4
+      },
+      "collide_default": false,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "door"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "purpose": "Barred gate (dungeon kit); straddles wall plane like gate-door."
+    },
+    {
+      "stem": "gate",
+      "file": "gate.glb",
+      "category": "gate",
+      "role": "door",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 1.4
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 0.35
+      },
+      "bounds": {
+        "x_min": -2.2,
+        "x_max": 2.2,
+        "z_min": -0.7,
+        "z_max": 0.7,
+        "y_min": 0.0,
+        "y_max": 4.4
+      },
+      "mesh_extent_m": {
+        "x": 4.4,
+        "y": 4.4,
+        "z": 1.4
+      },
+      "collide_default": false,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "door"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "purpose": "Gate frame (no animated door panel)."
+    },
+    {
+      "stem": "room-corner",
+      "file": "room-corner.glb",
+      "category": "room",
+      "role": "module",
+      "footprint_m": {
+        "x": 12.0,
+        "z": 12.0
+      },
+      "grid_units": {
+        "x": 3.0,
+        "z": 3.0
+      },
+      "bounds": {
+        "x_min": -6.0,
+        "x_max": 6.0,
+        "z_min": -6.0,
+        "z_max": 6.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 12.0,
+        "y": 4.23,
+        "z": 12.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 3,
+        "nz": 3,
+        "cells": [
+          [
+            "void",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "north": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "west": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "east": [
+            "wall",
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "east"
+      ],
+      "purpose": "L-shaped 12\u00d712 m room."
+    },
+    {
+      "stem": "room-large-variation",
+      "file": "room-large-variation.glb",
+      "category": "room",
+      "role": "module",
+      "footprint_m": {
+        "x": 20.0,
+        "z": 20.0
+      },
+      "grid_units": {
+        "x": 5.0,
+        "z": 5.0
+      },
+      "bounds": {
+        "x_min": -10.0,
+        "x_max": 10.0,
+        "z_min": -10.0,
+        "z_max": 10.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 20.0,
+        "y": 4.23,
+        "z": 20.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 5,
+        "nz": 5,
+        "cells": [
+          [
+            "void",
+            "void",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "void",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "void"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "void",
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall",
+            "wall",
+            "open",
+            "open",
+            "wall"
+          ],
+          "north": [
+            "wall",
+            "open",
+            "open",
+            "wall",
+            "wall"
+          ],
+          "west": [
+            "wall",
+            "wall",
+            "open",
+            "open",
+            "wall"
+          ],
+          "east": [
+            "wall",
+            "open",
+            "open",
+            "wall",
+            "wall"
+          ]
+        },
+        "confidence": "mesh_variant",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "open_slots": [
+        "C"
+      ],
+      "variant_of": "room-large",
+      "purpose": "room-large with alternate interior trim."
+    },
+    {
+      "stem": "room-large",
+      "file": "room-large.glb",
+      "category": "room",
+      "role": "module",
+      "footprint_m": {
+        "x": 20.0,
+        "z": 20.0
+      },
+      "grid_units": {
+        "x": 5.0,
+        "z": 5.0
+      },
+      "bounds": {
+        "x_min": -10.0,
+        "x_max": 10.0,
+        "z_min": -10.0,
+        "z_max": 10.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 20.0,
+        "y": 4.23,
+        "z": 20.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 5,
+        "nz": 5,
+        "cells": [
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall",
+            "open",
+            "open",
+            "open",
+            "wall"
+          ],
+          "north": [
+            "wall",
+            "open",
+            "open",
+            "open",
+            "wall"
+          ],
+          "west": [
+            "wall",
+            "open",
+            "open",
+            "open",
+            "wall"
+          ],
+          "east": [
+            "wall",
+            "open",
+            "open",
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "open_slots": [
+        "C"
+      ],
+      "purpose": "20\u00d720 m large room (5\u00d75 grid units)."
+    },
+    {
+      "stem": "room-small-variation",
+      "file": "room-small-variation.glb",
+      "category": "room",
+      "role": "module",
+      "footprint_m": {
+        "x": 12.0,
+        "z": 12.0
+      },
+      "grid_units": {
+        "x": 3.0,
+        "z": 3.0
+      },
+      "bounds": {
+        "x_min": -6.0,
+        "x_max": 6.0,
+        "z_min": -6.0,
+        "z_max": 6.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 12.0,
+        "y": 4.23,
+        "z": 12.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 3,
+        "nz": 3,
+        "cells": [
+          [
+            "void",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "north": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "west": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "east": [
+            "wall",
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh_variant",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "open_slots": [
+        "C"
+      ],
+      "variant_of": "room-small",
+      "purpose": "room-small with alternate interior trim."
+    },
+    {
+      "stem": "room-small",
+      "file": "room-small.glb",
+      "category": "room",
+      "role": "module",
+      "footprint_m": {
+        "x": 12.0,
+        "z": 12.0
+      },
+      "grid_units": {
+        "x": 3.0,
+        "z": 3.0
+      },
+      "bounds": {
+        "x_min": -6.0,
+        "x_max": 6.0,
+        "z_min": -6.0,
+        "z_max": 6.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 12.0,
+        "y": 4.23,
+        "z": 12.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 3,
+        "nz": 3,
+        "cells": [
+          [
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "north": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "west": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "east": [
+            "wall",
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "open_slots": [
+        "C"
+      ],
+      "purpose": "12\u00d712 m room; one centred 4 m opening per wall (C-slot)."
+    },
+    {
+      "stem": "room-wide-variation",
+      "file": "room-wide-variation.glb",
+      "category": "room",
+      "role": "module",
+      "footprint_m": {
+        "x": 20.0,
+        "z": 12.0
+      },
+      "grid_units": {
+        "x": 5.0,
+        "z": 3.0
+      },
+      "bounds": {
+        "x_min": -10.0,
+        "x_max": 10.0,
+        "z_min": -6.0,
+        "z_max": 6.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 20.0,
+        "y": 4.23,
+        "z": 12.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 5,
+        "nz": 3,
+        "cells": [
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall",
+            "open",
+            "wall",
+            "open",
+            "wall"
+          ],
+          "north": [
+            "wall",
+            "open",
+            "wall",
+            "open",
+            "wall"
+          ],
+          "west": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "east": [
+            "wall",
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh_variant",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "open_slots": [
+        "C"
+      ],
+      "variant_of": "room-wide",
+      "purpose": "room-wide with alternate interior trim."
+    },
+    {
+      "stem": "room-wide",
+      "file": "room-wide.glb",
+      "category": "room",
+      "role": "module",
+      "footprint_m": {
+        "x": 20.0,
+        "z": 12.0
+      },
+      "grid_units": {
+        "x": 5.0,
+        "z": 3.0
+      },
+      "bounds": {
+        "x_min": -10.0,
+        "x_max": 10.0,
+        "z_min": -6.0,
+        "z_max": 6.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 20.0,
+        "y": 4.23,
+        "z": 12.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 5,
+        "nz": 3,
+        "cells": [
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor",
+            "floor",
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall",
+            "open",
+            "open",
+            "open",
+            "wall"
+          ],
+          "north": [
+            "wall",
+            "open",
+            "open",
+            "open",
+            "wall"
+          ],
+          "west": [
+            "wall",
+            "open",
+            "wall"
+          ],
+          "east": [
+            "wall",
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north",
+        "east",
+        "west"
+      ],
+      "open_slots": [
+        "C"
+      ],
+      "purpose": "20\u00d712 m rectangular room."
+    },
+    {
+      "stem": "stairs-wide",
+      "file": "stairs-wide.glb",
+      "category": "stairs",
+      "role": "vertical",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -4.2,
+        "x_max": 4.2,
+        "z_min": -6.2,
+        "z_max": 2.2,
+        "y_min": -0.0,
+        "y_max": 8.55
+      },
+      "mesh_extent_m": {
+        "x": 8.4,
+        "y": 8.55,
+        "z": 8.4
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "stairs",
+            "stairs"
+          ],
+          [
+            "stairs",
+            "stairs"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "wall",
+            "wall"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "open"
+          ]
+        },
+        "confidence": "mesh_variant",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "stairs": {
+        "entry_z": -6.1,
+        "landing_z": 2.1,
+        "rise_m": 4.35,
+        "width_m": 8.0
+      },
+      "variant_of": "stairs",
+      "purpose": "8 m wide stair run between floors."
+    },
+    {
+      "stem": "stairs",
+      "file": "stairs.glb",
+      "category": "stairs",
+      "role": "vertical",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -2.2,
+        "x_max": 2.2,
+        "z_min": -6.2,
+        "z_max": 2.2,
+        "y_min": -0.0,
+        "y_max": 8.55
+      },
+      "mesh_extent_m": {
+        "x": 4.4,
+        "y": 8.55,
+        "z": 8.4
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 2,
+        "cells": [
+          [
+            "stairs"
+          ],
+          [
+            "stairs"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "open_faces": [
+        "south",
+        "north"
+      ],
+      "stairs": {
+        "entry_z": -6.1,
+        "landing_z": 2.1,
+        "rise_m": 4.35,
+        "width_m": 4.0
+      },
+      "purpose": "4 m wide stair run between floors."
+    },
+    {
+      "stem": "template-corner",
+      "file": "template-corner.glb",
+      "category": "template",
+      "role": "trim",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": 0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.23,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "4\u00d74 m corner trim block."
+    },
+    {
+      "stem": "template-detail",
+      "file": "template-detail.glb",
+      "category": "template",
+      "role": "trim",
+      "footprint_m": {
+        "x": 1.79,
+        "z": 1.79
+      },
+      "grid_units": {
+        "x": 0.45,
+        "z": 0.45
+      },
+      "bounds": {
+        "x_min": -0.9,
+        "x_max": 0.9,
+        "z_min": -0.9,
+        "z_max": 0.9,
+        "y_min": 0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 1.79,
+        "y": 4.23,
+        "z": 1.79
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "Small 1.56 m surface detail prop."
+    },
+    {
+      "stem": "template-floor-big",
+      "file": "template-floor-big.glb",
+      "category": "template_floor",
+      "role": "floor_tile",
+      "footprint_m": {
+        "x": 8.0,
+        "z": 8.0
+      },
+      "grid_units": {
+        "x": 2.0,
+        "z": 2.0
+      },
+      "bounds": {
+        "x_min": -4.0,
+        "x_max": 4.0,
+        "z_min": -4.0,
+        "z_max": 4.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 8.0,
+        "y": 4.23,
+        "z": 8.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 2,
+        "nz": 2,
+        "cells": [
+          [
+            "floor",
+            "floor"
+          ],
+          [
+            "floor",
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open",
+            "open"
+          ],
+          "north": [
+            "open",
+            "open"
+          ],
+          "west": [
+            "open",
+            "open"
+          ],
+          "east": [
+            "open",
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "8\u00d78 m floor tile."
+    },
+    {
+      "stem": "template-floor-detail-a",
+      "file": "template-floor-detail-a.glb",
+      "category": "template_floor",
+      "role": "floor_tile",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": 0.0,
+        "y_max": 0.1
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 0.1,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "4\u00d74 m floor detail variant A."
+    },
+    {
+      "stem": "template-floor-detail",
+      "file": "template-floor-detail.glb",
+      "category": "template_floor",
+      "role": "floor_tile",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": 0.0,
+        "y_max": 0.1
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 0.1,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "4\u00d74 m floor with shallow detail."
+    },
+    {
+      "stem": "template-floor-layer-hole",
+      "file": "template-floor-layer-hole.glb",
+      "category": "template_floor",
+      "role": "floor_layer",
+      "footprint_m": {
+        "x": 4.2,
+        "z": 4.2
+      },
+      "grid_units": {
+        "x": 1.05,
+        "z": 1.05
+      },
+      "bounds": {
+        "x_min": -2.02,
+        "x_max": 2.02,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": 0.0,
+        "y_max": 3.09
+      },
+      "mesh_extent_m": {
+        "x": 4.04,
+        "y": 3.09,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "Floor layer with opening/hole."
+    },
+    {
+      "stem": "template-floor-layer-raised",
+      "file": "template-floor-layer-raised.glb",
+      "category": "template_floor",
+      "role": "floor_layer",
+      "footprint_m": {
+        "x": 4.2,
+        "z": 4.2
+      },
+      "grid_units": {
+        "x": 1.05,
+        "z": 1.05
+      },
+      "bounds": {
+        "x_min": -2.01,
+        "x_max": 2.01,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": 0.0,
+        "y_max": 3.0
+      },
+      "mesh_extent_m": {
+        "x": 4.02,
+        "y": 3.0,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "wall"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "Raised floor layer (3.4 m tall)."
+    },
+    {
+      "stem": "template-floor-layer",
+      "file": "template-floor-layer.glb",
+      "category": "template_floor",
+      "role": "floor_layer",
+      "footprint_m": {
+        "x": 4.2,
+        "z": 4.2
+      },
+      "grid_units": {
+        "x": 1.05,
+        "z": 1.05
+      },
+      "bounds": {
+        "x_min": -2.01,
+        "x_max": 2.01,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": 0.0,
+        "y_max": 0.5
+      },
+      "mesh_extent_m": {
+        "x": 4.02,
+        "y": 0.5,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "Thin floor layer slab (0.4 m tall)."
+    },
+    {
+      "stem": "template-floor",
+      "file": "template-floor.glb",
+      "category": "template_floor",
+      "role": "floor_tile",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 4.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -2.0,
+        "z_max": 2.0,
+        "y_min": 0.0,
+        "y_max": 0.0
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 0.0,
+        "z": 4.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "floor"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "open"
+          ],
+          "west": [
+            "open"
+          ],
+          "east": [
+            "open"
+          ]
+        },
+        "confidence": "mesh",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "4\u00d74 m flat floor tile."
+    },
+    {
+      "stem": "template-wall-corner",
+      "file": "template-wall-corner.glb",
+      "category": "template_wall",
+      "role": "wall_tile",
+      "footprint_m": {
+        "x": 1.0,
+        "z": 1.0
+      },
+      "grid_units": {
+        "x": 0.25,
+        "z": 0.25
+      },
+      "bounds": {
+        "x_min": -1.0,
+        "x_max": 0.0,
+        "z_min": -1.0,
+        "z_max": 0.0,
+        "y_min": -0.0,
+        "y_max": 4.05
+      },
+      "mesh_extent_m": {
+        "x": 1.0,
+        "y": 4.05,
+        "z": 1.0
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "wall"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "1 m corner wall filler."
+    },
+    {
+      "stem": "template-wall-detail-a",
+      "file": "template-wall-detail-a.glb",
+      "category": "template_wall",
+      "role": "wall_tile",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 1.37
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 0.34
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -1.99,
+        "z_max": 0.0,
+        "y_min": -0.0,
+        "y_max": 4.23
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.23,
+        "z": 1.99
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "wall"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "4 m wall with surface detail."
+    },
+    {
+      "stem": "template-wall-half",
+      "file": "template-wall-half.glb",
+      "category": "template_wall",
+      "role": "wall_tile",
+      "footprint_m": {
+        "x": 2.0,
+        "z": 1.0
+      },
+      "grid_units": {
+        "x": 0.5,
+        "z": 0.25
+      },
+      "bounds": {
+        "x_min": -1.0,
+        "x_max": 1.0,
+        "z_min": -1.81,
+        "z_max": 0.0,
+        "y_min": 0.0,
+        "y_max": 4.15
+      },
+      "mesh_extent_m": {
+        "x": 2.0,
+        "y": 4.15,
+        "z": 1.81
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "2 m half-wall panel."
+    },
+    {
+      "stem": "template-wall-stairs",
+      "file": "template-wall-stairs.glb",
+      "category": "template_wall",
+      "role": "wall_tile",
+      "footprint_m": {
+        "x": 4.2,
+        "z": 0.78
+      },
+      "grid_units": {
+        "x": 1.05,
+        "z": 0.2
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -0.63,
+        "z_max": 0.0,
+        "y_min": 0.0,
+        "y_max": 4.5
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.5,
+        "z": 0.63
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "Wall segment with stair-well cutout."
+    },
+    {
+      "stem": "template-wall-top",
+      "file": "template-wall-top.glb",
+      "category": "template_wall",
+      "role": "wall_tile",
+      "footprint_m": {
+        "x": 4.2,
+        "z": 0.78
+      },
+      "grid_units": {
+        "x": 1.05,
+        "z": 0.2
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -0.62,
+        "z_max": 0.0,
+        "y_min": 0.0,
+        "y_max": 4.5
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.5,
+        "z": 0.62
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "void"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "Upper wall / railing segment."
+    },
+    {
+      "stem": "template-wall",
+      "file": "template-wall.glb",
+      "category": "template_wall",
+      "role": "wall_tile",
+      "footprint_m": {
+        "x": 4.0,
+        "z": 1.0
+      },
+      "grid_units": {
+        "x": 1.0,
+        "z": 0.25
+      },
+      "bounds": {
+        "x_min": -2.0,
+        "x_max": 2.0,
+        "z_min": -1.99,
+        "z_max": 0.0,
+        "y_min": -0.0,
+        "y_max": 4.15
+      },
+      "mesh_extent_m": {
+        "x": 4.0,
+        "y": 4.15,
+        "z": 1.99
+      },
+      "collide_default": true,
+      "cell_grid": {
+        "origin": "sw",
+        "axis": {
+          "x": "east",
+          "z": "north"
+        },
+        "units_m": 4.0,
+        "floor_plane_y": 0.0,
+        "nx": 1,
+        "nz": 1,
+        "cells": [
+          [
+            "wall"
+          ]
+        ],
+        "edges": {
+          "south": [
+            "open"
+          ],
+          "north": [
+            "wall"
+          ],
+          "west": [
+            "wall"
+          ],
+          "east": [
+            "wall"
+          ]
+        },
+        "confidence": "review",
+        "note": "cells[0]=south row; floor=walkable at y\u22480; edges=outer perimeter per column/row"
+      },
+      "purpose": "4 m \u00d7 1 m wall panel (depth along -Z)."
+    }
+  ]
+}

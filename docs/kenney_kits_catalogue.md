@@ -150,14 +150,19 @@ Three faction architecture systems + the default substrate. Working names; final
 
 ## 5. Per-kit measured catalogue (when wiring a kit into procgen)
 
-The inventory above lists *what exists*. To actually generate levels from a kit (footprints, open faces, slot positions, cell grids) it needs a **mesh-measured** catalogue like the space kit's `kenney_catalog.json`. That is produced by `tools/generate_kenney_catalog.py`, which is currently **hard-coded to `assets/models/space/`**.
+The inventory above lists *what exists*. To actually generate levels from a kit (footprints, open faces, slot positions, cell grids) it needs a **mesh-measured** catalogue like the space kit's `kenney_catalog.json`, produced by `tools/generate_kenney_catalog.py`.
 
-When a kit is promoted to a building system:
-1. Generalise `generate_kenney_catalog.py` to take a kit folder + grid unit.
-2. Run it on that folder → `assets/models/<kit>/<kit>_catalog.json`.
-3. `dungeon/` is the cheapest first target — identical stems to `space/`, so its catalogue is nearly a copy with a different texture id.
+`generate_kenney_catalog.py` now takes a `--kit` arg (default `space`):
 
-Do **not** do this until a faction commits to the kit (manifest Phase 2+).
+```bash
+python tools/generate_kenney_catalog.py --kit dungeon   # -> assets/models/dungeon/kenney_catalog.json
+```
+
+**Done so far:**
+- `space/` — `assets/models/space/kenney_catalog.json` (wired into gen_freeform / runtime).
+- `dungeon/` ✅ — `assets/models/dungeon/kenney_catalog.json` (39 pieces, cell grids verified identical to the space grammar: room-small = 3×3 floor + C-slot openings, etc.). Generated but **not yet wired** into a generator/runtime — the Rust `shared::kenney_catalog` loader still hard-loads `space/`. Per-kit/per-faction loading is the next wiring step (manifest Phase 2).
+
+For a non-modular kit (building/space_station/retro_fantasy) the 4 m-grid assumptions in the script (GRID_UNIT, slot positions, the MANUAL stem metadata) would need per-kit review first.
 
 ---
 
