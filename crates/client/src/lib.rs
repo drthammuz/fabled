@@ -3,7 +3,6 @@ use bevy::prelude::*;
 pub mod audio;
 pub mod character_animation;
 pub mod city_viewer;
-pub mod door_anim;
 pub mod class_select;
 pub mod display_settings;
 pub mod process_spawn;
@@ -68,7 +67,6 @@ impl Plugin for ClientCorePlugin {
             character_animation::CharacterAnimationPlugin,
         ))
         .add_plugins((
-            door_anim::DoorAnimPlugin,
             test_showcase::TestShowcasePlugin,
             city_viewer::CityViewerPlugin,
             editor_playtest::EditorPlaytestPlugin,

@@ -128,8 +128,6 @@ class FreeformMap:
     wide_cells: Set[Cell] = field(default_factory=set)
     # Indices into `rooms` of single-entrance dead-end "secret" rooms.
     hidden_rooms: List[int] = field(default_factory=list)
-    # (world_x, world_z, yaw) of gate-door pieces sealing each hidden entrance.
-    secret_doors: List[Tuple[float, float, float]] = field(default_factory=list)
 
 
 # ─── geometry ────────────────────────────────────────────────────────────────
@@ -274,19 +272,18 @@ def place_hidden_rooms(
     rng: random.Random, rooms: List[Room], room_cells: Set[Cell],
     corridor_cells: Set[Cell], wide_cells: Set[Cell],
     gx: int, gz: int, room_min: int, prevalence: float,
-) -> Tuple[List[int], List[Tuple[float, float, float]]]:
-    """Append small single-entrance dead-end rooms.
+) -> List[int]:
+    """Append small single-entrance dead-end rooms; return their indices in `rooms`.
 
-    Returns (hidden_room_indices, secret_doors) where each secret door is
-    (world_x, world_z, yaw) at the entrance — the parent-room doorway into the
-    hidden corridor, where a `gate-door` is placed. Mutates `rooms` (append),
-    `room_cells` and `corridor_cells` (in place).
+    Mutates `rooms` (append), `room_cells` and `corridor_cells` (in place). Each
+    hidden room is isolated by a 1-cell halo from all existing walkable space, then
+    linked back to its nearest room by ONE 1-wide corridor — a lone entrance, the
+    site a future secret door will seal.
     """
     n_target = round(prevalence * 4)
     if n_target <= 0:
-        return [], []
+        return []
     hidden: List[int] = []
-    doors: List[Tuple[float, float, float]] = []
     occupied = room_cells | corridor_cells | wide_cells
     for _ in range(n_target * 10):
         if len(hidden) >= n_target:
@@ -307,26 +304,12 @@ def place_hidden_rooms(
         link, _ = carve_corridor(rng, rooms[parent], cand, room_cells, gx, gz, 0.0, 1.0)
         if not link:
             continue
-        # Entrance = parent boundary cell facing the link, on the edge toward the
-        # adjacent corridor cell → world-space wall plane + yaw for the gate-door.
-        px, pz = rooms[parent].nearest_cell(cand.cx, cand.cz)
-        ddir = next(((dx, dz) for dx, dz in DELTA.values()
-                     if (px + dx, pz + dz) in link), None)
-        if ddir is None:  # fallback: dominant axis toward the hidden room
-            ex, ez = cand.cx - px, cand.cz - pz
-            ddir = (1 if ex > 0 else -1, 0) if abs(ex) >= abs(ez) else (0, 1 if ez > 0 else -1)
-        dx, dz = ddir
-        doors.append((
-            world_x(gx, px) + dx * CELL * 0.5,
-            world_z(gz, pz) + dz * CELL * 0.5,
-            0.0 if dz != 0 else math.pi / 2,
-        ))
         rooms.append(cand)
         hidden.append(len(rooms) - 1)
         room_cells |= cc
         corridor_cells |= link - room_cells
         occupied |= cc | link | halo
-    return hidden, doors
+    return hidden
 
 
 HUB_SIZE = 7        # hub room is HUB_SIZE×HUB_SIZE cells on floor -1
@@ -467,7 +450,7 @@ def generate_map(
     # Hidden areas: small single-entrance dead-end rooms appended AFTER spawn/end
     # are chosen, so a secret can never become spawn or extraction. Reachable for
     # now (no seal); the runtime secret-door mechanic seals/opens them later.
-    hidden_rooms, secret_doors = place_hidden_rooms(
+    hidden_rooms = place_hidden_rooms(
         rng, rooms, room_cells, corridor_cells, wide_cells, gx, gz,
         room_min, hidden_area_prevalence)
     if hidden_rooms:
@@ -478,7 +461,6 @@ def generate_map(
         seed=seed if seed is not None else 0,
         wide_cells=wide_cells,
         hidden_rooms=hidden_rooms,
-        secret_doors=secret_doors,
     )
     hub_rng = random.Random((fm.seed * 2654435761) & 0xFFFFFFFF)
     for _ in range(32):
@@ -734,11 +716,6 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
                 "x": world_x(gx, ex.trap[0]), "z": world_z(gz, ex.trap[1]),
                 "floor": -2, "kind": ex.kind, "label": f"Next level {i + 1}",
             }
-
-    # Secret doors: a gate-door (baked open/close anim) at each hidden entrance.
-    for (wx, wz, yaw) in fm.secret_doors:
-        pieces.append({"stem": "gate-door", "x": wx, "z": wz, "yaw": yaw,
-                       "floor_level": 0, "scale": 1.0, "group_id": 1})
 
     # Roofs last — normal template-floor one level up, only where empty.
     emit_all_roofs(pieces, fm, hub, gx, gz, holes0)
