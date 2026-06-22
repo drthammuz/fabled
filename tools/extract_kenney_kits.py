@@ -43,6 +43,11 @@ MODEL_KITS = {
     "kenney_retro-fantasy-kit":       dict(dest="retro_fantasy", glb_dir="Models/GLB format",  theme="Low-poly medieval/fantasy village (multi-texture)"),
     "kenney_space-kit":               dict(dest="space_kit",     glb_dir="Models/GLTF format", theme="Original Kenney space kit: rockets, rovers, astronauts, terrain (embedded)"),
     "kenney_space-station-kit":       dict(dest="space_station", glb_dir="Models/GLB format",  theme="Sleek space-station interior: corridors, windows, balconies, props"),
+    "kenney_castle-kit":              dict(dest="castle",        glb_dir="Models/GLB format",  theme="Medieval castle: walls, towers, battlements, gates, stairs, banners"),
+    "kenney_city-kit-industrial_1.0": dict(dest="city_industrial", glb_dir="Models/GLB format", theme="Industrial city exterior: concrete buildings, chimneys, tanks, ground slabs"),
+    "kenney_graveyard-kit_5.0":       dict(dest="graveyard",     glb_dir="Models/GLB format",  theme="Graveyard: fences, grave mounds, headstones, mausoleum/crypt, dead trees"),
+    "kenney_platformer-kit":          dict(dest="platformer",    glb_dir="Models/GLB format",  theme="Platformer: platforms, slopes/ramps, blocks, hazards, coins"),
+    "kenney_retro-urban-kit":         dict(dest="retro_urban",   glb_dir="Models/GLB format",  theme="Retro urban / cyberpunk city: roads, buildings, signage (multi-texture: asphalt/concrete/bars/dirt)"),
 }
 
 TEXTURE_PACKS = {

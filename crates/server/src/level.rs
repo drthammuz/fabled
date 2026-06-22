@@ -114,6 +114,7 @@ impl Plugin for ServerLevelPlugin {
                 (
                     reload_kenney_playtest,
                     build_kenney_trimesh_colliders.after(reload_kenney_playtest),
+                    sync_hidden_door_seals.after(reload_kenney_playtest),
                 )
                     .chain()
                     .after(TransformSystems::Propagate),
@@ -321,11 +322,12 @@ fn reload_kenney_playtest(
     mut layout_cache: ResMut<KenneyLayoutCache>,
     kenney_collision: Query<
         Entity,
-        Or<(
-            With<KenneyPieceMeta>,
-            With<KenneyColliderScene>,
-            With<KenneyFloorCell>,
-        )>,
+            Or<(
+                With<KenneyPieceMeta>,
+                With<KenneyColliderScene>,
+                With<KenneyFloorCell>,
+                With<HiddenDoorSeal>,
+            )>,
     >,
     stretch_statics: Query<Entity, With<StretchStaticCollider>>,
 ) {
@@ -367,6 +369,94 @@ fn reload_kenney_playtest(
         editor.as_deref(),
         epoch,
     );
+    spawn_hidden_door_seals(
+        &mut commands,
+        Some(&test),
+        editor.as_deref(),
+        epoch,
+        &layout_cache.0,
+    );
+}
+
+/// Closed-state physics slab for hidden-room gate-doors (removed while "open").
+#[derive(Component)]
+struct HiddenDoorSeal {
+    open: bool,
+    half: Vec3,
+}
+
+fn spawn_hidden_door_seals(
+    commands: &mut Commands,
+    test: Option<&TestMode>,
+    editor: Option<&EditorMode>,
+    epoch: u32,
+    layout: &KenneyLayout,
+) {
+    let Some(test) = test else { return };
+    if test.style != TestMapStyle::Kenney {
+        return;
+    }
+    let _ = editor;
+    let mut n = 0u32;
+    for p in &layout.pieces {
+        if !p.tags.iter().any(|t| t == "hidden_entrance") {
+            continue;
+        }
+        if !matches!(p.stem.as_str(), "gate-door" | "gate-door-window") {
+            continue;
+        }
+        let yaw = quantize_yaw(p.yaw);
+        let (hx, hy, hz) = shared::hidden_door::seal_cuboid_half_extents(yaw);
+        let half = Vec3::new(hx, hy, hz);
+        let y = shared::hidden_door::seal_center_y(p.floor);
+        commands.spawn((
+            LevelEntity,
+            HiddenDoorSeal { open: false, half },
+            KenneyColliderEpoch(epoch),
+            RigidBody::Static,
+            Collider::cuboid(hx, hy, hz),
+            Transform::from_translation(Vec3::new(p.x, y, p.z))
+                .with_rotation(shared::kenney_layout::placement_rotation(yaw, false)),
+        ));
+        n += 1;
+    }
+    if n > 0 {
+        info!("kenney layout reload: {n} hidden-door seal collider(s)");
+    }
+}
+
+fn sync_hidden_door_seals(
+    mut commands: Commands,
+    players: Query<
+        &Transform,
+        Or<(
+            With<crate::players::EditorPlaytestPlayer>,
+            With<crate::character::CharacterController>,
+        )>,
+    >,
+    mut seals: Query<(Entity, &Transform, &mut HiddenDoorSeal, Option<&Collider>)>,
+) {
+    for (entity, seal_tf, mut seal, collider) in &mut seals {
+        let door_pos = seal_tf.translation;
+        let min_dist = players
+            .iter()
+            .map(|p| p.translation.distance(door_pos))
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(f32::MAX);
+
+        if !seal.open && min_dist < shared::hidden_door::PROXIMITY_OPEN_M {
+            seal.open = true;
+        } else if seal.open && min_dist > shared::hidden_door::PROXIMITY_CLOSE_M {
+            seal.open = false;
+        }
+
+        let (hx, hy, hz) = (seal.half.x, seal.half.y, seal.half.z);
+        if seal.open && collider.is_some() {
+            commands.entity(entity).remove::<Collider>();
+        } else if !seal.open && collider.is_none() {
+            commands.entity(entity).insert(Collider::cuboid(hx, hy, hz));
+        }
+    }
 }
 
 fn spawn_kenney_piece_scenes(

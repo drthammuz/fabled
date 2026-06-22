@@ -63,7 +63,7 @@ impl Plugin for ServerPlayersPlugin {
 
 /// Spawned only during in-process editor playtest; despawned when leaving playtest.
 #[derive(Component)]
-struct EditorPlaytestPlayer;
+pub(crate) struct EditorPlaytestPlayer;
 
 /// Cycles through level player spawn points by join order.
 #[derive(Resource, Default)]

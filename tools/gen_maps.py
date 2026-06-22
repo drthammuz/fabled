@@ -1923,7 +1923,14 @@ def generate_map_report(
     organicness: float = 0.0,
     corridor_width: float = 1.0,
     hidden_area_prevalence: float = 0.0,
-    faction_profile_id: str = "space_default",
+    faction_profile_id: str = "industrial_default",
+    mix_mode: str = "transition",
+    prev_faction: str = "priesthood",
+    next_faction: str = "industrial_default",
+    default_faction: str = "industrial_default",
+    prev_fraction: float = 0.25,
+    default_fraction: float = 0.50,
+    next_fraction: float = 0.25,
 ) -> dict:
     """Generate one map; return a JSON-serializable report for the editor.
 
@@ -1948,6 +1955,13 @@ def generate_map_report(
         corridor_width=corridor_width,
         hidden_area_prevalence=hidden_area_prevalence,
         faction_profile_id=faction_profile_id,
+        mix_mode=mix_mode,
+        prev_faction=prev_faction,
+        next_faction=next_faction,
+        default_faction=default_faction,
+        prev_fraction=prev_fraction,
+        default_fraction=default_fraction,
+        next_fraction=next_fraction,
     )
 
 
@@ -1976,8 +1990,15 @@ def main() -> None:
                     help='1.0=1-wide, 2.0=2-wide, 1.3=~30%% 2-wide')
     ap.add_argument('--hidden', type=float, default=0.0,
                     help='hidden-area prevalence 0-1')
-    ap.add_argument('--faction-profile', default='space_default',
-                    help='faction profile id (userinput/factions/*.json)')
+    ap.add_argument('--faction-profile', default='industrial_default',
+                    help='whole-map profile when --mix-mode single')
+    ap.add_argument('--mix-mode', default='transition', choices=('single', 'transition'))
+    ap.add_argument('--prev-faction', default='priesthood')
+    ap.add_argument('--next-faction', default='industrial_default')
+    ap.add_argument('--default-faction', default='industrial_default')
+    ap.add_argument('--prev-fraction', type=float, default=0.25)
+    ap.add_argument('--default-fraction', type=float, default=0.50)
+    ap.add_argument('--next-fraction', type=float, default=0.25)
     ap.add_argument('--preview', action='store_true',
                     help='Editor mode: write map and print JSON report on stdout')
     ap.add_argument('--no-layout-export', action='store_true',
@@ -2015,6 +2036,13 @@ def main() -> None:
         room_max=args.room_max, loops=args.loops, organicness=args.organicness,
         corridor_width=args.corridor_width, hidden_area_prevalence=args.hidden,
         faction_profile_id=args.faction_profile,
+        mix_mode=args.mix_mode,
+        prev_faction=args.prev_faction,
+        next_faction=args.next_faction,
+        default_faction=args.default_faction,
+        prev_fraction=args.prev_fraction,
+        default_fraction=args.default_fraction,
+        next_fraction=args.next_fraction,
     )
 
     if args.preview:

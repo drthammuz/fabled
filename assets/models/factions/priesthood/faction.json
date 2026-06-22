@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "id": "priesthood",
+  "label": "Priesthood (dungeon stone)",
+  "profiles": ["priesthood"],
+  "source_kit": "dungeon",
+  "grammar": "modular",
+  "colormaps": {
+    "primary": "Textures/colormap.png"
+  },
+  "material": {
+    "mode": "explicit",
+    "client_slot": "Priesthood",
+    "albedo": "Textures/colormap.png",
+    "base_color": [1.0, 1.0, 1.0],
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "double_sided": true,
+    "emissive_map": null,
+    "emissive": [0.0, 0.0, 0.0],
+    "mr_map": null,
+    "uv_transform": null
+  },
+  "roles": {
+    "floor": {
+      "stem": "template-floor",
+      "yaw_offset": 0.0,
+      "collide": true
+    },
+    "wall": {
+      "stem": "template-wall",
+      "yaw_offset": 0.0,
+      "collide": true,
+      "placement": "edge",
+      "faces_at_yaw0": "+Z"
+    },
+    "corridor": {
+      "corner_stem": "corridor-corner",
+      "yaw_offset": 0.0,
+      "collide": true,
+      "floorless_corner": true,
+      "built_from": ["floor", "wall"]
+    }
+  },
+  "provides": ["wall", "corridor"],
+  "notes": "Stone walls + corridors. Floor is intentionally NOT provided -> falls back to space grammar (SpaceCyber stone floor). corridor-corner.glb has its floor mesh removed (floorless_corner); the generator lays a template-floor tile under it. colormap = dungeon atlas with brown dirt/rubble recolored to cool gray (tools/recolor_priesthood.py). corridor-corner.glb texture is embedded (re-exported); recolor won't touch it -- run tools/repair_priesthood_glb.py after Blender edits."
+}

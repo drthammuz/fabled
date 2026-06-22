@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "id": "industrial",
+  "label": "Industrial substrate (dirt floor)",
+  "profiles": ["industrial_default"],
+  "source_kit": "dungeon",
+  "grammar": "modular",
+  "colormaps": {
+    "primary": "Textures/colormap.png"
+  },
+  "material": {
+    "mode": "native_glb",
+    "client_slot": "NativeGlb",
+    "albedo": "Textures/colormap.png",
+    "base_color": [1.0, 1.0, 1.0],
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "double_sided": false,
+    "emissive_map": null,
+    "emissive": [0.0, 0.0, 0.0],
+    "mr_map": null,
+    "uv_transform": null
+  },
+  "roles": {
+    "floor": {
+      "stem": "template-floor",
+      "yaw_offset": 0.0,
+      "collide": true
+    }
+  },
+  "provides": ["floor"],
+  "notes": "Brown dirt FLOOR only. Walls + corridors are intentionally NOT provided -> fall back to space grammar (SpaceCyber gray walls). colormap = original dungeon brown (NOT recolored). Floor uses NativeGlb (keeps the GLB's own external colormap); reliable because these are original Kenney dungeon GLBs, not Blender re-exports."
+}

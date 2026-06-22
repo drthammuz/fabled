@@ -216,6 +216,7 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
             kit: None,
             tint: None,
             tags: vec![],
+            zone: None,
         });
     }
 
@@ -236,6 +237,7 @@ pub fn patch_hub_branch_layout(mut layout: KenneyLayout) -> KenneyLayout {
             kit: None,
             tint: None,
             tags: vec![],
+            zone: None,
         });
     }
 

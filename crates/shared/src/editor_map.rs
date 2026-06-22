@@ -235,6 +235,9 @@ pub struct PieceRecord {
     /// Semantic tags (`hidden_entrance`, …) for gameplay systems.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    /// Level-composition zone (`prev` / `default` / `next`) for material routing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub zone: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -478,6 +481,7 @@ impl MapDocument {
                                         .collect()
                                 })
                                 .unwrap_or_default(),
+                            zone: p.get("zone").and_then(|x| x.as_str()).map(str::to_string),
                         })
                     })
                     .collect()
@@ -568,6 +572,7 @@ impl MapDocument {
                     kit: p.kit.clone(),
                     tint: p.tint,
                     tags: p.tags.clone(),
+                    zone: p.zone.clone(),
                 })
                 .collect(),
             spawn_xz: self.spawn_xz,
@@ -603,6 +608,7 @@ impl MapDocument {
                 kit: p.kit.clone(),
                 tint: p.tint,
                 tags: p.tags.clone(),
+                zone: p.zone.clone(),
             })
             .collect();
         self.floors = layout.floors;

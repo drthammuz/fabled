@@ -3,6 +3,7 @@ pub mod config;
 pub mod editor_catalog;
 pub mod editor_map;
 pub mod editor_settings;
+pub mod hidden_door;
 pub mod items;
 pub mod map_pool;
 pub mod kenney_catalog;

@@ -13,10 +13,11 @@ use std::time::Duration;
 use bevy::gltf::Gltf;
 use bevy::prelude::*;
 
+use crate::netplay::OwnPlayer;
 use crate::test_showcase::{KenneyModule, PieceKit};
 
-const OPEN_RADIUS: f32 = 5.0;
-const CLOSE_RADIUS: f32 = 6.5; // hysteresis so it doesn't flap on the boundary
+const OPEN_RADIUS: f32 = shared::hidden_door::PROXIMITY_OPEN_M;
+const CLOSE_RADIUS: f32 = shared::hidden_door::PROXIMITY_CLOSE_M;
 
 /// Gate-door kits that ship open/close animation clips.
 const DOOR_KITS: [&str; 2] = ["space", "dungeon"];
@@ -156,17 +157,21 @@ fn wire_door_rigs(
 
 fn drive_doors(
     cameras: Query<&GlobalTransform, With<Camera3d>>,
+    players: Query<&GlobalTransform, With<OwnPlayer>>,
     transforms: Query<&GlobalTransform>,
     mut rigs: Query<(&mut DoorRig, &mut AnimationPlayer, &mut AnimationTransitions)>,
     assets: Res<DoorAnimAssets>,
 ) {
-    let Some(cam) = cameras.iter().next() else { return };
-    let cam_pos = cam.translation();
-
     for (mut rig, mut player, mut transitions) in &mut rigs {
         let Some(graph) = assets.kits.get(&rig.kit) else { continue };
         let Ok(door_t) = transforms.get(rig.door) else { continue };
-        let dist = door_t.translation().distance(cam_pos);
+        let door_pos = door_t.translation();
+        let dist = cameras
+            .iter()
+            .map(|c| c.translation().distance(door_pos))
+            .chain(players.iter().map(|p| p.translation().distance(door_pos)))
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(f32::MAX);
 
         if !rig.open && dist < OPEN_RADIUS {
             rig.open = true;

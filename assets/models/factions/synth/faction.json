@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "id": "synth",
+  "label": "Synth / Station (clean hi-tech)",
+  "profiles": ["synth"],
+  "source_kit": "space_station",
+  "grammar": "modular",
+  "scale": 4.0,
+  "colormaps": { "primary": "Textures/colormap.png" },
+  "material": {
+    "mode": "native_glb",
+    "client_slot": "NativeGlb",
+    "albedo": null,
+    "base_color": [1.0, 1.0, 1.0],
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "double_sided": false,
+    "emissive_map": null,
+    "emissive": [0.0, 0.0, 0.0],
+    "mr_map": null,
+    "uv_transform": null
+  },
+  "roles": {
+    "wall": {
+      "stem": "wall",
+      "yaw_offset": 0.0,
+      "collide": true,
+      "placement": "edge",
+      "faces_at_yaw0": "+Z",
+      "alt_stems": ["wall-window"]
+    },
+    "corridor": {
+      "corner_stem": "wall-corner",
+      "yaw_offset": 1.5708,
+      "collide": true,
+      "floorless_corner": true,
+      "built_from": ["floor", "wall"],
+      "yaw_note": "space_station wall-corner native facing is 90 deg off the space corridor-corner the CORNER_YAW table targets; +pi/2 corrects it."
+    }
+  },
+  "provides": ["wall", "corridor"],
+  "scale_note": "space_station is 1-unit → scale 4. Wall (1x1x0.3) has real thickness + full height (good). Floor is NOT provided: space_station floor is 0.3-thick (would step at zone boundaries), so floors fall back to the flush space template-floor; the sleek station WALLS carry the theme.",
+  "notes": "NEEDS EDITOR TUNING: wall/corner yaw_offset, scale-4 check. Has wall-corner-round (alt corner), wall-window, door-single/double, plus stairs-* variants (the lower-stair quirk — future advanced stair logic). Furniture/computers/displays available as props later."
+}

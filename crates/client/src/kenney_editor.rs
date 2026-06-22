@@ -51,8 +51,10 @@ use crate::editor_ui::{
 use crate::editor_workspace::{EditorMenuRoot, EditorSidebarRoot, EditorWorkspace, FloorSlab, SpawnMarker};
 use crate::process_spawn::relaunch_fabled;
 use crate::test_showcase::{
-    cut_kenney_mesh, init_editor_kenney_materials, CyberLaserMaterial, CyberMaterial,
-    CyberMaterialCeiling, KenneyModule, PieceTint, EDITOR_BUILD_TAG,
+    cut_kenney_mesh, init_editor_kenney_materials, kenney_material_slot, KenneyMaterialSlot,
+    CyberLaserMaterial, CyberMaterial, CyberMaterialCeiling, CyberMaterialIndustrial,
+    CyberMaterialPinkCeiling, KenneyModule, PriesthoodMaterial,
+    PieceTint, EDITOR_BUILD_TAG,
 };
 
 fn editor_active(editor: Option<Res<EditorMode>>, playtest: Option<Res<EditorPlaytestActive>>) -> bool {
@@ -323,10 +325,14 @@ fn editor_startup(
         cam.focus = Vec3::new(cx, 0.0, cz);
     }
 
-    let (cyber, cyber_lasers, cyber_ceiling) = init_editor_kenney_materials(&asset_server, &mut materials);
+    let (cyber, cyber_lasers, cyber_ceiling, cyber_industrial, pink_ceiling, priesthood) =
+        init_editor_kenney_materials(&asset_server, &mut materials);
     commands.insert_resource(cyber);
     commands.insert_resource(cyber_lasers);
     commands.insert_resource(cyber_ceiling);
+    commands.insert_resource(cyber_industrial);
+    commands.insert_resource(pink_ceiling);
+    commands.insert_resource(priesthood);
 
     commands.spawn((
         Camera3d::default(),
@@ -396,6 +402,7 @@ fn load_initial_documents(ws: &mut EditorWorkspace) {
             kit: p.kit.clone(),
             tint: p.tint,
             tags: p.tags.clone(),
+            zone: None,
         });
     }
 }
@@ -737,23 +744,39 @@ fn cycle_piece(
 fn sync_pieces_from_world(
     placed: &Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
     owner: PieceOwner,
+    prev: &[PieceRecord],
 ) -> Vec<PieceRecord> {
     placed
         .iter()
         .filter(|(_, _, _, ep)| ep.owner == owner)
-        .map(|(_, tf, km, ep)| PieceRecord {
-            stem: km.name.to_string(),
-            x: tf.translation.x,
-            z: tf.translation.z,
-            yaw: quantize_yaw(tf.rotation.to_euler(EulerRot::YXZ).0),
-            floor_level: ep.floor_level,
-            scale: tf.scale.x,
-            group_id: ep.group_id,
-            ceiling: ep.ceiling,
-            underside: ep.underside,
-            kit: None,
-            tint: None,
-            tags: vec![],
+        .map(|(_, tf, km, ep)| {
+            // kit / tint / zone / tags are editor-map metadata NOT fully mirrored on
+            // the entity (zone isn't on it at all). Recover them from the matching
+            // existing piece so a quicksave/playtest round-trip doesn't wipe faction
+            // zones (the bug where G turned every zone into plain default).
+            let prior = prev.iter().find(|p| {
+                p.stem == km.name
+                    && p.floor_level == ep.floor_level
+                    && (p.x - tf.translation.x).abs() < 0.05
+                    && (p.z - tf.translation.z).abs() < 0.05
+            });
+            PieceRecord {
+                stem: km.name.to_string(),
+                x: tf.translation.x,
+                z: tf.translation.z,
+                yaw: quantize_yaw(tf.rotation.to_euler(EulerRot::YXZ).0),
+                floor_level: ep.floor_level,
+                scale: tf.scale.x,
+                group_id: ep.group_id,
+                ceiling: ep.ceiling,
+                underside: ep.underside,
+                kit: prior
+                    .and_then(|p| p.kit.clone())
+                    .or_else(|| km.kit.map(|s| s.to_string())),
+                tint: prior.and_then(|p| p.tint),
+                tags: prior.map(|p| p.tags.clone()).unwrap_or_default(),
+                zone: prior.and_then(|p| p.zone.clone()),
+            }
         })
         .collect()
 }
@@ -766,7 +789,8 @@ fn quicksave(
 ) -> bool {
     let ok = match ws.workflow {
         EditorWorkflow::MapMaker => {
-            ws.map.pieces = sync_pieces_from_world(placed, PieceOwner::Map);
+            let prev = std::mem::take(&mut ws.map.pieces);
+            ws.map.pieces = sync_pieces_from_world(placed, PieceOwner::Map, &prev);
             let path = ws.active.quicksave_path_map(&ws.map);
             match ws.map.save(&path) {
                 Ok(()) => {
@@ -791,7 +815,8 @@ fn quicksave(
             }
         }
         EditorWorkflow::ModuleMaker => {
-            ws.module.pieces = sync_pieces_from_world(placed, PieceOwner::Module);
+            let prev = std::mem::take(&mut ws.module.pieces);
+            ws.module.pieces = sync_pieces_from_world(placed, PieceOwner::Module, &prev);
             match ws.module.save() {
                 Ok(path) => {
                     ws.active.path = Some(path.clone());
@@ -816,7 +841,8 @@ fn quicksave(
         }
     };
     if ok {
-        ws.map.pieces = sync_pieces_from_world(placed, PieceOwner::Map);
+        let prev = std::mem::take(&mut ws.map.pieces);
+        ws.map.pieces = sync_pieces_from_world(placed, PieceOwner::Map, &prev);
         ws.map.apply_hub_playtest_patches();
         let _ = ws.map.export_playtest_layout();
     }
@@ -1061,6 +1087,7 @@ fn editor_input(
             kit: None,
             tint: None,
             tags: vec![],
+            zone: None,
         };
         match ws.workflow {
             EditorWorkflow::MapMaker => ws.map.pieces.push(record.clone()),
@@ -1230,6 +1257,7 @@ fn place_module_on_map(
             kit: p.kit.clone(),
             tint: p.tint,
             tags: p.tags.clone(),
+            zone: p.zone.clone(),
         };
         spawn_piece_record(
             commands,
@@ -1327,7 +1355,8 @@ fn file_menu_actions(
                 // Auto-save current module before starting a new one so the
                 // user doesn't accidentally overwrite it with the new name.
                 if ws.dirty {
-                    ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module);
+                    let prev_mod = std::mem::take(&mut ws.module.pieces);
+            ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module, &prev_mod);
                     if let Ok(path) = ws.module.save() {
                         ws.active.path = Some(path);
                         ws.dirty = false;
@@ -1423,7 +1452,8 @@ fn file_menu_actions(
             save_fb.hide_after = time.elapsed_secs() + 2.0;
         } else {
             // "Save As" path: save current content under a new name.
-            ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module);
+            let prev_mod = std::mem::take(&mut ws.module.pieces);
+            ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module, &prev_mod);
             ws.module.name = name;
             match ws.module.save() {
                 Ok(path) => {
@@ -1480,7 +1510,8 @@ fn persist_module_on_map_switch(
     }
     *last = Some(ws.workflow);
     if from == EditorWorkflow::ModuleMaker && ws.dirty {
-        ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module);
+        let prev_mod = std::mem::take(&mut ws.module.pieces);
+            ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module, &prev_mod);
         if let Ok(path) = ws.module.save() {
             ws.active.path = Some(path.clone());
             ws.dirty = false;
@@ -1821,7 +1852,10 @@ fn editor_apply_materials(
     playtest: Option<Res<EditorPlaytestActive>>,
     cyber: Option<Res<CyberMaterial>>,
     cyber_ceiling: Option<Res<CyberMaterialCeiling>>,
+    pink_ceiling: Option<Res<CyberMaterialPinkCeiling>>,
+    cyber_industrial: Option<Res<CyberMaterialIndustrial>>,
     cyber_lasers: Option<Res<CyberLaserMaterial>>,
+    priesthood: Option<Res<PriesthoodMaterial>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     modules: Query<
@@ -1845,10 +1879,29 @@ fn editor_apply_materials(
         ..default()
     });
 
-    for (root, module, root_gt, placed, ghost, tint) in &modules {
-        if playtest.is_some() && !placed.ceiling && tint.is_none() {
-            continue;
-        }
+    for (root, module, root_gt, placed, ghost, _tint) in &modules {
+        let want_ceiling = placed.ceiling || module.ceiling;
+        let px = root_gt.translation().x;
+        let pz = root_gt.translation().z;
+        let matched = ws.map.pieces.iter().find(|p| {
+            p.floor_level == placed.floor_level
+                && p.ceiling == want_ceiling
+                && (p.x - px).abs() < 0.05
+                && (p.z - pz).abs() < 0.05
+                && stem_static(&p.stem) == module.name
+        });
+        let zone = matched.and_then(|p| p.zone.as_deref());
+        let slot = if ghost.is_some() {
+            None
+        } else {
+            Some(kenney_material_slot(
+                module.kit.as_deref(),
+                zone,
+                playtest.is_some(),
+                want_ceiling,
+                module.name,
+            ))
+        };
         let mesh_ents: Vec<Entity> = children_q
             .iter_descendants(root)
             .filter(|e| mesh_q.contains(*e))
@@ -1863,23 +1916,10 @@ fn editor_apply_materials(
             continue;
         }
 
-        let px = root_gt.translation().x;
-        let pz = root_gt.translation().z;
-        let want_ceiling = placed.ceiling || module.ceiling;
-        let piece_yaw = ws
-            .map
-            .pieces
-            .iter()
-            .find(|p| {
-                p.floor_level == placed.floor_level
-                    && p.ceiling == want_ceiling
-                    && (p.x - px).abs() < 0.05
-                    && (p.z - pz).abs() < 0.05
-                    && stem_static(&p.stem) == module.name
-            })
+        let piece_yaw = matched
             .map(|p| quantize_yaw(p.yaw))
             .unwrap_or_else(|| root_gt.rotation().to_euler(EulerRot::YXZ).0);
-        let mesh_cutouts = if placed.ceiling {
+        let mesh_cutouts = if want_ceiling {
             kenney_pit::KenneyMeshCutouts::default()
         } else {
             kenney_pit::mesh_cutouts_for_piece(
@@ -1894,33 +1934,9 @@ fn editor_apply_materials(
             )
         };
 
-        let mat = if ghost.is_some() {
-            ghost_mat.clone()
-        } else if let Some(PieceTint(rgb)) = tint {
-            materials.add(StandardMaterial {
-                base_color: Color::srgb(rgb[0], rgb[1], rgb[2]),
-                emissive: LinearRgba::rgb(rgb[0] * 0.35, rgb[1] * 0.35, rgb[2] * 0.35),
-                metallic: 0.4,
-                perceptual_roughness: 0.55,
-                ..default()
-            })
-        } else if module.name == "gate-lasers" {
-            let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
-            cyber_lasers.0.clone()
-        } else if placed.ceiling {
-            let Some(cyber_ceiling) = cyber_ceiling.as_ref() else { continue };
-            cyber_ceiling.0.clone()
-        } else {
-            let Some(cyber) = cyber.as_ref() else { continue };
-            cyber.0.clone()
-        };
-
         for e in &mesh_ents {
             let (mesh3d, gt) = mesh_q.get(*e).unwrap();
-            // Ceiling slabs keep the unmodified GLB mesh: the floor tile already has a
-            // textured downward (−Y) face, so it reads as a ceiling from below as-is.
-            // Only the (double-sided) ceiling material is swapped in.
-            let mesh_handle = if !placed.ceiling && !mesh_cutouts.is_empty() {
+            let mesh_handle = if !want_ceiling && !mesh_cutouts.is_empty() {
                 if let Some(mesh) = meshes.get(&mesh3d.0).cloned() {
                     meshes.add(cut_kenney_mesh(&mesh, gt, &mesh_cutouts))
                 } else {
@@ -1932,7 +1948,50 @@ fn editor_apply_materials(
             if mesh_handle != mesh3d.0 {
                 commands.entity(*e).insert(Mesh3d(mesh_handle));
             }
-            commands.entity(*e).insert(MeshMaterial3d(mat.clone()));
+        }
+
+        let mat = if ghost.is_some() {
+            Some(ghost_mat.clone())
+        } else if let Some(slot) = slot {
+            match slot {
+                KenneyMaterialSlot::NativeGlb => {
+                    // Keep embedded GLB materials — removing MeshMaterial3d leaves meshes bare.
+                    commands.entity(root).insert(EditorModuleReady);
+                    continue;
+                }
+                KenneyMaterialSlot::Priesthood => {
+                    let Some(priesthood) = priesthood.as_ref() else { continue };
+                    Some(priesthood.0.clone())
+                }
+                KenneyMaterialSlot::Lasers => {
+                    let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
+                    Some(cyber_lasers.0.clone())
+                }
+                KenneyMaterialSlot::Ceiling => {
+                    let Some(cyber_ceiling) = cyber_ceiling.as_ref() else { continue };
+                    Some(cyber_ceiling.0.clone())
+                }
+                KenneyMaterialSlot::CeilingPink => {
+                    let Some(pink_ceiling) = pink_ceiling.as_ref() else { continue };
+                    Some(pink_ceiling.0.clone())
+                }
+                KenneyMaterialSlot::SpaceIndustrial => {
+                    let Some(cyber_industrial) = cyber_industrial.as_ref() else { continue };
+                    Some(cyber_industrial.0.clone())
+                }
+                KenneyMaterialSlot::SpaceCyber => {
+                    let Some(cyber) = cyber.as_ref() else { continue };
+                    Some(cyber.0.clone())
+                }
+            }
+        } else {
+            continue;
+        };
+
+        if let Some(mat) = mat {
+            for e in &mesh_ents {
+                commands.entity(*e).insert(MeshMaterial3d(mat.clone()));
+            }
         }
         commands.entity(root).insert(EditorModuleReady);
     }
@@ -2054,6 +2113,7 @@ fn editor_playtest_enter(
         return;
     }
     ws.close_menus();
+    let module_entities: Vec<Entity> = placed.iter().map(|(e, ..)| e).collect();
     enter_in_process_playtest(
         commands,
         editor_cam_ent,
@@ -2062,6 +2122,7 @@ fn editor_playtest_enter(
         ghosts,
         toast,
         floors,
+        module_entities,
         test_mode,
         generation,
         window,
@@ -2103,6 +2164,9 @@ fn editor_playtest_exit(
         playtest_cam,
         coords_hud,
     );
+    for (e, _) in &map_placed {
+        commands.entity(e).remove::<EditorModuleReady>();
+    }
 
     // The in-process playtest reuses and mutates/despawns the editor's placed-piece
     // entities (repositioning, mesh cutouts, hatch hiding). Rebuild the map pieces

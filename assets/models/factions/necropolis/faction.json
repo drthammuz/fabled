@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "necropolis",
+  "label": "Necropolis (gothic cult)",
+  "profiles": ["necropolis"],
+  "source_kit": "graveyard",
+  "grammar": "modular",
+  "scale": 4.0,
+  "colormaps": { "primary": "Textures/colormap.png" },
+  "material": {
+    "mode": "native_glb",
+    "client_slot": "NativeGlb",
+    "albedo": null,
+    "base_color": [1.0, 1.0, 1.0],
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "double_sided": false,
+    "emissive_map": null,
+    "emissive": [0.0, 0.0, 0.0],
+    "mr_map": null,
+    "uv_transform": null
+  },
+  "roles": {
+    "wall": {
+      "stem": "brick-wall",
+      "yaw_offset": 0.0,
+      "inset": 1.4,
+      "collide": true,
+      "placement": "edge",
+      "faces_at_yaw0": "+Z",
+      "inset_note": "brick-wall depth anchor is off-centre (z-centre -0.35); inset = 0.35*scale(4) = 1.4 pushes it out to straddle the cell edge like a normal wall.",
+      "alt_stems": ["stone-wall", "iron-fence"]
+    },
+    "corridor": {
+      "corner_stem": "brick-wall-curve",
+      "yaw_offset": 0.0,
+      "collide": true,
+      "floorless_corner": true,
+      "built_from": ["floor", "wall"]
+    }
+  },
+  "provides": ["wall", "corridor"],
+  "scale_note": "graveyard is 1-unit → scale 4. brick-wall (1x0.73x0.3) has thickness but is low (gothic/ruined look). graveyard has NO clean 1x1 floor (road is 0.8), so floor falls back to the flush space template-floor; gothic brick WALLS carry the theme.",
+  "notes": "NEEDS EDITOR TUNING: wall/corner yaw_offset, scale-4 check. Rich PROP set in-folder for later: gravestones, crypts, mausoleum, pillars, iron fences, lanterns, candles, altars, coffins, dead trees. alt walls: stone-wall, iron-fence (open railing)."
+}

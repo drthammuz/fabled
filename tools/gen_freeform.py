@@ -30,7 +30,7 @@ import random
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
 CELL = 4.0
 PI = math.pi
@@ -132,8 +132,9 @@ class FreeformMap:
     secret_doors: List[Tuple[float, float, float]] = field(default_factory=list)
     # Per-door geometry audit trail (parallel to secret_doors / hidden_rooms).
     secret_door_meta: List["SecretDoorMeta"] = field(default_factory=list)
-    # Faction profile used for door kit/tint and future kit-specific tiles.
-    faction_profile_id: str = "space_default"
+    # Faction profile used when mix_mode=single; composition when transition.
+    faction_profile_id: str = "industrial_default"
+    composition: Optional["LevelComposition"] = None
 
 
 @dataclass(frozen=True)
@@ -201,6 +202,51 @@ def place_rooms(
             continue
         rooms.append(cand)
     return rooms
+
+
+def _piece(
+    kit: Optional[str],
+    *,
+    stem: str,
+    x: float,
+    z: float,
+    yaw: float,
+    floor_level: int = 0,
+    scale: float = 1.0,
+    group_id: int = 1,
+    ceiling: bool = False,
+    underside: bool = False,
+    zone: Optional[str] = None,
+    role: Optional[str] = None,
+) -> dict:
+    p: dict = {
+        "stem": stem,
+        "x": x,
+        "z": z,
+        "yaw": yaw,
+        "floor_level": floor_level,
+        "scale": scale,
+        "group_id": group_id,
+    }
+    if ceiling:
+        p["ceiling"] = True
+    if underside:
+        p["underside"] = True
+    # Per-zone architecture kit is resolved from the faction manifests by piece
+    # ROLE (see build_zone_kits / _ACTIVE_ZONE_KITS). None / missing = default
+    # space grammar. Ceilings are always space. Callers that emit custom faction
+    # stems pass `role` explicitly (the stem can't be classified by prefix);
+    # others fall back to inferring the role from the stem.
+    lookup_role = role if role is not None else _piece_role(stem)
+    kit = None if ceiling else _ACTIVE_ZONE_KITS.get(zone or "", {}).get(lookup_role)
+    if kit:
+        p["kit"] = kit
+    if zone:
+        p["zone"] = zone
+    # Stamp the architectural role so floor/roof audits recognise faction-custom
+    # stems (e.g. urban's "road-asphalt-center" floor) by role, not stem prefix.
+    p["role"] = lookup_role
+    return p
 
 
 def mst_edges(rooms: List[Room]) -> List[Tuple[int, int]]:
@@ -501,9 +547,13 @@ def generate_map(
     organicness: float = 0.0,
     corridor_width: float = 1.0,
     hidden_area_prevalence: float = 0.0,
-    faction_profile_id: str = "space_default",
+    faction_profile_id: str = "industrial_default",
+    composition: Optional["LevelComposition"] = None,
     room_tries: int = 400,
 ) -> Optional[FreeformMap]:
+    import level_composition as lc
+
+    comp = (composition or lc.LevelComposition(mix_mode="single")).normalized()
     rng = random.Random(seed)
     gx = gz = cells
     rooms = place_rooms(rng, gx, gz, max_rooms, room_min, room_max, room_tries, organicness)
@@ -558,6 +608,7 @@ def generate_map(
         secret_doors=secret_doors,
         secret_door_meta=secret_door_meta,
         faction_profile_id=faction_profile_id,
+        composition=comp,
     )
     hub_rng = random.Random((fm.seed * 2654435761) & 0xFFFFFFFF)
     for _ in range(32):
@@ -579,22 +630,142 @@ def _world_to_cell(gx: int, gz: int, wx: float, wz: float) -> Cell:
     return (ix, iz)
 
 
-def _is_floor_surface(stem: str) -> bool:
-    """True when a piece provides floor geometry at its cell (incl. hole frames)."""
+# ---------------------------------------------------------------------------
+# Faction-zone CATALOGUE: which architecture kit each composition zone uses for
+# each piece ROLE. A transition map runs prev -> default -> next zones, mapped to
+# faction looks. `None`/missing role = the default `space/` grammar (which then
+# takes a per-zone TINT material in the client, e.g. pink for `prev`).
+#
+# Roles: "floor" (template-floor*), "wall" (template-wall*), "corridor"
+# (corridor*). Ceilings are always space (handled in _piece). Swapping a faction
+# to its own `factions/<name>/` folder = changing the kit string(s) here.
+# Faction-zone kit resolution is DATA-DRIVEN from the faction asset manifests
+# (assets/models/factions/<id>/faction.json, loaded via tools/faction_assets.py).
+# `_ACTIVE_ZONE_KITS` maps composition zone ("prev"/"default"/"next") -> piece
+# ROLE -> kit folder, and `_ACTIVE_FLOORLESS` is the set of kits whose
+# corridor-corner has no floor mesh. Both are rebuilt per map by build_zone_kits()
+# from the actual faction in each zone, so the look FOLLOWS the faction (reorder
+# the factions and the visuals move with them). Empty default = pure space grammar.
+_ACTIVE_ZONE_KITS: Dict[str, Dict[str, str]] = {}
+_ACTIVE_FLOORLESS: Set[str] = set()
+# Per-zone emit-slot ("floor"/"wall"/"corner") overrides from faction manifests:
+# stems (default = template-*/corridor-corner) and a uniform scale (default 1.0).
+_ACTIVE_ZONE_STEMS: Dict[str, Dict[str, str]] = {}
+_ACTIVE_ZONE_SCALE: Dict[str, Dict[str, float]] = {}
+# Per-zone, per-slot calibration: yaw_offset (radians added to the placement yaw)
+# and inset (world units pushing a wall out along its side normal).
+_ACTIVE_ZONE_YAW: Dict[str, Dict[str, float]] = {}
+_ACTIVE_ZONE_INSET: Dict[str, Dict[str, float]] = {}
+
+
+def _piece_role(stem: str) -> str:
+    """Architectural role of a piece for faction-zone kit lookup."""
+    if stem.startswith("template-floor"):
+        return "floor"
+    if stem.startswith("template-wall"):
+        return "wall"
     if stem.startswith("corridor"):
+        return "corridor"
+    return "other"
+
+
+def build_zone_kits(comp) -> None:
+    """Resolve each composition zone's faction to its per-role kit, from manifests.
+
+    A faction WITH an asset manifest routes only its ``provides`` roles to its
+    ``factions/<id>`` folder (unprovided roles fall back to the space grammar).
+    A faction WITHOUT a manifest falls back to its whole ``building_system`` kit
+    for every role (legacy behaviour, e.g. synth -> space_station). Sets the
+    module-level ``_ACTIVE_ZONE_KITS`` / ``_ACTIVE_FLOORLESS`` used by _piece.
+    """
+    import faction_assets as fa
+    import faction_profiles as fp
+
+    assets = fa.load_all()
+    zones = {
+        "prev": comp.prev_faction,
+        "default": comp.default_faction,
+        "next": comp.next_faction,
+    }
+    zone_kits: Dict[str, Dict[str, str]] = {}
+    zone_stems: Dict[str, Dict[str, str]] = {}
+    zone_scale: Dict[str, Dict[str, float]] = {}
+    zone_yaw: Dict[str, Dict[str, float]] = {}
+    zone_inset: Dict[str, Dict[str, float]] = {}
+    # emit slot -> manifest role
+    SLOT_ROLE = (("floor", "floor"), ("wall", "wall"), ("corner", "corridor"))
+    for zone, profile_id in zones.items():
+        asset = fa.asset_for_profile(profile_id, assets)
+        zone_stems[zone] = {}
+        zone_scale[zone] = {}
+        zone_yaw[zone] = {}
+        zone_inset[zone] = {}
+        if asset is not None:
+            zone_kits[zone] = {
+                role: asset.kit for role in asset.provides if role in fa.ROLES
+            }
+            for slot, role in SLOT_ROLE:
+                if role in asset.provides:
+                    rd = asset.roles.get(role, {})
+                    st = asset.stem(slot)
+                    if st:
+                        zone_stems[zone][slot] = st
+                    if asset.scale != 1.0:
+                        zone_scale[zone][slot] = asset.scale
+                    # Per-piece calibration vs the generator's edge placement:
+                    # yaw_offset rotates the piece to match native facing; inset
+                    # pushes a wall out along its side normal to correct an
+                    # off-centre depth anchor (world units, post-scale).
+                    if rd.get("yaw_offset"):
+                        zone_yaw[zone][slot] = float(rd["yaw_offset"])
+                    if rd.get("inset"):
+                        zone_inset[zone][slot] = float(rd["inset"])
+        else:
+            kit = fp.architecture_kit(fp.load_profile(profile_id))
+            zone_kits[zone] = {role: kit for role in fa.ROLES} if kit else {}
+    global _ACTIVE_ZONE_KITS, _ACTIVE_FLOORLESS, _ACTIVE_ZONE_STEMS, _ACTIVE_ZONE_SCALE
+    global _ACTIVE_ZONE_YAW, _ACTIVE_ZONE_INSET
+    _ACTIVE_ZONE_KITS = zone_kits
+    _ACTIVE_FLOORLESS = fa.floorless_corner_kits(assets)
+    _ACTIVE_ZONE_YAW = zone_yaw
+    _ACTIVE_ZONE_INSET = zone_inset
+    _ACTIVE_ZONE_STEMS = zone_stems
+    _ACTIVE_ZONE_SCALE = zone_scale
+
+
+def _corner_has_floor(stem: str, kit: Optional[str]) -> bool:
+    """A corridor-corner provides floor geometry unless its kit's GLB is floorless."""
+    return not (stem == "corridor-corner" and kit in _ACTIVE_FLOORLESS)
+
+
+def _piece_floor_surface(p: dict) -> bool:
+    """True when a piece provides floor geometry at its cell (incl. hole frames).
+
+    Role-aware: faction floors use custom stems (e.g. urban "road-asphalt-center")
+    so we classify by the stamped `role`, falling back to stem prefix for legacy /
+    hub pieces that carry no role.
+    """
+    role = p.get("role")
+    stem = p["stem"]
+    kit = p.get("kit")
+    if role == "wall":
+        return False
+    if role == "corridor":  # a corner piece
+        return kit not in _ACTIVE_FLOORLESS
+    if role == "floor":
         return True
+    if stem.startswith("corridor"):
+        return _corner_has_floor(stem, kit)
     if stem.startswith("template-floor"):
         return True
     return False
 
 
-def _is_solid_floor(stem: str) -> bool:
+def _piece_solid_floor(p: dict) -> bool:
     """Walkable / ceiling slab — excludes trap-door hole frames (open vertical)."""
-    if stem.startswith("corridor"):
-        return True
-    if stem == "template-floor":
-        return True
-    return False
+    if p["stem"] == "template-floor-hole":
+        return False
+    return _piece_floor_surface(p)
 
 
 def _has_floor_surface_at(
@@ -606,7 +777,7 @@ def _has_floor_surface_at(
             continue
         if p.get("ceiling"):
             continue
-        if not _is_floor_surface(p["stem"]):
+        if not _piece_floor_surface(p):
             continue
         if abs(float(p["x"]) - wx) < eps and abs(float(p["z"]) - wz) < eps:
             return True
@@ -622,7 +793,7 @@ def _has_solid_floor_at(
             continue
         if p.get("ceiling"):
             continue
-        if not _is_solid_floor(p["stem"]):
+        if not _piece_solid_floor(p):
             continue
         if abs(float(p["x"]) - wx) < eps and abs(float(p["z"]) - wz) < eps:
             return True
@@ -638,6 +809,9 @@ def emit_roofs(
     *,
     skip_roof: Optional[Set[Cell]] = None,
     roof_offset: int = 1,
+    kit_lookup: Optional[KitLookup] = None,
+    kit: Optional[str] = None,
+    zone_lookup: Optional[ZoneLookup] = None,
 ) -> None:
     """Normal `template-floor` one level up — rendered flipped as ceiling from below.
 
@@ -654,16 +828,12 @@ def emit_roofs(
         wx, wz = world_x(gx, ix), world_z(gz, iz)
         if _has_floor_surface_at(pieces, roof_floor, wx, wz):
             continue
-        pieces.append({
-            "stem": "template-floor",
-            "x": wx,
-            "z": wz,
-            "yaw": 0.0,
-            "floor_level": roof_floor,
-            "scale": 1.0,
-            "group_id": 1,
-            "ceiling": True,
-        })
+        pieces.append(_piece(
+            _cell_kit(kit_lookup, (ix, iz), kit),
+            stem="template-floor", x=wx, z=wz, yaw=0.0,
+            floor_level=roof_floor, ceiling=True,
+            zone=_cell_zone(zone_lookup, (ix, iz)),
+        ))
 
 
 def emit_all_roofs(
@@ -673,6 +843,9 @@ def emit_all_roofs(
     gx: int,
     gz: int,
     holes0: Optional[Set[Cell]] = None,
+    kit_lookup: Optional[KitLookup] = None,
+    kit: Optional[str] = None,
+    zone_lookup: Optional[ZoneLookup] = None,
 ) -> None:
     """Final roof pass — hub extension (−1→0), landings (−2→−1), main level (0→1).
 
@@ -685,21 +858,22 @@ def emit_all_roofs(
     holes0 = holes0 or set()
     if hub:
         hub_extension = (hub.floor1 - hub.holes1) - fm.walkable
-        emit_roofs(pieces, gx, gz, -1, hub_extension)
+        emit_roofs(pieces, gx, gz, -1, hub_extension, kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup)
         for c in hub.holes1:
-            emit_roofs(pieces, gx, gz, -1, {c})
+            emit_roofs(pieces, gx, gz, -1, {c}, kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup)
         for ex in hub.exits:
             emit_roofs(
                 pieces, gx, gz, -2, ex.landing,
                 skip_roof=ex.landing & hub.holes1,
+                kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup,
             )
-    # Main level: roof over every walkable floor-0 tile (trap included → no roof hole).
-    emit_roofs(pieces, gx, gz, 0, fm.walkable)
+    emit_roofs(pieces, gx, gz, 0, fm.walkable, kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup)
 
 
 def emit_floor_tiles(
     pieces: List[dict], gx: int, gz: int, floor: int,
     footprint: Set[Cell], holes: Set[Cell],
+    kit: Optional[str] = None,
 ) -> None:
     """Tiled room/corridor on an arbitrary floor: template-floor per cell
     (template-floor-hole for trap cells), perimeter template-wall where the
@@ -708,44 +882,94 @@ def emit_floor_tiles(
     for (ix, iz) in sorted(footprint):
         wx, wz = world_x(gx, ix), world_z(gz, iz)
         stem = "template-floor-hole" if (ix, iz) in holes else "template-floor"
-        pieces.append({"stem": stem, "x": wx, "z": wz, "yaw": 0.0,
-                       "floor_level": floor, "scale": 1.0, "group_id": 1})
+        pieces.append(_piece(kit, stem=stem, x=wx, z=wz, yaw=0.0, floor_level=floor))
         for side, (dx, dz) in DELTA.items():
             if (ix + dx, iz + dz) not in footprint:
-                pieces.append({
-                    "stem": "template-wall",
-                    "x": wx + dx * CELL * 0.5, "z": wz + dz * CELL * 0.5,
-                    "yaw": WALL_YAW[side], "floor_level": floor,
-                    "scale": 1.0, "group_id": 1,
-                })
+                pieces.append(_piece(
+                    kit, stem="template-wall",
+                    x=wx + dx * CELL * 0.5, z=wz + dz * CELL * 0.5,
+                    yaw=WALL_YAW[side], floor_level=floor,
+                ))
 
 
-def emit_pieces(fm: FreeformMap, holes0: Optional[Set[Cell]] = None) -> List[dict]:
+KitLookup = Callable[[Cell], Optional[str]]
+ZoneLookup = Callable[[Cell], Optional[str]]
+
+
+def _cell_kit(lookup: Optional[KitLookup], cell: Cell, fallback: Optional[str]) -> Optional[str]:
+    if lookup is not None:
+        return lookup(cell)
+    return fallback
+
+
+def _cell_zone(lookup: Optional[ZoneLookup], cell: Cell) -> Optional[str]:
+    if lookup is not None:
+        return lookup(cell)
+    return None
+
+
+def emit_pieces(
+    fm: FreeformMap,
+    holes0: Optional[Set[Cell]] = None,
+    kit_lookup: Optional[KitLookup] = None,
+    kit: Optional[str] = None,
+    zone_lookup: Optional[ZoneLookup] = None,
+) -> List[dict]:
     pieces: List[dict] = []
     holes0 = holes0 or set()
 
+    def k(ix: int, iz: int) -> Optional[str]:
+        return _cell_kit(kit_lookup, (ix, iz), kit)
+
+    def z(ix: int, iz: int) -> Optional[str]:
+        return _cell_zone(zone_lookup, (ix, iz))
+
     def add(stem: str, ix: int, iz: int, yaw: float) -> None:
-        pieces.append({
-            "stem": stem,
-            "x": world_x(fm.gx, ix),
-            "z": world_z(fm.gz, iz),
-            "yaw": yaw,
-            "floor_level": 0,
-            "scale": 1.0,
-            "group_id": 1,
-        })
+        pieces.append(_piece(
+            k(ix, iz), stem=stem,
+            x=world_x(fm.gx, ix), z=world_z(fm.gz, iz), yaw=yaw,
+            zone=z(ix, iz),
+        ))
+
+    def _slot_stem(ix: int, iz: int, slot: str, default: str) -> str:
+        return _ACTIVE_ZONE_STEMS.get(z(ix, iz) or "", {}).get(slot, default)
+
+    def _slot_scale(ix: int, iz: int, slot: str) -> float:
+        return _ACTIVE_ZONE_SCALE.get(z(ix, iz) or "", {}).get(slot, 1.0)
+
+    def _slot_yaw(ix: int, iz: int, slot: str) -> float:
+        return _ACTIVE_ZONE_YAW.get(z(ix, iz) or "", {}).get(slot, 0.0)
+
+    def _slot_inset(ix: int, iz: int, slot: str) -> float:
+        return _ACTIVE_ZONE_INSET.get(z(ix, iz) or "", {}).get(slot, 0.0)
+
+    def add_floor(ix: int, iz: int) -> None:
+        pieces.append(_piece(
+            None, stem=_slot_stem(ix, iz, "floor", "template-floor"),
+            x=world_x(fm.gx, ix), z=world_z(fm.gz, iz), yaw=0.0,
+            scale=_slot_scale(ix, iz, "floor"), zone=z(ix, iz), role="floor",
+        ))
+
+    def add_corner(ix: int, iz: int, yaw: float) -> None:
+        pieces.append(_piece(
+            None, stem=_slot_stem(ix, iz, "corner", "corridor-corner"),
+            x=world_x(fm.gx, ix), z=world_z(fm.gz, iz),
+            yaw=yaw + _slot_yaw(ix, iz, "corner"),
+            scale=_slot_scale(ix, iz, "corner"), zone=z(ix, iz), role="corridor",
+        ))
 
     def add_wall(ix: int, iz: int, side: str) -> None:
         dx, dz = DELTA[side]
-        pieces.append({
-            "stem": "template-wall",
-            "x": world_x(fm.gx, ix) + dx * CELL * 0.5,
-            "z": world_z(fm.gz, iz) + dz * CELL * 0.5,
-            "yaw": WALL_YAW[side],
-            "floor_level": 0,
-            "scale": 1.0,
-            "group_id": 1,
-        })
+        # inset pushes the wall out along the side normal to correct an off-centre
+        # depth anchor (faction kits with non-zero roles.wall.inset).
+        edge = CELL * 0.5 + _slot_inset(ix, iz, "wall")
+        pieces.append(_piece(
+            None, stem=_slot_stem(ix, iz, "wall", "template-wall"),
+            x=world_x(fm.gx, ix) + dx * edge,
+            z=world_z(fm.gz, iz) + dz * edge,
+            yaw=WALL_YAW[side] + _slot_yaw(ix, iz, "wall"),
+            scale=_slot_scale(ix, iz, "wall"), zone=z(ix, iz), role="wall",
+        ))
 
     for (ix, iz) in sorted(fm.walkable):
         if (ix, iz) in holes0:
@@ -753,27 +977,32 @@ def emit_pieces(fm: FreeformMap, holes0: Optional[Set[Cell]] = None) -> List[dic
             continue
         faces = [s for s, (dx, dz) in DELTA.items() if (ix + dx, iz + dz) in fm.walkable]
         if (ix, iz) in fm.corridor_cells:
-            n = len(faces)
-            if n == 0:
-                add("template-floor", ix, iz, 0.0)
-            elif n == 1:
-                add("corridor-end", ix, iz, CORRIDOR_END_YAW[faces[0]])
-            elif n == 2:
-                fs = frozenset(faces)
-                if fs in (frozenset({'N', 'S'}), frozenset({'E', 'W'})):
-                    add("corridor", ix, iz, PI32 if 'N' in fs else 0.0)
-                else:
-                    add("corridor-corner", ix, iz, CORNER_YAW.get(fs, 0.0))
-            elif n == 3:
-                missing = ({'N', 'S', 'E', 'W'} - set(faces)).pop()
-                add("corridor-junction", ix, iz, JUNC_YAW[missing])
+            faces_set = set(faces)
+            fs = frozenset(faces)
+            # Only the rounded L-bend keeps the corridor GLB. Straight / end /
+            # junction / cross corridors are built from floor + wall tiles so floor
+            # and walls each take the per-zone kit & material — corridor GLBs bundle
+            # a fixed floor under one material we cannot retint per zone.
+            if len(faces) == 2 and fs not in (frozenset({'N', 'S'}), frozenset({'E', 'W'})):
+                # If this cell's faction uses a FLOORLESS corner GLB (its floor mesh
+                # was removed), lay a matching floor tile under it — that tile takes
+                # the per-zone kit like every other floor, so the corner floor
+                # matches the surrounding floors. Factions whose corner still
+                # bundles a floor get no extra tile (would double-floor / z-fight).
+                corner_kit = _ACTIVE_ZONE_KITS.get(z(ix, iz) or "", {}).get("corridor")
+                if corner_kit in _ACTIVE_FLOORLESS:
+                    add_floor(ix, iz)
+                add_corner(ix, iz, CORNER_YAW.get(fs, 0.0))
             else:
-                add("corridor-intersection", ix, iz, 0.0)
+                add_floor(ix, iz)
+                for side in ('N', 'S', 'E', 'W'):
+                    if side not in faces_set:
+                        add_wall(ix, iz, side)
         else:
             # Room cell: floor + perimeter walls where it borders non-walkable.
             # Corridor neighbours stay open (the doorway); corridor GLBs supply
             # their own side walls so we never wall a corridor cell here.
-            add("template-floor", ix, iz, 0.0)
+            add_floor(ix, iz)
             for side, (dx, dz) in DELTA.items():
                 if (ix + dx, iz + dz) not in fm.walkable:
                     add_wall(ix, iz, side)
@@ -791,25 +1020,30 @@ def _mask(gx: int, gz: int, footprint: Set[Cell], holes: Set[Cell]) -> dict:
 
 def to_doc(fm: FreeformMap, name: str) -> dict:
     import faction_profiles as fp
+    import level_composition as lc
 
-    profile = fp.load_profile(fm.faction_profile_id)
-    hd = profile.hidden_door
+    comp = (fm.composition or lc.LevelComposition(mix_mode="single")).normalized()
+    # Resolve which faction (hence kit + floorless-corner) each zone uses, from
+    # the faction manifests, BEFORE emitting any pieces.
+    build_zone_kits(comp)
+    spine, _, kit_lookup, zone_lookup = lc.plan_zones_for_map(fm)
+    hub_kit = fp.architecture_kit(fp.load_profile(comp.default_faction))
+
     hub = fm.hub
     gx, gz = fm.gx, fm.gz
     holes0 = {hub.trap0} if hub else set()
 
-    # Floor 0 — main level; the extraction trap cell is carved out of the mask.
     mask0 = [False] * (gx * gz)
     for (ix, iz) in fm.walkable:
         mask0[iz * gx + ix] = (ix, iz) != (hub.trap0 if hub else None)
 
-    pieces = emit_pieces(fm, holes0)
+    pieces = emit_pieces(fm, holes0, kit_lookup=kit_lookup, zone_lookup=zone_lookup)
     floors = {"0": {"cells_x": gx, "cells_z": gz, "cells": mask0}}
     hub_exits: Dict[str, dict] = {}
 
     if hub:
-        emit_floor_tiles(pieces, gx, gz, -1, hub.floor1, hub.holes1)
-        emit_floor_tiles(pieces, gx, gz, -2, hub.floor2, set())
+        emit_floor_tiles(pieces, gx, gz, -1, hub.floor1, hub.holes1, kit=hub_kit)
+        emit_floor_tiles(pieces, gx, gz, -2, hub.floor2, set(), kit=hub_kit)
         floors["-1"] = _mask(gx, gz, hub.floor1, hub.holes1)
         floors["-2"] = _mask(gx, gz, hub.floor2, set())
         for i, ex in enumerate(hub.exits):
@@ -818,25 +1052,29 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
                 "floor": -2, "kind": ex.kind, "label": f"Next level {i + 1}",
             }
 
-    # Hidden-room doors — stem/kit/tint from faction profile (gate-door + baked anim).
-    for (wx, wz, yaw) in fm.secret_doors:
-        piece = {
+    for (wx, wz, yaw), meta in zip(fm.secret_doors, fm.secret_door_meta):
+        door_cell = meta.corridor_cell
+        zone = lc.zone_for_cell(door_cell, spine, comp)
+        hd_prof = lc.hidden_door_profile(comp, zone)
+        hd = hd_prof.hidden_door
+        pieces.append({
             "stem": hd.stem,
             "x": wx, "z": wz, "yaw": yaw,
             "floor_level": 0, "scale": 1.0,
+            "zone": zone,
             **hd.to_piece_extras(),
-        }
-        pieces.append(piece)
+        })
 
-    # Roofs last — normal template-floor one level up, only where empty.
-    emit_all_roofs(pieces, fm, hub, gx, gz, holes0)
+    emit_all_roofs(pieces, fm, hub, gx, gz, holes0, kit_lookup=kit_lookup, zone_lookup=zone_lookup)
 
     spawn = fm.rooms[fm.spawn_room]
+    building = comp.next_faction if comp.mix_mode == "transition" else fm.faction_profile_id
     return {
         "version": 1,
         "name": name,
         "faction_profile": fm.faction_profile_id,
-        "building_system": profile.building_system,
+        "level_composition": comp.to_doc(),
+        "building_system": fp.load_profile(building).building_system,
         "hub_model": "freeform_v1",
         "modules_x": max(1, gx // 5),
         "modules_z": max(1, gz // 5),
@@ -846,6 +1084,7 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
         "extraction_xz": [world_x(gx, hub.trap0[0]) if hub else 0.0,
                           world_z(gz, hub.trap0[1]) if hub else 0.0],
         "hub_exits": hub_exits,
+        "spine_len": len(spine),
     }
 
 
@@ -885,7 +1124,7 @@ def audit_floor_overlaps(pieces: List[dict], *, eps: float = 0.01) -> List[str]:
     errs: List[str] = []
     seen: Dict[Tuple[int, float, float], str] = {}
     for p in pieces:
-        if not _is_solid_floor(p["stem"]):
+        if not _piece_solid_floor(p):
             continue
         fl = int(p.get("floor_level", 0))
         wx, wz = float(p["x"]), float(p["z"])
@@ -1009,6 +1248,7 @@ def validate(fm: FreeformMap, doc: Optional[dict] = None) -> List[str]:
 # ─── report / output ─────────────────────────────────────────────────────────
 
 def build_report(fm: FreeformMap, doc: dict, seed: Optional[int], elapsed: float, path: str) -> dict:
+    comp = doc.get("level_composition") or {}
     return {
         "ok": True,
         "path": path.replace("\\", "/"),
@@ -1021,6 +1261,8 @@ def build_report(fm: FreeformMap, doc: dict, seed: Optional[int], elapsed: float
         "paint": ascii_map(fm),
         "paint_roles": ascii_map(fm),
         "elapsed_s": round(elapsed, 2),
+        "level_composition": comp,
+        "spine_len": doc.get("spine_len", 0),
     }
 
 
@@ -1039,7 +1281,14 @@ def run(
     organicness: float = 0.0,
     corridor_width: float = 1.0,
     hidden_area_prevalence: float = 0.0,
-    faction_profile_id: str = "space_default",
+    faction_profile_id: str = "industrial_default",
+    mix_mode: str = "transition",
+    prev_faction: str = "priesthood",
+    next_faction: str = "industrial_default",
+    default_faction: str = "industrial_default",
+    prev_fraction: float = 0.25,
+    default_fraction: float = 0.50,
+    next_fraction: float = 0.25,
 ) -> dict:
     """Generate one free-form map, write it, export the layout, return a report.
 
@@ -1047,6 +1296,17 @@ def run(
     so the editor preview produces free-form maps without a Rust rebuild.
     """
     import gen_maps  # reuse layout export
+    import level_composition as lc
+
+    composition = lc.LevelComposition(
+        mix_mode=mix_mode,
+        prev_faction=prev_faction,
+        next_faction=next_faction,
+        default_faction=default_faction,
+        prev_fraction=prev_fraction,
+        default_fraction=default_fraction,
+        next_fraction=next_fraction,
+    ).normalized()
 
     t0 = time.time()
     fm: Optional[FreeformMap] = None
@@ -1058,6 +1318,7 @@ def run(
             organicness=organicness, corridor_width=corridor_width,
             hidden_area_prevalence=hidden_area_prevalence,
             faction_profile_id=faction_profile_id,
+            composition=composition,
         )
         if cand and not validate(cand):
             fm = cand
@@ -1105,8 +1366,16 @@ def main() -> None:
                     help='1.0=all 1-wide, 2.0=all 2-wide, 1.3=~30%% 2-wide')
     ap.add_argument('--hidden', type=float, default=0.0,
                     help='hidden-area prevalence 0-1 (dead-end secret rooms)')
-    ap.add_argument('--faction-profile', default='space_default',
-                    help='faction profile id (userinput/factions/*.json)')
+    ap.add_argument('--faction-profile', default='industrial_default',
+                    help='whole-map profile when --mix-mode single')
+    ap.add_argument('--mix-mode', default='transition', choices=('single', 'transition'),
+                    help='single=one profile; transition=start/middle/end zones')
+    ap.add_argument('--prev-faction', default='priesthood')
+    ap.add_argument('--next-faction', default='industrial_default')
+    ap.add_argument('--default-faction', default='industrial_default')
+    ap.add_argument('--prev-fraction', type=float, default=0.25)
+    ap.add_argument('--default-fraction', type=float, default=0.50)
+    ap.add_argument('--next-fraction', type=float, default=0.25)
     ap.add_argument('--attempts', type=int, default=20, help='Generation retries')
     ap.add_argument('--out', default=None)
     ap.add_argument('--preview', action='store_true')
@@ -1125,6 +1394,13 @@ def main() -> None:
         room_max=args.room_max, loops=args.loops, organicness=args.organicness,
         corridor_width=args.corridor_width, hidden_area_prevalence=args.hidden,
         faction_profile_id=args.faction_profile,
+        mix_mode=args.mix_mode,
+        prev_faction=args.prev_faction,
+        next_faction=args.next_faction,
+        default_faction=args.default_faction,
+        prev_fraction=args.prev_fraction,
+        default_fraction=args.default_fraction,
+        next_fraction=args.next_fraction,
     )
     if args.preview:
         print(json.dumps(report))

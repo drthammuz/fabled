@@ -116,6 +116,7 @@ pub fn record_from_snapshot(s: &PieceSnapshot) -> PieceRecord {
         kit: None,
         tint: None,
         tags: vec![],
+        zone: None,
     }
 }
 

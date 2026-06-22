@@ -146,6 +146,29 @@ Three faction architecture systems + the default substrate. Working names; final
 
 **Gaps:** only Priesthood has a real outdoor/exterior arch set; Synth has no exterior. No generator places exterior GLBs yet — **no outdoor level generation exists** (see manifest §2.1 / Phase 4).
 
+### 4.1 Faction procgen profiles (`userinput/factions/*.json`)
+
+Machine-readable presets consumed by `tools/faction_profiles.py` and the editor Proc tab (`--faction-profile`). Each JSON file names the **architecture kit folder** under `assets/models/`, a **prop/dressing kit**, generation knob defaults, and the **hidden-room door** piece.
+
+| Profile ID | Architecture kit (`building_system`) | Tile GLB path | Hidden door GLB | Door tint (sRGB) | Props kit | Notes |
+|---|---|---|---|---|---|---|
+| `space_default` | `space/` | `models/space/{stem}.glb` | `models/space/gate-door.glb` | cyan `(0.45, 0.82, 1.0)` | `factory/` | **Wired** — default procgen tiles + hidden doors |
+| `priesthood` | `dungeon/` | `models/dungeon/{stem}.glb` | `models/dungeon/gate-door.glb` | amber `(0.95, 0.72, 0.35)` | `retro_fantasy/` | **Wired** — full modular tile emission + hidden doors |
+| `synth` | `space_station/` | `models/space_station/{stem}.glb` | `models/space/gate-door.glb` *(fallback)* | teal `(0.55, 0.95, 0.88)` | `furniture/` | Station kit has no `gate-door`; hidden doors reuse space gate |
+| `outlaw` | `building/` | `models/building/{stem}.glb` | `models/space/gate-door.glb` *(fallback)* | rust `(0.92, 0.55, 0.42)` | `factory/` salvage | Urban brick architecture; door fallback until `building/door-*` anim wired |
+| `industrial_default` | `space/` + procedural sewer | `models/space/{stem}.glb` | `models/space/gate-door.glb` | grey `(0.65, 0.70, 0.75)` | `factory/` + `space_kit/` | Substrate = `level.rs` procgen; Kenney tiles optional overlay |
+
+**Hidden door tag:** generated pieces carry `"tags": ["hidden_entrance"]`, `"kit"`, and `"tint"`. Runtime: tinted mesh (client), proximity open animation (client), closed-state seal collider (server — drops when player is near).
+
+**List / inspect profiles:**
+
+```bash
+python tools/faction_profiles.py list
+python tools/faction_profiles.py show priesthood
+```
+
+**Modular grammar kits** (same corridor/template/room stems, swap folder): `space/`, `dungeon/`. **Different grammar** (needs separate catalogue work): `space_station/`, `building/`, `retro_fantasy/`.
+
 ---
 
 ## 5. Per-kit measured catalogue (when wiring a kit into procgen)

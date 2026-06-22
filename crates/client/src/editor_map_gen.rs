@@ -16,11 +16,11 @@ use crate::editor_workspace::EditorWorkspace;
 const DEBOUNCE_SECS: f32 = 0.75;
 
 const FACTION_PROFILES: [&str; 5] = [
-    "space_default",
+    "industrial_default",
     "priesthood",
     "synth",
     "outlaw",
-    "industrial_default",
+    "necropolis",
 ];
 
 #[derive(Resource, Clone, Debug)]
@@ -34,7 +34,15 @@ pub struct MapGenSettings {
     pub organicness: f32,
     pub corridor_width: f32,
     pub hidden: f32,
+    /// `single` = one profile; `transition` = start / middle / end zones.
+    pub mix_mode: String,
     pub faction_profile: String,
+    pub prev_faction: String,
+    pub next_faction: String,
+    pub default_faction: String,
+    pub prev_fraction: f32,
+    pub default_fraction: f32,
+    pub next_fraction: f32,
     pub auto_regen: bool,
 }
 
@@ -49,7 +57,16 @@ impl Default for MapGenSettings {
             organicness: 0.0,
             corridor_width: 1.0,
             hidden: 0.0,
-            faction_profile: "space_default".into(),
+            mix_mode: "transition".into(),
+            faction_profile: "industrial_default".into(),
+            // Zone order spawn→extraction: prev=start, default=middle, next=end.
+            // urban (outlaw) cyberpunk → industrial substrate → priesthood stone.
+            prev_faction: "outlaw".into(),
+            next_faction: "priesthood".into(),
+            default_faction: "industrial_default".into(),
+            prev_fraction: 0.25,
+            default_fraction: 0.50,
+            next_fraction: 0.25,
             auto_regen: true,
         }
     }
@@ -101,7 +118,17 @@ pub enum MapGenBtn {
     WidthInc,
     HiddenDec,
     HiddenInc,
+    MixModeToggle,
     FactionCycle,
+    PrevFactionCycle,
+    NextFactionCycle,
+    DefaultFactionCycle,
+    PrevFractionDec,
+    PrevFractionInc,
+    DefaultFractionDec,
+    DefaultFractionInc,
+    NextFractionDec,
+    NextFractionInc,
 }
 
 #[derive(Component)]
@@ -123,7 +150,7 @@ fn run_python_preview(settings: &MapGenSettings) -> MapGenOutcome {
     }
 
     let out = preview_map_path();
-    let mut args = vec![
+    let args = vec![
         script.to_string_lossy().into_owned(),
         "--preview".into(),
         "--no-layout-export".into(),
@@ -143,8 +170,22 @@ fn run_python_preview(settings: &MapGenSettings) -> MapGenOutcome {
         format!("{:.2}", settings.corridor_width),
         "--hidden".into(),
         format!("{:.2}", settings.hidden),
+        "--mix-mode".into(),
+        settings.mix_mode.clone(),
         "--faction-profile".into(),
         settings.faction_profile.clone(),
+        "--prev-faction".into(),
+        settings.prev_faction.clone(),
+        "--next-faction".into(),
+        settings.next_faction.clone(),
+        "--default-faction".into(),
+        settings.default_faction.clone(),
+        "--prev-fraction".into(),
+        format!("{:.2}", settings.prev_fraction),
+        "--default-fraction".into(),
+        format!("{:.2}", settings.default_fraction),
+        "--next-fraction".into(),
+        format!("{:.2}", settings.next_fraction),
         "--out".into(),
         out.to_string_lossy().into_owned(),
     ];
@@ -342,6 +383,43 @@ fn bump_params(runtime: &mut MapGenRuntime, time: f32) {
     runtime.debounce_until = time + DEBOUNCE_SECS;
 }
 
+fn cycle_faction(current: &str) -> String {
+    let idx = FACTION_PROFILES
+        .iter()
+        .position(|p| *p == current)
+        .unwrap_or(0);
+    FACTION_PROFILES[(idx + 1) % FACTION_PROFILES.len()].into()
+}
+
+fn normalize_fractions(prev: &mut f32, default: &mut f32, next: &mut f32) {
+    *prev = prev.clamp(0.05, 0.90);
+    *default = default.clamp(0.05, 0.90);
+    *next = next.clamp(0.05, 0.90);
+    let sum = *prev + *default + *next;
+    if sum <= f32::EPSILON {
+        *prev = 0.25;
+        *default = 0.50;
+        *next = 0.25;
+        return;
+    }
+    *prev /= sum;
+    *default /= sum;
+    *next /= sum;
+}
+
+fn bump_fraction(settings: &mut MapGenSettings, zone: &str, delta: f32) {
+    match zone {
+        "prev" => settings.prev_fraction += delta,
+        "default" => settings.default_fraction += delta,
+        _ => settings.next_fraction += delta,
+    }
+    normalize_fractions(
+        &mut settings.prev_fraction,
+        &mut settings.default_fraction,
+        &mut settings.next_fraction,
+    );
+}
+
 pub fn map_gen_button_input(
     time: Res<Time>,
     mut settings: ResMut<MapGenSettings>,
@@ -439,12 +517,52 @@ pub fn map_gen_button_input(
                 settings.hidden = (settings.hidden + 0.1).min(1.0);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
+            MapGenBtn::MixModeToggle => {
+                settings.mix_mode = if settings.mix_mode == "transition" {
+                    "single".into()
+                } else {
+                    "transition".into()
+                };
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
             MapGenBtn::FactionCycle => {
-                let idx = FACTION_PROFILES
-                    .iter()
-                    .position(|p| *p == settings.faction_profile.as_str())
-                    .unwrap_or(0);
-                settings.faction_profile = FACTION_PROFILES[(idx + 1) % FACTION_PROFILES.len()].into();
+                settings.faction_profile = cycle_faction(&settings.faction_profile);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::PrevFactionCycle => {
+                settings.prev_faction = cycle_faction(&settings.prev_faction);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::NextFactionCycle => {
+                settings.next_faction = cycle_faction(&settings.next_faction);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::DefaultFactionCycle => {
+                settings.default_faction = cycle_faction(&settings.default_faction);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::PrevFractionDec => {
+                bump_fraction(&mut settings, "prev", -0.05);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::PrevFractionInc => {
+                bump_fraction(&mut settings, "prev", 0.05);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::DefaultFractionDec => {
+                bump_fraction(&mut settings, "default", -0.05);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::DefaultFractionInc => {
+                bump_fraction(&mut settings, "default", 0.05);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::NextFractionDec => {
+                bump_fraction(&mut settings, "next", -0.05);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::NextFractionInc => {
+                bump_fraction(&mut settings, "next", 0.05);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
         }
@@ -486,12 +604,63 @@ pub fn spawn_map_gen_panel(
         if settings.auto_regen { "Auto-regen: ON" } else { "Auto-regen: OFF" },
     );
 
-    section_label(parent, "Faction");
+    section_label(parent, "Composition");
     row_btn(
         parent,
-        MapGenBtn::FactionCycle,
-        &format!("Profile: {}", settings.faction_profile),
+        MapGenBtn::MixModeToggle,
+        if settings.mix_mode == "transition" {
+            "Mode: transition (start/mid/end)"
+        } else {
+            "Mode: single profile"
+        },
     );
+    if settings.mix_mode == "single" {
+        row_btn(
+            parent,
+            MapGenBtn::FactionCycle,
+            &format!("Profile: {}", settings.faction_profile),
+        );
+    } else {
+        row_btn(
+            parent,
+            MapGenBtn::PrevFactionCycle,
+            &format!("Start: {}", settings.prev_faction),
+        );
+        row_btn(
+            parent,
+            MapGenBtn::DefaultFactionCycle,
+            &format!("Middle: {}", settings.default_faction),
+        );
+        row_btn(
+            parent,
+            MapGenBtn::NextFactionCycle,
+            &format!("End: {}", settings.next_faction),
+        );
+        slider_row(
+            parent,
+            "Start zone",
+            &format!("{:.0}%", settings.prev_fraction * 100.0),
+            settings.prev_fraction,
+            MapGenBtn::PrevFractionDec,
+            MapGenBtn::PrevFractionInc,
+        );
+        slider_row(
+            parent,
+            "Middle zone",
+            &format!("{:.0}%", settings.default_fraction * 100.0),
+            settings.default_fraction,
+            MapGenBtn::DefaultFractionDec,
+            MapGenBtn::DefaultFractionInc,
+        );
+        slider_row(
+            parent,
+            "End zone",
+            &format!("{:.0}%", settings.next_fraction * 100.0),
+            settings.next_fraction,
+            MapGenBtn::NextFractionDec,
+            MapGenBtn::NextFractionInc,
+        );
+    }
 
     section_label(parent, "Layout");
     param_row(parent, "Seed", &settings.seed.to_string(), MapGenBtn::SeedDec, MapGenBtn::SeedInc);

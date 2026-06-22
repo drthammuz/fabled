@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "id": "urban",
+  "label": "Urban / Cyber (retro city)",
+  "profiles": ["outlaw"],
+  "source_kit": "retro_urban",
+  "grammar": "modular",
+  "scale": 4.0,
+  "colormaps": {},
+  "material": {
+    "mode": "native_glb",
+    "client_slot": "NativeGlb",
+    "albedo": null,
+    "base_color": [1.0, 1.0, 1.0],
+    "metallic": 0.0,
+    "roughness": 1.0,
+    "double_sided": false,
+    "emissive_map": null,
+    "emissive": [0.0, 0.0, 0.0],
+    "mr_map": null,
+    "uv_transform": null
+  },
+  "roles": {
+    "floor": {
+      "stem": "road-asphalt-center",
+      "yaw_offset": 0.0,
+      "collide": true
+    },
+    "wall": {
+      "stem": "wall-a-flat",
+      "yaw_offset": 0.0,
+      "collide": true,
+      "placement": "edge",
+      "faces_at_yaw0": "+Z",
+      "alt_stems": ["wall-b-flat", "wall-a-flat-window", "wall-c-flat"]
+    },
+    "corridor": {
+      "corner_stem": "wall-a-corner",
+      "yaw_offset": 0.0,
+      "collide": true,
+      "floorless_corner": true,
+      "built_from": ["floor", "wall"]
+    }
+  },
+  "provides": ["floor", "wall", "corridor"],
+  "scale_note": "retro_urban is authored at 1-unit; scale 4 fits the generator's 4-unit cell. Floor (road-asphalt-center) is FLAT so it sits flush with 4-unit zones. wall-a-flat is a flat brick facade panel; wall-b-flat is rusted copper (candidate for industrial walls too); wall-c-flat is fence. Multi-texture kept via NativeGlb.",
+  "notes": "NEEDS EDITOR TUNING: confirm wall yaw_offset (panel native facing vs generator WALL_YAW), corner orientation, and that scale 4 reads correctly. Props (windows, balconies, roofs, doors, signs, trucks) available in-folder for later placement."
+}

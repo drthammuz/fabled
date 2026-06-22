@@ -73,16 +73,6 @@ class FactionProcgenProfile:
 
 
 _BUILTIN: Dict[str, FactionProcgenProfile] = {
-    "space_default": FactionProcgenProfile(
-        id="space_default",
-        label="Kenney space (default)",
-        building_system="space",
-        prop_set="factory",
-        organicness=0.0,
-        hidden_door=HiddenDoorSpec(
-            stem="gate-door", kit="space", tint=(0.45, 0.82, 1.0),
-        ),
-    ),
     "priesthood": FactionProcgenProfile(
         id="priesthood",
         label="Priesthood (dungeon stone)",
@@ -143,6 +133,19 @@ def _profile_from_dict(data: dict) -> FactionProcgenProfile:
     )
     pid = data["id"]
     return FactionProcgenProfile(hidden_door=hidden_door, **data)
+
+
+MODULAR_GRAMMAR_KITS = frozenset({"space", "dungeon"})
+
+
+def architecture_kit(profile: FactionProcgenProfile) -> Optional[str]:
+    """Kit folder for modular tile emission; None = default ``space/`` (omit JSON field)."""
+    bs = profile.building_system
+    if bs == "space":
+        return None
+    if bs in MODULAR_GRAMMAR_KITS:
+        return bs
+    return None
 
 
 def load_profile(profile_id: str) -> FactionProcgenProfile:

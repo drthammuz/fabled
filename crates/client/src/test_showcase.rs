@@ -7,6 +7,7 @@ use avian3d::prelude::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::gltf::GltfLoaderSettings;
 use bevy::image::ImageLoaderSettings;
+use bevy::math::{Affine2, Vec2};
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::*;
 use shared::editor_catalog::glb_asset_path;
@@ -39,10 +40,70 @@ pub struct CyberMaterialUnderside(pub Handle<StandardMaterial>);
 #[derive(Resource, Clone)]
 pub struct CyberMaterialCeiling(pub Handle<StandardMaterial>);
 
+/// Double-sided pink (industrial-tint) ceiling for the pink zone roof.
+#[derive(Resource, Clone)]
+pub struct CyberMaterialPinkCeiling(pub Handle<StandardMaterial>);
+
+/// Industrial middle zone — muddy brown substrate atlas (placeholder until sewer procgen).
+#[derive(Resource, Clone)]
+pub struct CyberMaterialIndustrial(pub Handle<StandardMaterial>);
+
 #[derive(Resource, Clone)]
 pub struct CyberLaserMaterial(pub Handle<StandardMaterial>);
 
-pub const EDITOR_BUILD_TAG: &str = "2026-06-15g";
+/// Priesthood faction stone atlas — applied explicitly in the editor because
+/// Blender re-exports often produce glTF materials Bevy fails to texture.
+#[derive(Resource, Clone)]
+pub struct PriesthoodMaterial(pub Handle<StandardMaterial>);
+
+
+/// Default space kit, or an explicit ``space`` kit tag.
+pub fn uses_space_cyber_materials(kit: Option<&str>) -> bool {
+    kit.is_none() || kit == Some("space")
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum KenneyMaterialSlot {
+    /// Embedded GLB materials — dungeon stone, playtest space architecture, etc.
+    NativeGlb,
+    /// ``factions/priesthood`` — shared external colormap (Blender-safe).
+    Priesthood,
+    SpaceCyber,
+    SpaceIndustrial,
+    Ceiling,
+    CeilingPink,
+    Lasers,
+}
+
+/// Per-piece material routing: one consistent look within each kit + composition zone.
+pub fn kenney_material_slot(
+    kit: Option<&str>,
+    _zone: Option<&str>,
+    _playtest: bool,
+    ceiling: bool,
+    stem: &str,
+) -> KenneyMaterialSlot {
+    if stem == "gate-lasers" {
+        return KenneyMaterialSlot::Lasers;
+    }
+    // Faction look comes from the FACTION (its own kit), never the zone position.
+    if kit == Some("factions/priesthood") {
+        return KenneyMaterialSlot::Priesthood;
+    }
+    // Non-space kits (dungeon stone, urban/synth/necropolis native) keep their own material.
+    if !uses_space_cyber_materials(kit) {
+        return KenneyMaterialSlot::NativeGlb;
+    }
+    // Space-grammar fallback pieces (ceilings everywhere; floors of factions that
+    // don't provide their own). NEUTRAL for every zone — pink no longer bleeds onto
+    // whatever faction happens to sit in the "prev" zone.
+    if ceiling {
+        return KenneyMaterialSlot::Ceiling;
+    }
+    KenneyMaterialSlot::SpaceCyber
+}
+
+pub const EDITOR_BUILD_TAG: &str = "2026-06-21a";
 
 pub fn init_kenney_materials(
     asset_server: &AssetServer,
@@ -80,7 +141,14 @@ pub fn init_kenney_materials(
 pub fn init_editor_kenney_materials(
     asset_server: &AssetServer,
     materials: &mut Assets<StandardMaterial>,
-) -> (CyberMaterial, CyberLaserMaterial, CyberMaterialCeiling) {
+) -> (
+    CyberMaterial,
+    CyberLaserMaterial,
+    CyberMaterialCeiling,
+    CyberMaterialIndustrial,
+    CyberMaterialPinkCeiling,
+    PriesthoodMaterial,
+) {
     let base = asset_server.load("models/space/cyber_colormap.png");
     let emissive = asset_server.load("models/space/cyber_colormap_emissive.png");
     let mr = asset_server.load_with_settings(
@@ -95,6 +163,21 @@ pub fn init_editor_kenney_materials(
         perceptual_roughness: 0.78,
         emissive_texture: Some(emissive.clone()),
         emissive: LinearRgba::rgb(0.2, 0.2, 0.22),
+        ..default()
+    });
+    let industrial = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.68, 0.55, 0.42),
+        base_color_texture: Some(base.clone()),
+        metallic_roughness_texture: Some(mr.clone()),
+        metallic: 0.10,
+        perceptual_roughness: 0.82,
+        emissive_texture: Some(emissive.clone()),
+        emissive: LinearRgba::rgb(0.12, 0.10, 0.08),
+        uv_transform: Affine2::from_scale_angle_translation(
+            Vec2::splat(2.2),
+            0.0,
+            Vec2::new(0.42, 0.58),
+        ),
         ..default()
     });
     let cyber_lasers = materials.add(StandardMaterial {
@@ -112,10 +195,26 @@ pub fn init_editor_kenney_materials(
         .unwrap_or_default();
     ceiling_mat.cull_mode = None;
     let cyber_ceiling = materials.add(ceiling_mat);
+    let mut pink_ceiling_mat = materials.get(&industrial).cloned().unwrap_or_default();
+    pink_ceiling_mat.cull_mode = None;
+    let pink_ceiling = materials.add(pink_ceiling_mat);
+    let priesthood_colormap =
+        asset_server.load("models/factions/priesthood/Textures/colormap.png");
+    let mut priesthood_mat = StandardMaterial {
+        base_color_texture: Some(priesthood_colormap),
+        metallic: 0.0,
+        perceptual_roughness: 1.0,
+        ..default()
+    };
+    priesthood_mat.cull_mode = None;
+    let priesthood = materials.add(priesthood_mat);
     (
         CyberMaterial(cyber),
         CyberLaserMaterial(cyber_lasers),
         CyberMaterialCeiling(cyber_ceiling),
+        CyberMaterialIndustrial(industrial),
+        CyberMaterialPinkCeiling(pink_ceiling),
+        PriesthoodMaterial(priesthood),
     )
 }
 
@@ -441,11 +540,14 @@ fn spawn_showcase(
         return;
     }
 
-    let (cyber, cyber_lasers, cyber_ceiling) =
+    let (cyber, cyber_lasers, cyber_ceiling, cyber_industrial, pink_ceiling, priesthood) =
         init_editor_kenney_materials(&asset_server, &mut materials);
     commands.insert_resource(cyber);
     commands.insert_resource(cyber_lasers);
     commands.insert_resource(cyber_ceiling);
+    commands.insert_resource(cyber_industrial);
+    commands.insert_resource(pink_ceiling);
+    commands.insert_resource(priesthood);
 
     let list = placements(test.style);
     let layout = shared::map_pool::test_play_layout();

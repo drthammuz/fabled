@@ -1,5 +1,9 @@
 # Agent instructions (Fabled)
 
+## Faction asset system — read FIRST if continuing faction / per-faction architecture work
+
+**Latest handover (2026-06-22): [docs/handover-factions-2026-06-22.md](docs/handover-factions-2026-06-22.md)** — self-contained context with no prior chat needed. Covers the per-faction asset-folder pipeline, the 5 current factions (industrial, priesthood, synth, outlaw/urban, necropolis), calibration (scale/yaw_offset/inset), critical gotchas (Blender white-bug, role-aware floor audits, faction-driven colour), and the remaining roster (props system, castle pass, slopes). Detailed refs: [docs/faction_assets.md](docs/faction_assets.md), [docs/faction_roster.md](docs/faction_roster.md).
+
 ## Procedural map generation — read before touching `gen_maps`, tile synthesis, or editor Proc tab
 
 Kenney map procgen is mid-refactor: **tile synthesis only**, **no room GLBs**, **mission graph not yet implemented**.
@@ -51,6 +55,9 @@ For hub / extraction / Kenney playtest visual–physics work, Bugbot should use 
 
 | Topic | Doc |
 |-------|-----|
+| **Faction asset system (latest handover, 2026-06-22)** | [docs/handover-factions-2026-06-22.md](docs/handover-factions-2026-06-22.md) |
+| Faction asset folders / manifest schema | [docs/faction_assets.md](docs/faction_assets.md) |
+| Faction roster (5 factions × 13 kits) | [docs/faction_roster.md](docs/faction_roster.md) |
 | Procgen / factions / Phase 1 task | [docs/procgen-faction-manifest.md](docs/procgen-faction-manifest.md) |
 | Hub / extraction failures | [docs/hub-extraction-agent-failures.md](docs/hub-extraction-agent-failures.md) |
 | Kenney GLB catalogue | [docs/kenney_space_kit.md](docs/kenney_space_kit.md) |

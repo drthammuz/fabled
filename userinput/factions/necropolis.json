@@ -1,9 +1,9 @@
 {
-  "id": "space_default",
-  "label": "Kenney space (default)",
-  "building_system": "space",
-  "prop_set": "factory",
-  "organicness": 0.0,
+  "id": "necropolis",
+  "label": "Necropolis (gothic cult)",
+  "building_system": "dungeon",
+  "prop_set": "graveyard",
+  "organicness": 0.6,
   "corridor_width": 1.0,
   "hidden_area_prevalence": 0.0,
   "room_min": 3,
@@ -15,9 +15,9 @@
     "stem": "gate-door",
     "kit": "space",
     "tint": [
-      0.45,
-      0.82,
-      1.0
+      0.5,
+      0.5,
+      0.55
     ],
     "tag": "hidden_entrance"
   }

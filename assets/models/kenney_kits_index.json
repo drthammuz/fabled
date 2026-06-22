@@ -1771,6 +1771,743 @@
           "rocks"
         ]
       }
+    },
+    "castle": {
+      "dest": "assets/models/castle",
+      "theme": "Medieval castle: walls, towers, battlements, gates, stairs, banners",
+      "glb_count": 76,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "tower": [
+          "tower-base",
+          "tower-hexagon-base",
+          "tower-hexagon-mid",
+          "tower-hexagon-roof",
+          "tower-hexagon-roof-secondary",
+          "tower-hexagon-top",
+          "tower-hexagon-top-wood",
+          "tower-slant-roof",
+          "tower-square",
+          "tower-square-arch",
+          "tower-square-base",
+          "tower-square-base-border",
+          "tower-square-base-color",
+          "tower-square-mid",
+          "tower-square-mid-color",
+          "tower-square-mid-door",
+          "tower-square-mid-open",
+          "tower-square-mid-open-simple",
+          "tower-square-mid-windows",
+          "tower-square-roof",
+          "tower-square-top",
+          "tower-square-top-color",
+          "tower-square-top-roof",
+          "tower-square-top-roof-high",
+          "tower-square-top-roof-high-windows",
+          "tower-square-top-roof-rounded",
+          "tower-top"
+        ],
+        "wall": [
+          "wall",
+          "wall-corner",
+          "wall-corner-half",
+          "wall-corner-half-tower",
+          "wall-corner-slant",
+          "wall-doorway",
+          "wall-half",
+          "wall-half-modular",
+          "wall-narrow",
+          "wall-narrow-corner",
+          "wall-narrow-gate",
+          "wall-narrow-stairs",
+          "wall-narrow-stairs-rail",
+          "wall-narrow-wood",
+          "wall-narrow-wood-fence",
+          "wall-pillar",
+          "wall-stud",
+          "wall-to-narrow"
+        ],
+        "siege": [
+          "siege-ballista",
+          "siege-ballista-demolished",
+          "siege-catapult",
+          "siege-catapult-demolished",
+          "siege-ram",
+          "siege-ram-demolished",
+          "siege-tower",
+          "siege-tower-demolished",
+          "siege-trebuchet",
+          "siege-trebuchet-demolished"
+        ],
+        "flag": [
+          "flag",
+          "flag-banner-long",
+          "flag-banner-short",
+          "flag-pennant",
+          "flag-wide"
+        ],
+        "tree": [
+          "tree-large",
+          "tree-log",
+          "tree-small",
+          "tree-trunk"
+        ],
+        "bridge": [
+          "bridge-draw",
+          "bridge-straight",
+          "bridge-straight-pillar"
+        ],
+        "ground": [
+          "ground",
+          "ground-hills"
+        ],
+        "rocks": [
+          "rocks-large",
+          "rocks-small"
+        ],
+        "stairs": [
+          "stairs-stone",
+          "stairs-stone-square"
+        ],
+        "door": [
+          "door"
+        ],
+        "gate": [
+          "gate"
+        ],
+        "metal": [
+          "metal-gate"
+        ]
+      }
+    },
+    "city_industrial": {
+      "dest": "assets/models/city_industrial",
+      "theme": "Industrial city exterior: concrete buildings, chimneys, tanks, ground slabs",
+      "glb_count": 25,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "building": [
+          "building-a",
+          "building-b",
+          "building-c",
+          "building-d",
+          "building-e",
+          "building-f",
+          "building-g",
+          "building-h",
+          "building-i",
+          "building-j",
+          "building-k",
+          "building-l",
+          "building-m",
+          "building-n",
+          "building-o",
+          "building-p",
+          "building-q",
+          "building-r",
+          "building-s",
+          "building-t"
+        ],
+        "chimney": [
+          "chimney-basic",
+          "chimney-large",
+          "chimney-medium",
+          "chimney-small"
+        ],
+        "detail": [
+          "detail-tank"
+        ]
+      }
+    },
+    "graveyard": {
+      "dest": "assets/models/graveyard",
+      "theme": "Graveyard: fences, grave mounds, headstones, mausoleum/crypt, dead trees",
+      "glb_count": 91,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "crypt": [
+          "crypt",
+          "crypt-a",
+          "crypt-b",
+          "crypt-door",
+          "crypt-large",
+          "crypt-large-door",
+          "crypt-large-roof",
+          "crypt-small",
+          "crypt-small-roof"
+        ],
+        "gravestone": [
+          "gravestone-bevel",
+          "gravestone-broken",
+          "gravestone-cross",
+          "gravestone-cross-large",
+          "gravestone-debris",
+          "gravestone-decorative",
+          "gravestone-roof",
+          "gravestone-round",
+          "gravestone-wide"
+        ],
+        "iron": [
+          "iron-fence",
+          "iron-fence-bar",
+          "iron-fence-border",
+          "iron-fence-border-column",
+          "iron-fence-border-curve",
+          "iron-fence-border-gate",
+          "iron-fence-curve",
+          "iron-fence-damaged"
+        ],
+        "character": [
+          "character-ghost",
+          "character-keeper",
+          "character-skeleton",
+          "character-vampire",
+          "character-zombie"
+        ],
+        "brick": [
+          "brick-wall",
+          "brick-wall-curve",
+          "brick-wall-curve-small",
+          "brick-wall-end"
+        ],
+        "pillar": [
+          "pillar-large",
+          "pillar-obelisk",
+          "pillar-small",
+          "pillar-square"
+        ],
+        "pine": [
+          "pine",
+          "pine-crooked",
+          "pine-fall",
+          "pine-fall-crooked"
+        ],
+        "pumpkin": [
+          "pumpkin",
+          "pumpkin-carved",
+          "pumpkin-tall",
+          "pumpkin-tall-carved"
+        ],
+        "stone": [
+          "stone-wall",
+          "stone-wall-column",
+          "stone-wall-curve",
+          "stone-wall-damaged"
+        ],
+        "cross": [
+          "cross",
+          "cross-column",
+          "cross-wood"
+        ],
+        "detail": [
+          "detail-bowl",
+          "detail-chalice",
+          "detail-plate"
+        ],
+        "fence": [
+          "fence",
+          "fence-damaged",
+          "fence-gate"
+        ],
+        "lightpost": [
+          "lightpost-all",
+          "lightpost-double",
+          "lightpost-single"
+        ],
+        "altar": [
+          "altar-stone",
+          "altar-wood"
+        ],
+        "bench": [
+          "bench",
+          "bench-damaged"
+        ],
+        "candle": [
+          "candle",
+          "candle-multiple"
+        ],
+        "coffin": [
+          "coffin",
+          "coffin-old"
+        ],
+        "debris": [
+          "debris",
+          "debris-wood"
+        ],
+        "grave": [
+          "grave",
+          "grave-border"
+        ],
+        "hay": [
+          "hay-bale",
+          "hay-bale-bundled"
+        ],
+        "lantern": [
+          "lantern-candle",
+          "lantern-glass"
+        ],
+        "rocks": [
+          "rocks",
+          "rocks-tall"
+        ],
+        "shovel": [
+          "shovel",
+          "shovel-dirt"
+        ],
+        "trunk": [
+          "trunk",
+          "trunk-long"
+        ],
+        "urn": [
+          "urn-round",
+          "urn-square"
+        ],
+        "border": [
+          "border-pillar"
+        ],
+        "column": [
+          "column-large"
+        ],
+        "fire": [
+          "fire-basket"
+        ],
+        "road": [
+          "road"
+        ]
+      }
+    },
+    "platformer": {
+      "dest": "assets/models/platformer",
+      "theme": "Platformer: platforms, slopes/ramps, blocks, hazards, coins",
+      "glb_count": 153,
+      "texture_scheme": "external",
+      "textures": [
+        "colormap.png"
+      ],
+      "groups": {
+        "block": [
+          "block-grass",
+          "block-grass-corner",
+          "block-grass-corner-low",
+          "block-grass-corner-overhang",
+          "block-grass-corner-overhang-low",
+          "block-grass-curve",
+          "block-grass-curve-half",
+          "block-grass-curve-low",
+          "block-grass-edge",
+          "block-grass-hexagon",
+          "block-grass-large",
+          "block-grass-large-slope",
+          "block-grass-large-slope-narrow",
+          "block-grass-large-slope-steep",
+          "block-grass-large-slope-steep-narrow",
+          "block-grass-large-tall",
+          "block-grass-long",
+          "block-grass-low",
+          "block-grass-low-hexagon",
+          "block-grass-low-large",
+          "block-grass-low-long",
+          "block-grass-low-narrow",
+          "block-grass-narrow",
+          "block-grass-overhang-corner",
+          "block-grass-overhang-edge",
+          "block-grass-overhang-hexagon",
+          "block-grass-overhang-large",
+          "block-grass-overhang-large-slope",
+          "block-grass-overhang-large-slope-narrow",
+          "block-grass-overhang-large-slope-steep",
+          "block-grass-overhang-large-slope-steep-narrow",
+          "block-grass-overhang-large-tall",
+          "block-grass-overhang-long",
+          "block-grass-overhang-low",
+          "block-grass-overhang-low-hexagon",
+          "block-grass-overhang-low-large",
+          "block-grass-overhang-low-long",
+          "block-grass-overhang-low-narrow",
+          "block-grass-overhang-narrow",
+          "block-moving",
+          "block-moving-blue",
+          "block-moving-large",
+          "block-snow",
+          "block-snow-corner",
+          "block-snow-corner-low",
+          "block-snow-corner-overhang",
+          "block-snow-corner-overhang-low",
+          "block-snow-curve",
+          "block-snow-curve-half",
+          "block-snow-curve-low",
+          "block-snow-edge",
+          "block-snow-hexagon",
+          "block-snow-large",
+          "block-snow-large-slope",
+          "block-snow-large-slope-narrow",
+          "block-snow-large-slope-steep",
+          "block-snow-large-slope-steep-narrow",
+          "block-snow-large-tall",
+          "block-snow-long",
+          "block-snow-low",
+          "block-snow-low-hexagon",
+          "block-snow-low-large",
+          "block-snow-low-long",
+          "block-snow-low-narrow",
+          "block-snow-narrow",
+          "block-snow-overhang-corner",
+          "block-snow-overhang-edge",
+          "block-snow-overhang-hexagon",
+          "block-snow-overhang-large",
+          "block-snow-overhang-large-slope",
+          "block-snow-overhang-large-slope-narrow",
+          "block-snow-overhang-large-slope-steep",
+          "block-snow-overhang-large-slope-steep-narrow",
+          "block-snow-overhang-large-tall",
+          "block-snow-overhang-long",
+          "block-snow-overhang-low",
+          "block-snow-overhang-low-hexagon",
+          "block-snow-overhang-low-large",
+          "block-snow-overhang-low-long",
+          "block-snow-overhang-low-narrow",
+          "block-snow-overhang-narrow"
+        ],
+        "fence": [
+          "fence-broken",
+          "fence-corner",
+          "fence-corner-curved",
+          "fence-low-broken",
+          "fence-low-corner",
+          "fence-low-corner-curved",
+          "fence-low-straight",
+          "fence-rope",
+          "fence-straight"
+        ],
+        "tree": [
+          "tree",
+          "tree-pine",
+          "tree-pine-small",
+          "tree-pine-snow",
+          "tree-pine-snow-small",
+          "tree-snow"
+        ],
+        "character": [
+          "character-oobi",
+          "character-oodi",
+          "character-ooli",
+          "character-oopi",
+          "character-oozi"
+        ],
+        "crate": [
+          "crate",
+          "crate-item",
+          "crate-item-strong",
+          "crate-strong"
+        ],
+        "door": [
+          "door-large-open",
+          "door-open",
+          "door-rotate",
+          "door-rotate-large"
+        ],
+        "platform": [
+          "platform",
+          "platform-fortified",
+          "platform-overhang",
+          "platform-ramp"
+        ],
+        "coin": [
+          "coin-bronze",
+          "coin-gold",
+          "coin-silver"
+        ],
+        "ladder": [
+          "ladder",
+          "ladder-broken",
+          "ladder-long"
+        ],
+        "button": [
+          "button-round",
+          "button-square"
+        ],
+        "flowers": [
+          "flowers",
+          "flowers-tall"
+        ],
+        "hedge": [
+          "hedge",
+          "hedge-corner"
+        ],
+        "spike": [
+          "spike-block",
+          "spike-block-wide"
+        ],
+        "trap": [
+          "trap-spikes",
+          "trap-spikes-large"
+        ],
+        "arrow": [
+          "arrow"
+        ],
+        "arrows": [
+          "arrows"
+        ],
+        "barrel": [
+          "barrel"
+        ],
+        "bomb": [
+          "bomb"
+        ],
+        "brick": [
+          "brick"
+        ],
+        "chest": [
+          "chest"
+        ],
+        "conveyor": [
+          "conveyor-belt"
+        ],
+        "flag": [
+          "flag"
+        ],
+        "grass": [
+          "grass"
+        ],
+        "heart": [
+          "heart"
+        ],
+        "jewel": [
+          "jewel"
+        ],
+        "key": [
+          "key"
+        ],
+        "lever": [
+          "lever"
+        ],
+        "lock": [
+          "lock"
+        ],
+        "mushrooms": [
+          "mushrooms"
+        ],
+        "pipe": [
+          "pipe"
+        ],
+        "plant": [
+          "plant"
+        ],
+        "poles": [
+          "poles"
+        ],
+        "rocks": [
+          "rocks"
+        ],
+        "saw": [
+          "saw"
+        ],
+        "sign": [
+          "sign"
+        ],
+        "spring": [
+          "spring"
+        ],
+        "star": [
+          "star"
+        ],
+        "stones": [
+          "stones"
+        ]
+      }
+    },
+    "retro_urban": {
+      "dest": "assets/models/retro_urban",
+      "theme": "Retro urban / cyberpunk city: roads, buildings, signage (multi-texture: asphalt/concrete/bars/dirt)",
+      "glb_count": 124,
+      "texture_scheme": "external",
+      "textures": [
+        "asphalt.png",
+        "bars.png",
+        "concrete.png",
+        "dirt.png",
+        "doors.png",
+        "grass.png",
+        "metal.png",
+        "metal_wall.png",
+        "planks.png",
+        "rock.png",
+        "roof.png",
+        "roof_plates.png",
+        "signs.png",
+        "tiles.png",
+        "treeA.png",
+        "treeB.png",
+        "truck.png",
+        "truck_alien.png",
+        "wall.png",
+        "wall_garage.png",
+        "wall_lines.png",
+        "windows.png"
+      ],
+      "groups": {
+        "wall": [
+          "wall-a",
+          "wall-a-column",
+          "wall-a-column-painted",
+          "wall-a-corner",
+          "wall-a-corner-painted",
+          "wall-a-detail",
+          "wall-a-detail-painted",
+          "wall-a-diagonal",
+          "wall-a-door",
+          "wall-a-flat",
+          "wall-a-flat-garage",
+          "wall-a-flat-painted",
+          "wall-a-flat-window",
+          "wall-a-garage",
+          "wall-a-low",
+          "wall-a-low-painted",
+          "wall-a-open",
+          "wall-a-painted",
+          "wall-a-painted-diagonal",
+          "wall-a-roof",
+          "wall-a-roof-detailed",
+          "wall-a-roof-slant",
+          "wall-a-roof-slant-detailed",
+          "wall-a-window",
+          "wall-b",
+          "wall-b-column",
+          "wall-b-corner",
+          "wall-b-detail-painted",
+          "wall-b-diagonal",
+          "wall-b-door",
+          "wall-b-flat",
+          "wall-b-flat-garage",
+          "wall-b-flat-window",
+          "wall-b-garage",
+          "wall-b-low",
+          "wall-b-open",
+          "wall-b-roof",
+          "wall-b-roof-detailed",
+          "wall-b-roof-slant",
+          "wall-b-roof-slant-detailed",
+          "wall-b-window",
+          "wall-broken-type-a",
+          "wall-broken-type-b",
+          "wall-c-flat",
+          "wall-c-flat-low",
+          "wall-fence",
+          "wall-steps-type-a",
+          "wall-steps-type-b",
+          "wall-type-a",
+          "wall-type-b"
+        ],
+        "detail": [
+          "detail-awning-small",
+          "detail-awning-wide",
+          "detail-barrier-strong-damaged",
+          "detail-barrier-strong-type-a",
+          "detail-barrier-strong-type-b",
+          "detail-barrier-type-a",
+          "detail-barrier-type-b",
+          "detail-beam",
+          "detail-bench",
+          "detail-block",
+          "detail-bricks-type-a",
+          "detail-bricks-type-b",
+          "detail-cables-type-a",
+          "detail-cables-type-b",
+          "detail-dumpster-closed",
+          "detail-dumpster-open",
+          "detail-light-double",
+          "detail-light-single",
+          "detail-light-traffic"
+        ],
+        "road": [
+          "road-asphalt-center",
+          "road-asphalt-corner",
+          "road-asphalt-corner-inner",
+          "road-asphalt-corner-outer",
+          "road-asphalt-damaged",
+          "road-asphalt-pavement",
+          "road-asphalt-side",
+          "road-asphalt-straight",
+          "road-dirt-center",
+          "road-dirt-corner",
+          "road-dirt-corner-inner",
+          "road-dirt-corner-outer",
+          "road-dirt-damaged",
+          "road-dirt-pavement",
+          "road-dirt-side",
+          "road-dirt-straight",
+          "road-dirt-tile"
+        ],
+        "tree": [
+          "tree-large",
+          "tree-park-large",
+          "tree-park-pine-large",
+          "tree-pine-large",
+          "tree-pine-small",
+          "tree-shrub",
+          "tree-small"
+        ],
+        "window": [
+          "window-small-type-a",
+          "window-small-type-b",
+          "window-wide-type-a",
+          "window-wide-type-b",
+          "window-wide-type-c",
+          "window-wide-type-d"
+        ],
+        "truck": [
+          "truck-flat",
+          "truck-green",
+          "truck-green-cargo",
+          "truck-grey",
+          "truck-grey-cargo"
+        ],
+        "grass": [
+          "grass",
+          "grass-corner",
+          "grass-corner-inner",
+          "grass-hill"
+        ],
+        "balcony": [
+          "balcony-ladder-bottom",
+          "balcony-ladder-top",
+          "balcony-type-a"
+        ],
+        "roof": [
+          "roof-metal-poles",
+          "roof-metal-type-a",
+          "roof-metal-type-b"
+        ],
+        "scaffolding": [
+          "scaffolding-floor",
+          "scaffolding-poles",
+          "scaffolding-structure"
+        ],
+        "cliff": [
+          "cliff-corner",
+          "cliff-side"
+        ],
+        "door": [
+          "door-type-a",
+          "door-type-b"
+        ],
+        "pallet": [
+          "pallet",
+          "pallet-small"
+        ],
+        "planks": [
+          "planks"
+        ]
+      }
     }
   },
   "texture_packs": {

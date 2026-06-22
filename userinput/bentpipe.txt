@@ -1,0 +1,55 @@
+1. Mathematical OverviewA bent pipe is modeled using a parametric curve for the spine (path) and a circular 2D profile. The profile is swept along the curve using a Bézier or NURBS curve.The center of the cross-section circle is defined as: C(t) = P(t)The radius r remains constant, generating a tube.2. Python Implementation ScriptAsk the coding agent to run the following complete, self-contained Python script to generate a bent pipe in a headless 3D environment. This script clears the scene, creates a path, extrudes a profile, and combines them into a single 3D mesh:pythonimport bpy
+import mathutils
+
+def create_bent_pipe(name="BentPipe", radius=0.2, resolution=32):
+    # 1. Clean up the scene
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete()
+
+    # 2. Create the Curve Profile (The Pipe's Circular Shape)
+    bpy.ops.curve.primitive_bezier_circle_add(radius=radius, location=(0, 0, 0))
+    profile_curve = bpy.context.active_object
+    profile_curve.name = "Pipe_Profile"
+
+    # 3. Create the Curve Path (The Pipe's Bending Path)
+    # This defines a 90-degree bend
+    points = [
+        (0.0, 0.0, 0.0),
+        (2.0, 0.0, 0.0),
+        (2.0, 2.0, 0.0),
+        (2.0, 2.0, 2.0)
+    ]
+    
+    curve_data = bpy.data.curves.new(name='Pipe_Path', type='CURVE')
+    curve_data.dimensions = '3D'
+    spline = curve_data.splines.new(type='BEZIER')
+    spline.points.add(len(points) - 1)
+
+    for i, coord in enumerate(points):
+        bp = spline.points[i]
+        bp.co = (coord[0], coord[1], coord[2], 1)
+        # Handle handles to make curves (simplified)
+        bp.handle_left_type = 'AUTO'
+        bp.handle_right_type = 'AUTO'
+
+    path_obj = bpy.data.objects.new('Pipe_Path_Obj', curve_data)
+    bpy.context.collection.objects.link(path_obj)
+
+    # 4. Extrude the Profile along the Path
+    path_obj.data.bevel_object = profile_curve
+    path_obj.data.fill_mode = 'FULL'
+
+    # 5. Convert to Mesh (Optional but highly recommended for export/baking)
+    bpy.context.view_layer.objects.active = path_obj
+    bpy.ops.object.convert(target='MESH')
+    
+    # Clean up original profile and path objects
+    bpy.data.objects.remove(profile_curve)
+    final_pipe = bpy.context.active_object
+    final_pipe.name = name
+
+    return final_pipe
+
+# Execute the function
+create_bent_pipe()
+Use code with caution.3. Execution & Verification Instructions for the AgentInstruct the model to execute the following steps:Environment Setup: Ensure bpy (Blender's Python API) is installed in your python environment (using pip install bpy or by running the script via Blender's background python executable blender --background --python script.py).Run the Code: Instruct the agent to run the script in a headless 3D environment.Exporting: Prompt the agent to automatically append an export command (e.g., bpy.ops.export_scene.obj(filepath="pipe.obj")) at the end of the script to save the generated 3D pipe to your local filesystem.

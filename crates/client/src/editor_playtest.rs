@@ -138,25 +138,35 @@ fn sync_playtest_patched_pieces(
     let patched = map_pool::play_layout(true);
     let extraction = patched.extraction_xz;
 
-    // Re-bake meshes (ceiling cutouts / underside materials) for playtest layout.
-    for (entity, ..) in &placed {
-        commands.entity(entity).remove::<EditorModuleReady>();
-    }
+    // Do NOT force a re-bake here (previously: remove EditorModuleReady from every
+    // piece). The editor already baked each piece's mesh cutouts AND faction-zone
+    // material from the same map; re-baking on playtest entry re-ran the material
+    // pass at a moment the SpaceCyber/Industrial material override wasn't reliably
+    // applied, so tinted zones (the "pink"/next-faction zone) reverted to plain
+    // space and looked like they vanished. Keeping the editor's bake makes playtest
+    // visually identical to the editor — switching no longer changes anything.
 
+    // Hide the extraction-hatch tile so the pit reads open in playtest — but ONLY
+    // the actual hatch (within its own cell of extraction_xz), and HIDE (reversible)
+    // instead of despawning. The old code despawned ANY floor tile over a mask hole,
+    // which permanently destroyed faction-zone pieces and made editor↔playtest toggles
+    // lose whole zones. Visibility is restored on exit (exit_in_process_playtest).
     for (entity, module, gt, _, ep, _) in &placed {
         let pos = gt.translation();
-        // Never re-derive `ceiling` from layout position alone — floor and ceiling slabs
-        // share the same stem and (x, z) on hub/landing levels, so `.find()` picks the
-        // wrong piece and treats roofs as hatch props over mask holes.
-        if kenney_pit::hide_extraction_hatch_piece(
-            module.name,
-            module.floor,
-            pos.x,
-            pos.z,
-            patched.floors.get(&module.floor),
-            ep.ceiling || module.ceiling,
-        ) {
-            commands.entity(entity).despawn();
+        let at_extraction = extraction.is_some_and(|[ex, ez]| {
+            (pos.x - ex).abs() < 3.0 && (pos.z - ez).abs() < 3.0
+        });
+        if at_extraction
+            && kenney_pit::hide_extraction_hatch_piece(
+                module.name,
+                module.floor,
+                pos.x,
+                pos.z,
+                patched.floors.get(&module.floor),
+                ep.ceiling || module.ceiling,
+            )
+        {
+            commands.entity(entity).insert(Visibility::Hidden);
         }
     }
 
@@ -242,6 +252,7 @@ pub fn enter_in_process_playtest(
     ghosts: Query<Entity, With<crate::kenney_editor::EditorGhost>>,
     toast: Query<Entity, With<crate::kenney_editor::SaveToastText>>,
     floors: Query<Entity, With<FloorSlab>>,
+    module_entities: Vec<Entity>,
     mut test_mode: ResMut<TestMode>,
     mut generation: ResMut<KenneyPlaytestGeneration>,
     mut window: Single<&mut CursorOptions, With<PrimaryWindow>>,
@@ -250,6 +261,12 @@ pub fn enter_in_process_playtest(
     test_mode.style = TestMapStyle::Kenney;
     shared::level::set_test_map_style(TestMapStyle::Kenney);
     generation.0 = generation.0.wrapping_add(1);
+
+    for e in module_entities {
+        commands
+            .entity(e)
+            .remove::<crate::kenney_editor::EditorModuleReady>();
+    }
 
     for e in editor_cam
         .iter()
