@@ -20,5 +20,12 @@
       0.88
     ],
     "tag": "hidden_entrance"
+  },
+  "transition": {
+    "mode": "outdoor_then_indoor",
+    "substrate_overlap_cells": 0,
+    "elevation_rise": 1.2,
+    "entrance_door": { "stem": "wall-door", "kit": "space_station", "scale": 4.0 },
+    "entrance_stairs": { "stem": "stairs-small-center", "kit": "space_station", "scale": 4.0, "yaw_offset": 0.0 }
   }
 }

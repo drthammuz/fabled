@@ -64,9 +64,10 @@ impl Default for MapGenSettings {
             prev_faction: "outlaw".into(),
             next_faction: "priesthood".into(),
             default_faction: "industrial_default".into(),
-            prev_fraction: 0.25,
-            default_fraction: 0.50,
-            next_fraction: 0.25,
+            // User preset weights 15 / 60 / 35 (industrial-heavy); stored normalized.
+            prev_fraction: 15.0 / 110.0,
+            default_fraction: 60.0 / 110.0,
+            next_fraction: 35.0 / 110.0,
             auto_regen: true,
         }
     }
@@ -86,6 +87,7 @@ pub struct MapGenReport {
 pub struct MapGenRuntime {
     pub generating: bool,
     pub status: String,
+    pub last_failed: bool,
     pub last_report: Option<MapGenReport>,
     pub param_revision: u32,
     pub debounce_until: f32,
@@ -140,6 +142,37 @@ pub fn repo_root() -> PathBuf {
 
 fn preview_map_path() -> PathBuf {
     repo_root().join(MAP_GEN_PREVIEW_PATH)
+}
+
+fn summarize_gen_error(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return "Generation failed".into();
+    }
+    // Prefer the last traceback line (actual exception) over dumping stderr.
+    if let Some(line) = trimmed
+        .lines()
+        .rev()
+        .find(|l| {
+            let t = l.trim();
+            !t.is_empty()
+                && !t.starts_with("File ")
+                && !t.starts_with("Traceback")
+                && !t.chars().all(|c| c == '^' || c.is_whitespace())
+        })
+    {
+        let one_line = line.trim();
+        if one_line.len() > 120 {
+            return format!("{}…", &one_line[..117]);
+        }
+        return one_line.to_string();
+    }
+    let one = trimmed.lines().next().unwrap_or(trimmed);
+    if one.len() > 120 {
+        format!("{}…", &one[..117])
+    } else {
+        one.to_string()
+    }
 }
 
 fn run_python_preview(settings: &MapGenSettings) -> MapGenOutcome {
@@ -251,6 +284,7 @@ pub fn request_map_gen(
         return;
     }
     runtime.generating = true;
+    runtime.last_failed = false;
     runtime.status = "Generating…".into();
 
     let cfg = settings.clone();
@@ -323,11 +357,14 @@ pub fn map_gen_poll(
         }
         PollMsg::Failed(msg) => {
             runtime.generating = false;
-            runtime.status = msg;
+            runtime.last_failed = true;
+            runtime.last_report = None;
+            runtime.status = format!("Error: {}", summarize_gen_error(&msg));
             ws.sidebar_dirty = true;
         }
         PollMsg::Ok(report) => {
             runtime.generating = false;
+            runtime.last_failed = false;
             if let Some(seed) = report.get("seed").and_then(|v| v.as_u64()) {
                 settings.seed = seed as u32;
             }
@@ -397,9 +434,9 @@ fn normalize_fractions(prev: &mut f32, default: &mut f32, next: &mut f32) {
     *next = next.clamp(0.05, 0.90);
     let sum = *prev + *default + *next;
     if sum <= f32::EPSILON {
-        *prev = 0.25;
-        *default = 0.50;
-        *next = 0.25;
+        *prev = 15.0 / 110.0;
+        *default = 60.0 / 110.0;
+        *next = 35.0 / 110.0;
         return;
     }
     *prev /= sum;
@@ -590,6 +627,8 @@ pub fn spawn_map_gen_panel(
         TextFont { font_size: 11.5, ..default() },
         TextColor(if runtime.generating {
             Color::srgb(1.0, 0.85, 0.35)
+        } else if runtime.last_failed {
+            Color::srgb(1.0, 0.45, 0.42)
         } else if runtime.last_report.is_some() {
             Color::srgb(0.45, 1.0, 0.55)
         } else {

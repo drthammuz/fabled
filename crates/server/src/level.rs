@@ -485,7 +485,7 @@ fn spawn_kenney_piece_scenes(
         // here (not a KenneyFloorCell cuboid). The cuboid path let players fall through
         // solid interior floor; the trimesh — same path corridors use — holds reliably.
         let yaw = quantize_yaw(p.yaw);
-        let floor_y = p.floor as f32 * MOD_H + 0.002;
+        let floor_y = p.world_y();
         let path = shared::editor_catalog::glb_asset_path_in_kit(
             &p.stem,
             p.kit.as_deref().unwrap_or("space"),

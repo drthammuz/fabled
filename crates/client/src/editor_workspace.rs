@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use bevy::prelude::*;
 use shared::editor_catalog::{self, PieceFilters};
 use shared::editor_map::{
-    ActiveDocKind, ActiveDocument, EditorTool, EditorWorkflow, GridSpec, MapDocument, ModuleDocument,
-    SnapMode,
+    ActiveDocKind, ActiveDocument, DressingDocument, EditorTool, EditorWorkflow, GridSpec,
+    MapDocument, ModuleDocument, SnapMode,
 };
 
 use crate::editor_sidebar::SidebarTab;
@@ -40,6 +40,7 @@ pub struct EditorWorkspace {
     pub floor_paint_add: bool,
     pub map: MapDocument,
     pub module: ModuleDocument,
+    pub dressing: DressingDocument,
     pub active: ActiveDocument,
     pub dirty: bool,
     pub floor_dirty: bool,
@@ -52,6 +53,7 @@ pub struct EditorWorkspace {
     pub place_pool: String,
     pub naming_modal: Option<NamingModal>,
     pub clear_module_pieces: bool,
+    pub clear_dressing_pieces: bool,
     pub spawn_naming_ui: bool,
     pub respawn_ghost: bool,
     pub load_module_path: Option<PathBuf>,
@@ -65,6 +67,8 @@ pub struct EditorWorkspace {
     pub pending_load_picker: bool,
     /// Set to Some(path) when the user picks a map file in the load picker.
     pub pending_load_map: Option<std::path::PathBuf>,
+    /// Set to Some(path) when the user picks a dressing vignette in the load picker.
+    pub pending_load_dressing: Option<std::path::PathBuf>,
     /// After loading a procedural preview, apply hub patches + export layout.
     pub pending_map_gen_load: bool,
     /// Accumulated scroll-wheel cycles for the module picker (PlaceModule tool).
@@ -72,12 +76,18 @@ pub struct EditorWorkspace {
     /// Set when the naming modal is opened via "New Module" (not "Save As").
     /// When the name is confirmed, create a blank module instead of a save-as.
     pub new_module_requested: bool,
+    /// New dressing vignette (Dressing mode) — same pattern as `new_module_requested`.
+    pub new_dressing_requested: bool,
     /// Which generated pool is shown in the Gallery tab.
     pub gallery_pool: String,
     /// Index of the currently focused module in the Gallery tab.
     pub gallery_cursor: usize,
     /// Workflow that was active before entering Gallery mode (restored on exit).
     pub pre_gallery_workflow: Option<shared::editor_map::EditorWorkflow>,
+    /// Minimal synth vignette shell (`--dressing`): no map/module/proc UI.
+    pub dressing_only: bool,
+    /// Category filter for the dressing shell sidebar (`All` = show every stem).
+    pub dressing_category: shared::editor_catalog::DressingCatFilter,
 }
 
 impl Default for EditorWorkspace {
@@ -104,6 +114,7 @@ impl Default for EditorWorkspace {
             floor_paint_add: true,
             map: MapDocument::new_default(),
             module: ModuleDocument::new_named("module_01", "default"),
+            dressing: DressingDocument::new_default(),
             active: ActiveDocument::default(),
             dirty: false,
             floor_dirty: true,
@@ -116,6 +127,7 @@ impl Default for EditorWorkspace {
             place_pool: "default".into(),
             naming_modal: None,
             clear_module_pieces: false,
+            clear_dressing_pieces: false,
             spawn_naming_ui: false,
             respawn_ghost: false,
             load_module_path: None,
@@ -125,12 +137,16 @@ impl Default for EditorWorkspace {
             pointer_over_ui: false,
             pending_load_picker: false,
             pending_load_map: None,
+            pending_load_dressing: None,
             pending_map_gen_load: false,
             module_cycle_delta: 0,
             new_module_requested: false,
+            new_dressing_requested: false,
             gallery_pool: "generated".into(),
             gallery_cursor: 0,
             pre_gallery_workflow: None,
+            dressing_only: false,
+            dressing_category: shared::editor_catalog::DressingCatFilter::default(),
         }
     }
 }
@@ -142,6 +158,7 @@ impl EditorWorkspace {
             EditorWorkflow::ModuleMaker => {
                 GridSpec::for_workflow(EditorWorkflow::ModuleMaker, 1, 1)
             }
+            EditorWorkflow::SynthDressing => DressingDocument::grid(),
         }
     }
 
@@ -153,21 +170,33 @@ impl EditorWorkspace {
         self.active.kind = match self.workflow {
             EditorWorkflow::MapMaker => ActiveDocKind::Map,
             EditorWorkflow::ModuleMaker => ActiveDocKind::Module,
+            EditorWorkflow::SynthDressing => ActiveDocKind::Dressing,
         };
     }
 
     pub fn set_workflow(&mut self, workflow: EditorWorkflow) {
+        if self.dressing_only && workflow != EditorWorkflow::SynthDressing {
+            return;
+        }
         if self.workflow == workflow {
             return;
         }
         self.workflow = workflow;
-        // Entering ModuleMaker: the "place module" tool and its ghost belong to MapMaker only.
         if workflow == EditorWorkflow::ModuleMaker {
             self.selected_module = None;
             if self.tool == EditorTool::PlaceModule {
                 self.tool = EditorTool::PlaceGlb;
             }
             self.respawn_ghost = true;
+        }
+        if workflow == EditorWorkflow::SynthDressing {
+            self.selected_module = None;
+            if self.tool == EditorTool::PlaceModule || self.tool == EditorTool::SetSpawn {
+                self.tool = EditorTool::PlaceGlb;
+            }
+            self.sidebar_tab = SidebarTab::Glb;
+            self.respawn_ghost = true;
+            self.refocus_camera = true;
         }
         self.sync_active_kind();
         self.floor_dirty = true;
@@ -178,9 +207,13 @@ impl EditorWorkspace {
     }
 
     pub fn toggle_workflow(&mut self) {
+        if self.dressing_only {
+            return;
+        }
         let next = match self.workflow {
             EditorWorkflow::MapMaker => EditorWorkflow::ModuleMaker,
-            EditorWorkflow::ModuleMaker => EditorWorkflow::MapMaker,
+            EditorWorkflow::ModuleMaker => EditorWorkflow::SynthDressing,
+            EditorWorkflow::SynthDressing => EditorWorkflow::MapMaker,
         };
         self.set_workflow(next);
     }
@@ -192,12 +225,29 @@ impl EditorWorkspace {
     }
 
     pub fn open_naming_modal(&mut self) {
-        let suggested = editor_catalog::suggest_module_name(&self.place_pool);
+        let suggested = match self.workflow {
+            EditorWorkflow::SynthDressing => editor_catalog::suggest_dressing_name(),
+            EditorWorkflow::ModuleMaker => editor_catalog::suggest_module_name(&self.place_pool),
+            EditorWorkflow::MapMaker => editor_catalog::suggest_module_name(&self.place_pool),
+        };
         self.naming_modal = Some(NamingModal {
             buffer: suggested,
             replace_on_first_key: true,
         });
         self.spawn_naming_ui = true;
+    }
+
+    pub fn begin_new_dressing(&mut self, name: &str) {
+        self.dressing = DressingDocument::new_default();
+        self.dressing.name = name.to_string();
+        self.dressing.vignette = Some(name.to_string());
+        self.active.path = None;
+        self.active.kind = ActiveDocKind::Dressing;
+        self.clear_dressing_pieces = true;
+        self.dirty = false;
+        self.floor_dirty = true;
+        self.spawn_marker_dirty = true;
+        self.refocus_camera = true;
     }
 
     pub fn begin_new_module(&mut self, name: &str) {

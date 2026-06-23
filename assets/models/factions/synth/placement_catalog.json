@@ -1,0 +1,1115 @@
+{
+  "version": 1,
+  "generated_by": "tools/probe_synth_catalog.py",
+  "default_scale": 4.0,
+  "cell_m": 4.0,
+  "wall_face_offset_m": 2.0,
+  "deck_y": 1.2,
+  "wall_half_thickness_m": 0.6,
+  "stems": {
+    "floor": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.3,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.3,
+      "front": "+z",
+      "snap": "substrate",
+      "deck_y": "substrate_block"
+    },
+    "floor-corner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.3,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.3,
+      "front": "+z",
+      "snap": "substrate",
+      "deck_y": "substrate_block"
+    },
+    "floor-detail": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.325,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.325,
+      "front": "+z",
+      "snap": "substrate",
+      "deck_y": "substrate_block"
+    },
+    "floor-panel": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.3,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.3,
+      "front": "+z",
+      "snap": "substrate",
+      "deck_y": "substrate_block"
+    },
+    "floor-panel-corner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.3,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.3,
+      "front": "+z",
+      "snap": "substrate",
+      "deck_y": "substrate_block"
+    },
+    "floor-panel-end": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.3,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.3,
+      "front": "+z",
+      "snap": "substrate",
+      "deck_y": "substrate_block"
+    },
+    "floor-panel-straight": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.3,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.3,
+      "front": "+z",
+      "snap": "substrate",
+      "deck_y": "substrate_block"
+    },
+    "wall": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-corner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.4,
+        "x1": 0.4,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.4,
+        "z1": 0.4
+      },
+      "half_x_m": 0.4,
+      "half_z_m": 0.4,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-corner-round": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.4,
+        "x1": 0.4,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.4,
+        "z1": 0.4
+      },
+      "half_x_m": 0.4,
+      "half_z_m": 0.4,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-door": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-door-banner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-door-center": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.7,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 0.3,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-door-edge": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-door-edge-banner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-door-wide": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-door-wide-banner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-banner": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-pillar": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.25,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-pillar-banner": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.25,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-corner-banner": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.4,
+        "x1": 0.4,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.4,
+        "z1": 0.4
+      },
+      "half_x_m": 0.4,
+      "half_z_m": 0.4,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-corner-round-banner": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.4,
+        "x1": 0.4,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.4,
+        "z1": 0.4
+      },
+      "half_x_m": 0.4,
+      "half_z_m": 0.4,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-window": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-window-banner": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15,
+        "z1": 0.15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.15,
+      "height_m": 1.0,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-window-frame": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.3,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.05,
+        "z1": 0.05
+      },
+      "half_x_m": 0.3,
+      "half_z_m": 0.05,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "wall-window-shutters": {
+      "class": "wall_swap",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.3,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.05,
+        "z1": 0.05
+      },
+      "half_x_m": 0.3,
+      "half_z_m": 0.05,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "wall_face",
+      "deck_y": "deck_base"
+    },
+    "display-wall": {
+      "class": "wall_decal",
+      "bounds_scale1": {
+        "x0": -0.2,
+        "x1": 0.2,
+        "y0": 0.0,
+        "y1": 0.4609,
+        "z0": -0.1432,
+        "z1": 0.2412
+      },
+      "half_x_m": 0.2,
+      "half_z_m": 0.1922,
+      "height_m": 0.4609,
+      "front": "+z",
+      "snap": "wall_decal",
+      "deck_y": "deck_base",
+      "decal_depth_half_m": 0.765
+    },
+    "display-wall-wide": {
+      "class": "wall_decal",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.3,
+        "y0": 0.0,
+        "y1": 0.4609,
+        "z0": -0.1432,
+        "z1": 0.2412
+      },
+      "half_x_m": 0.3,
+      "half_z_m": 0.1922,
+      "height_m": 0.4609,
+      "front": "+z",
+      "snap": "wall_decal",
+      "deck_y": "deck_base",
+      "decal_depth_half_m": 0.765
+    },
+    "wall-detail": {
+      "class": "wall_decal",
+      "bounds_scale1": {
+        "x0": -0.2,
+        "x1": 0.2,
+        "y0": 0.0,
+        "y1": 0.7,
+        "z0": -0.0866,
+        "z1": 0.1732
+      },
+      "half_x_m": 0.2,
+      "half_z_m": 0.1299,
+      "height_m": 0.7,
+      "front": "+z",
+      "snap": "wall_decal",
+      "deck_y": "deck_base",
+      "decal_depth_half_m": 0.52
+    },
+    "wall-switch": {
+      "class": "wall_decal",
+      "bounds_scale1": {
+        "x0": -0.05,
+        "x1": 0.05,
+        "y0": 0.0,
+        "y1": 0.2,
+        "z0": -0.0125,
+        "z1": 0.0125
+      },
+      "half_x_m": 0.05,
+      "half_z_m": 0.0125,
+      "height_m": 0.2,
+      "front": "+z",
+      "snap": "wall_decal",
+      "deck_y": "deck_base",
+      "decal_depth_half_m": 0.05
+    },
+    "bed-single": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.35,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.5,
+      "height_m": 0.35,
+      "front": "-z",
+      "snap": "back_z",
+      "deck_y": "deck_base",
+      "back_anchor_local_m": 2.0,
+      "pillow_local_z": -0.5
+    },
+    "bed-single-cover": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.3,
+        "y0": 0.0,
+        "y1": 0.15,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.3,
+      "half_z_m": 0.25,
+      "height_m": 0.15,
+      "front": "+z",
+      "snap": "stack",
+      "deck_y": "deck_base",
+      "stack_on": "bed-single"
+    },
+    "bed-double": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.35,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.35,
+      "front": "-z",
+      "snap": "back_z",
+      "deck_y": "deck_base",
+      "back_anchor_local_m": 2.0,
+      "pillow_local_z": -0.5
+    },
+    "bed-double-cover": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.8,
+        "y0": 0.0,
+        "y1": 0.15,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.55,
+      "half_z_m": 0.25,
+      "height_m": 0.15,
+      "front": "+z",
+      "snap": "stack",
+      "deck_y": "deck_base",
+      "stack_on": "bed-double"
+    },
+    "chair": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.15,
+        "x1": 0.15,
+        "y0": 0.0,
+        "y1": 0.55,
+        "z0": -0.175,
+        "z1": 0.175
+      },
+      "half_x_m": 0.15,
+      "half_z_m": 0.175,
+      "height_m": 0.55,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "chair-armrest": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.55,
+        "z0": -0.175,
+        "z1": 0.175
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.175,
+      "height_m": 0.55,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "chair-armrest-headrest": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.7,
+        "z0": -0.175,
+        "z1": 0.175
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.175,
+      "height_m": 0.7,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "chair-cushion": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.15,
+        "x1": 0.15,
+        "y0": 0.0,
+        "y1": 0.55,
+        "z0": -0.175,
+        "z1": 0.175
+      },
+      "half_x_m": 0.15,
+      "half_z_m": 0.175,
+      "height_m": 0.55,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "chair-cushion-headrest": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.15,
+        "x1": 0.15,
+        "y0": 0.0,
+        "y1": 0.7,
+        "z0": -0.175,
+        "z1": 0.175
+      },
+      "half_x_m": 0.15,
+      "half_z_m": 0.175,
+      "height_m": 0.7,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "chair-headrest": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.15,
+        "x1": 0.15,
+        "y0": 0.0,
+        "y1": 0.7,
+        "z0": -0.175,
+        "z1": 0.175
+      },
+      "half_x_m": 0.15,
+      "half_z_m": 0.175,
+      "height_m": 0.7,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "computer": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.2,
+        "x1": 0.2,
+        "y0": 0.0,
+        "y1": 0.6609,
+        "z0": -0.175,
+        "z1": 0.2631
+      },
+      "half_x_m": 0.2,
+      "half_z_m": 0.2191,
+      "height_m": 0.6609,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "computer-screen": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.4,
+        "x1": 0.4,
+        "y0": 0.0,
+        "y1": 0.6609,
+        "z0": -0.2316,
+        "z1": 0.2066
+      },
+      "half_x_m": 0.4,
+      "half_z_m": 0.2191,
+      "height_m": 0.6609,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "computer-system": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.45,
+        "x1": 0.45,
+        "y0": 0.0,
+        "y1": 0.6,
+        "z0": -0.3724,
+        "z1": 0.3224
+      },
+      "half_x_m": 0.45,
+      "half_z_m": 0.3474,
+      "height_m": 0.6,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "computer-wide": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.4,
+        "x1": 0.4,
+        "y0": 0.0,
+        "y1": 0.4968,
+        "z0": -0.2366,
+        "z1": 0.2966
+      },
+      "half_x_m": 0.4,
+      "half_z_m": 0.2666,
+      "height_m": 0.4968,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "container": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.2875,
+        "x1": 0.2875,
+        "y0": 0.0,
+        "y1": 0.6,
+        "z0": -0.2875,
+        "z1": 0.2875
+      },
+      "half_x_m": 0.2875,
+      "half_z_m": 0.2875,
+      "height_m": 0.6,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "container-flat": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.3595,
+        "y0": 0.0,
+        "y1": 0.6,
+        "z0": -0.5409,
+        "z1": 0.55
+      },
+      "half_x_m": 0.3297,
+      "half_z_m": 0.5455,
+      "height_m": 0.6,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "container-flat-open": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.3595,
+        "y0": 0.0,
+        "y1": 0.6,
+        "z0": -0.5409,
+        "z1": 0.45
+      },
+      "half_x_m": 0.3297,
+      "half_z_m": 0.4955,
+      "height_m": 0.6,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "container-tall": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.3,
+        "y0": 0.0,
+        "y1": 0.9,
+        "z0": -0.3,
+        "z1": 0.5
+      },
+      "half_x_m": 0.4,
+      "half_z_m": 0.4,
+      "height_m": 0.9,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "container-wide": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.3,
+        "x1": 0.3,
+        "y0": 0.0,
+        "y1": 0.7,
+        "z0": -0.3,
+        "z1": 0.3
+      },
+      "half_x_m": 0.3,
+      "half_z_m": 0.3,
+      "height_m": 0.7,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "table": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.55,
+        "x1": 0.55,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.3,
+        "z1": 0.3
+      },
+      "half_x_m": 0.55,
+      "half_z_m": 0.3,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "table-display": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.6207,
+        "x1": 0.6207,
+        "y0": -0.3,
+        "y1": 0.15,
+        "z0": -0.3707,
+        "z1": 0.4449
+      },
+      "half_x_m": 0.6207,
+      "half_z_m": 0.4078,
+      "height_m": 0.45,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "table-display-planet": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.1932,
+        "y0": -0.1,
+        "y1": 0.1,
+        "z0": -0.2,
+        "z1": 0.5
+      },
+      "half_x_m": 0.3466,
+      "half_z_m": 0.35,
+      "height_m": 0.2,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "table-display-small": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.4207,
+        "x1": 0.4207,
+        "y0": -0.3,
+        "y1": 0.1112,
+        "z0": -0.3707,
+        "z1": 0.4449
+      },
+      "half_x_m": 0.4207,
+      "half_z_m": 0.4078,
+      "height_m": 0.4112,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "table-inset": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.6207,
+        "x1": 0.6207,
+        "y0": -0.3,
+        "y1": 0.1,
+        "z0": -0.3707,
+        "z1": 0.3707
+      },
+      "half_x_m": 0.6207,
+      "half_z_m": 0.3707,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "table-inset-small": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.4207,
+        "x1": 0.4207,
+        "y0": -0.3,
+        "y1": 0.1,
+        "z0": -0.3707,
+        "z1": 0.3707
+      },
+      "half_x_m": 0.4207,
+      "half_z_m": 0.3707,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "table-large": {
+      "class": "floor_prop",
+      "bounds_scale1": {
+        "x0": -0.7,
+        "x1": 0.7,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.45,
+        "z1": 0.45
+      },
+      "half_x_m": 0.7,
+      "half_z_m": 0.45,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "balcony-floor": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.15,
+        "z0": -0.35,
+        "z1": 0.35
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.35,
+      "height_m": 0.15,
+      "front": "+z",
+      "snap": "balcony_outward",
+      "deck_y": "deck_flush",
+      "orientation": "DIRECTIONAL (bbox is symmetric but the mesh is NOT): 4.0(x) x 2.8(z) x 0.6 tall with a RAISED LIP on the +z edge (front=+z). The lip must face OUTWARD over the drop. Generator uses balcony-floor-center; this plain variant shares the same +z lip."
+    },
+    "balcony-floor-center": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.15,
+        "z0": -0.35,
+        "z1": 0.35
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.35,
+      "height_m": 0.15,
+      "front": "+z",
+      "snap": "balcony_outward",
+      "deck_y": "deck_flush",
+      "orientation": "DIRECTIONAL (bbox symmetric, mesh is NOT — probed @ scale4): 4.0(x) x 2.8(z) x 0.6 tall. RAISED LIP on the +z edge (top y=0.6 at z[0.6,1.4]); walkable surface lower (y=0.4) on the -z side. front=+z. Place so the lip faces OUTWARD: yaw = atan2(outward_x, outward_z) -> n=180, s=0, e=90, w=270. Using one yaw for n+s (or e+w) is the 'right in 2 dirs, wrong in 2' bug."
+    },
+    "balcony-floor-corner": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.35,
+        "x1": 0.35,
+        "y0": 0.0,
+        "y1": 0.15,
+        "z0": -0.35,
+        "z1": 0.35
+      },
+      "half_x_m": 0.35,
+      "half_z_m": 0.35,
+      "height_m": 0.15,
+      "front": "+z",
+      "snap": "balcony_outward",
+      "deck_y": "deck_flush",
+      "orientation": "DIRECTIONAL (bbox symmetric, mesh is NOT — probed @ scale4): 2.8 x 2.8 x 0.6 tall. Recessed walkable opens toward (+x,-z), so the LIP wraps the -x and +z edges (lip-corner faces local (-x,+z)). Fills a convex building corner; yaw rotates the lip-corner to the outward diagonal -> {s,w}=0, {s,e}=90, {n,e}=180, {n,w}=270."
+    },
+    "balcony-rail": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.35,
+        "z1": 0.35
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.35,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base",
+      "orientation": "ASYMMETRIC combined floor+rail: rail bar on +Z edge at yaw 0, floor extends -Z toward the building. yaw points the rail outward (away from building)."
+    },
+    "balcony-rail-center": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.1,
+        "z1": 0.1
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.1,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "balcony-rail-corner": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.35,
+        "x1": 0.35,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.35,
+        "z1": 0.35
+      },
+      "half_x_m": 0.35,
+      "half_z_m": 0.35,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base"
+    },
+    "rail": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.05,
+        "z1": 0.05
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.05,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base",
+      "orientation": "Guardrail 1.6 m tall, bar 4 m along LOCAL X, thin (0.4 m) in Z, symmetric in Z (no front/back). yaw 0 = bar along world X. Sits on deck; centre it on the lip pulled in by half-depth (0.2 m) so the base does not overhang."
+    },
+    "rail-narrow": {
+      "class": "balcony",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.4,
+        "z0": -0.05,
+        "z1": 0.05
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.05,
+      "height_m": 0.4,
+      "front": "+z",
+      "snap": "origin",
+      "deck_y": "deck_base",
+      "orientation": "Guardrail 1.6 m tall, bar 2 m along LOCAL X, thin in Z, symmetric. yaw 0 = bar along world X. Use to wrap convex balcony corners (the 2.8 m corner edges have no matching 4 m rail)."
+    }
+  }
+}

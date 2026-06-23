@@ -47,6 +47,9 @@ pub struct KenneyLayout {
     /// Optional explicit player spawn point [x, z] in world space.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spawn_xz: Option<[f32; 2]>,
+    /// Walkable surface Y at spawn (faction deck elevation). Default 0.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spawn_y: Option<f32>,
     /// Extraction pit centre [x, z] on floor 0 (hub is one MOD_H below).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extraction_xz: Option<[f32; 2]>,
@@ -78,6 +81,7 @@ impl Default for KenneyLayout {
             floors: HashMap::new(),
             pieces: Vec::new(),
             spawn_xz: None,
+            spawn_y: None,
             extraction_xz: None,
             hub_exits: HashMap::new(),
             hub_model: None,
@@ -181,12 +185,48 @@ impl KenneyLayout {
         if self.extraction_xz.is_none() {
             self.extraction_xz = self.infer_extraction_xz();
         }
+        if self.spawn_y.map(|y| y.abs() < 1e-4).unwrap_or(true) {
+            let inferred = self.infer_spawn_floor_y();
+            if inferred > 1e-4 {
+                self.spawn_y = Some(inferred);
+            }
+        }
         if self.branch_levels.is_empty() && !crate::kenney_hub::is_freeform_hub_layout(&self) {
             if let Some([ex, ez]) = self.extraction_xz {
                 self.branch_levels = crate::kenney_hub::default_branch_levels(ex, ez);
             }
         }
         self
+    }
+
+    /// Walkable surface Y at the spawn marker — uses ``spawn_y`` or infers from floor pieces.
+    pub fn spawn_floor_y(&self) -> f32 {
+        if let Some(y) = self.spawn_y.filter(|y| y.abs() > 1e-4) {
+            return y;
+        }
+        self.infer_spawn_floor_y()
+    }
+
+    /// Highest walkable floor piece covering the spawn XZ (elevated synth deck, etc.).
+    pub fn infer_spawn_floor_y(&self) -> f32 {
+        let Some([sx, sz]) = self.spawn_xz else {
+            return 0.0;
+        };
+        let half = self.grid_unit_m * 0.45;
+        let mut best = 0.0f32;
+        for p in &self.pieces {
+            if is_ceiling_slab(p) {
+                continue;
+            }
+            if (p.x - sx).abs() > half || (p.z - sz).abs() > half {
+                continue;
+            }
+            if !walkable_floor_stem(&p.stem) {
+                continue;
+            }
+            best = best.max(walkable_surface_y(p));
+        }
+        best
     }
 
     /// True when the player is in the open extraction drop column (floor 0 → hub).
@@ -233,10 +273,50 @@ pub struct KenneyPlacement {
     pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub zone: Option<String>,
+    /// Absolute world Y (faction deck elevation). Default: floor × MOD_H.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y: Option<f32>,
+}
+
+fn default_placement_y(floor: i32) -> f32 {
+    floor as f32 * crate::level::MOD_H - 0.005
+}
+
+/// World-space Y for a placed piece (honours optional deck elevation).
+pub fn piece_world_y(floor: i32, y: Option<f32>) -> f32 {
+    y.unwrap_or_else(|| default_placement_y(floor))
+}
+
+impl KenneyPlacement {
+    pub fn world_y(&self) -> f32 {
+        piece_world_y(self.floor, self.y)
+    }
 }
 
 fn default_placement_scale() -> f32 {
     1.0
+}
+
+/// Y of the WALKABLE surface (top) of a floor piece. The synth deck `floor` GLB is a
+/// solid 0.3-unit block, so its walkable top sits `0.3 * scale` (= 1.2 m @ scale 4)
+/// above the piece origin. Thin floors (`template-floor`, corridor, room) put the
+/// surface at the origin. Using the origin for the block let the player spawn *inside*
+/// it and drop through (synth-spawn fall-through).
+fn walkable_surface_y(p: &KenneyPlacement) -> f32 {
+    let block_h = if p.stem == "floor" && p.kit.as_deref() == Some("factions/synth") {
+        0.3 * p.scale
+    } else {
+        0.0
+    };
+    p.world_y() + block_h
+}
+
+fn walkable_floor_stem(stem: &str) -> bool {
+    stem.starts_with("template-floor")
+        || stem.starts_with("corridor")
+        || stem.starts_with("room-")
+        || stem == "floor"
+        || stem.starts_with("floor-")
 }
 
 /// World rotation for a placed piece (yaw only). Ceiling slabs are *not* flipped:

@@ -16,6 +16,8 @@ pub struct EditorState {
     pub next_id: u32,
     /// Raw cursor hit on floor (module placement center).
     pub hover_world: Vec2,
+    /// Dressing mode: extra 1.2 m steps on stem default Y (Q/E while placing).
+    pub dressing_y_steps: i32,
 }
 
 impl Default for EditorState {
@@ -42,6 +44,7 @@ impl Default for EditorState {
             stems,
             next_id: 1,
             hover_world: Vec2::new(cx, cz),
+            dressing_y_steps: 0,
         }
     }
 }

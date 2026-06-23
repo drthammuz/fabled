@@ -145,6 +145,57 @@ This is the *default* shape, not a hard rule — §4.2 variety rules still allow
 
 (*"Synth" is used here illustratively — it is not yet one of the placeholder factions in §5.3; add a profile there when it is locked.*)
 
+### 2.2 Industrial as substrate; camps as faction hubs
+
+Industrial utility (sewer / vent / subway) is the **baseline layer** the level is
+built on. The four non-industrial factions each own a **camp** — a safe station
+between maps, rendered entirely in that faction's architecture.
+
+| Layer | Role |
+|-------|------|
+| **Industrial substrate** | Default underground connective tissue for most of the run |
+| **Faction camp** | Meta hub between levels; 100% that faction's buildings |
+| **Faction bookends on a level** | Start = leaving previous camp's architecture; end = entering next camp's architecture |
+
+**Camp adjacency loop:** player leaves camp A → level opens in A's tradition →
+industrial middle → level closes in B's tradition → player enters camp B.
+
+**Default fractions** along spawn→extract (prev / industrial / next): **15% /
+60% / 35%** — industrial dominates; faction bookends are short. Preset in
+§5.2 `mix_mode`; not equal thirds.
+
+### 2.3 Transition entrances (not instant interiors)
+
+**Problem today:** zone painting in `gen_freeform` / `level_composition.py`
+swaps kit per spine fraction; the player walks from industrial **directly into
+enclosed faction rooms** with no door or exterior read.
+
+**Required model:**
+
+1. **Industrial remains the structural floor plan**; faction geometry attaches
+   at **transition nodes** via **entrances / doors**, not by replacing the whole
+   interior grid at once.
+2. **Transition path is per-faction** (profile field `transition_mode`):
+   - `outdoor_then_indoor` — exterior buffer first (plaza, apron, courtyard).
+     Favoured by **high-tech** factions (synth / space_station) that can afford
+     engineered outdoor space.
+   - `direct_on_substrate` — faction walls and doors sit **directly on dirt /
+     industrial floor** with no landscaped outdoor. Favoured by **rogue /
+     low-tier** factions (outlaw). Industrial tiles may **overlap** faction
+     starts for several cells — substrate visibly continues under/around the
+     new walls.
+3. **Every industrial ↔ faction hand-off** emits an **entrance piece**: door
+   frame + walkable threshold. Where the architecture kit provides them, add
+   **small entrance stairs** to elevate the faction floor above the substrate
+   (space_station: `stairs-small-*` straight and rounded — use at every
+   entrance; catalogue in `docs/kenney_kits_catalogue.md` §space_station).
+4. Lower-tier factions may show **industrial bleeding into the faction zone**
+   for a few tiles after walls appear; high-tech factions transition cleaner
+   via outdoor or raised platforms.
+
+Implement in **Phase 4** (zone planner + transition spec) and **Phase 6**
+(camp-driven variety). Do not fake this with kit painting alone.
+
 ---
 
 ## 3. Building systems (two families today)
@@ -194,6 +245,27 @@ A level is a **directed path** (entry → extraction) through **zones**. Each zo
 - **Industrial → industrial:** change **subtype** (sewer → vent → rail) via shaft, ladder, grating — same “inorganic” family, different **catalogue + repetition pattern**.
 
 Transitions must satisfy **gameplay**: walkable continuity, door alignment, floor masks, probe-clean borders (same bar as hub/extraction today).
+
+### 4.1b Entrance-first transition geometry
+
+A transition zone is not a kit swap — it is a **composed sequence**:
+
+```
+[industrial corridor] → [optional outdoor/apron] → [entrance stairs?] → [door frame] → [faction interior]
+```
+
+Rules:
+
+- **Doors are mandatory** at every industrial ↔ faction boundary. No faction
+  building opens directly into a sealed interior without a readable entrance.
+- **Entrance stairs** (kit-specific small stair GLBs) raise faction floor level
+  where the substrate is lower — especially space_station and other kits with
+  `stairs-small-*` variants.
+- **Outdoor buffer** is conditional on `transition_mode` (§2.3), not universal.
+- **Substrate overlap:** for `direct_on_substrate` factions, the zone planner
+  may assign `default` (industrial) cells inside the `next` fraction until a
+  door threshold is crossed — visual + walkable industrial continues under /
+  beside early faction walls.
 
 ### 4.2 Who decides the mix?
 
@@ -249,6 +321,9 @@ Each faction stores its own values. Quantifiable = sliders/dropdowns; qualitativ
 | `corridor_width` | 1.0–2.0 | Lane width as a **fraction** of corridors that are 2-wide (1.3 = ~30% wide) | `corridor_width` | ✅ (2-wide emitted as room-style floor+walls) |
 | `floor_preference` | single / multi | Vertical levels / shafts | — (single floor + hub levels) | ⛔ |
 | `hidden_area_prevalence` | 0–1 | Secret side rooms, single entrance | `hidden_area_prevalence` | ✅ generation (dead-end rooms); 🟡 runtime open mechanic still TODO |
+| `transition_mode` | enum (`outdoor_then_indoor` / `direct_on_substrate`) | How this faction meets industrial (§2.3) | — | ⛔ |
+| `entrance_stem` | GLB stem | Door + optional small-stair kit at industrial boundary | — | ⛔ |
+| `prop_setups` | list of setup defs | Named prop layouts (office cluster, cantina, …) — see §5.4b | — | ⛔ |
 
 > **`hub_count` dropped** — it meant "extra central junction rooms," but in the free-form model that's **emergent** from `loop_count` + room degree, and "hub" collides with the *extraction* hub (trap → hub room → landings). Not a separate knob.
 
@@ -269,6 +344,7 @@ The blend across the run, parallel to (not inside) the faction profile. This is 
 | `prev_fraction` | 0–1 | Share of level in previous-faction architecture |
 | `default_fraction` | 0–1 | Share in the default industrial substrate |
 | `next_fraction` | 0–1 | Share in next-faction architecture (3 fractions sum to 1) |
+| *(preset)* | — | **Realistic default:** 0.15 / 0.60 / 0.35 (not equal thirds) |
 | `transition_length` | cells / rooms | Span of each hand-off zone between systems |
 | `transition_style` | enum per boundary (`hatch`/`flood`/`bulkhead`/`ritual_seal`) | Narrative read of each transition (§8) |
 | `seed` | int | Reproducible generation |
@@ -320,7 +396,23 @@ Each archetype carries:
 
 Example: **priesthood `inner_garden`** — a room with a walled perimeter but a floorless/planted centre courtyard, placed only because `retro_fantasy` supplies trees/foliage/fence props. A faction without garden assets never gets it; an outlaw faction might instead declare `scrap_market` reusing `factory` salvage props in the same "open-centre room" structural slot.
 
-This keeps lore-specific spaces **data-driven and self-disabling**: add the assets + an archetype entry, and the faction starts producing that space; no generator code per faction. Implement after the base knobs (§5.1) and profile schema land — it's a Phase 2–3 extension of the profile.
+**Props are not random scatter.** Each setup is a **typical arrangement** — e.g.
+synth `office_cluster` = desk + computer facing corridor; `cantina_row` = tables
+along a wall; industrial `pipe_run` = aligned factory props along a spine cell.
+Setups declare:
+
+| Field | Meaning |
+|-------|---------|
+| `props` | ordered GLB stems + relative offsets / yaw |
+| `requires_room` | min footprint, shape tag (`rect`, `L`, `ring`), or `outdoor_courtyard` |
+| `placement_rule` | `dead_end`, `hub_centre`, `corridor_mid`, `transition_apron`, … |
+| `requires_archetype` | optional link to a structural archetype (courtyard must exist first) |
+
+A faction may require a **specific outdoor shape** (open centre surrounded by
+buildings) before an outdoor-only setup is eligible — the archetype creates the
+space, the setup dresses it. Skipped automatically if assets or room shape fail.
+
+This keeps lore-specific spaces **data-driven and self-disabling**: add the assets + an archetype entry, and the faction starts producing that space; no generator code per faction. Implement with the **props pass** (handover roster #1), after Phase 1 Kenney layout is trustworthy — Phase 2–3 for profile schema, Phase 4+ for transition-linked setups.
 
 ### 5.5 Concrete profiles (the three real factions + default)
 
@@ -471,4 +563,4 @@ Resolve during Phase 4; do not block Phase 1.
 
 ---
 
-*Last updated: 2026-06-20 — added §2.1 explicit start→middle→end faction ordering (previous-camp bookends start, industrial substrate middle, next-camp bookends end) + priesthood→synth worked example.*
+*Last updated: 2026-06-22 — §2.2–2.3 industrial substrate + camp hubs; entrance-first transitions (doors, entrance stairs, outdoor vs direct-on-substrate); 15/60/35 default fractions; §5.4b prop setups (not random scatter).*

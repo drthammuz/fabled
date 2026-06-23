@@ -6,7 +6,7 @@
 use avian3d::prelude::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::gltf::GltfLoaderSettings;
-use bevy::image::ImageLoaderSettings;
+use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamplerDescriptor};
 use bevy::math::{Affine2, Vec2};
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::*;
@@ -56,6 +56,21 @@ pub struct CyberLaserMaterial(pub Handle<StandardMaterial>);
 #[derive(Resource, Clone)]
 pub struct PriesthoodMaterial(pub Handle<StandardMaterial>);
 
+/// Synth / space_station atlas — deck + rail variants for z-fight control in dressing.
+#[derive(Resource, Clone)]
+pub struct SynthMaterial {
+    pub base: Handle<StandardMaterial>,
+    /// Slightly biased toward camera so deck wins over coplanar rails.
+    pub deck: Handle<StandardMaterial>,
+    /// Slightly biased away so rails sit under deck when overlapping.
+    pub rail: Handle<StandardMaterial>,
+    /// Floor props on the 1.2 m deck — wins over coplanar floor substrate.
+    pub prop: Handle<StandardMaterial>,
+    /// Ground floor tiles — base look plus a tiled scratch detail map so the floor
+    /// reads as a surface instead of one flat colour.
+    pub floor: Handle<StandardMaterial>,
+}
+
 
 /// Default space kit, or an explicit ``space`` kit tag.
 pub fn uses_space_cyber_materials(kit: Option<&str>) -> bool {
@@ -68,6 +83,16 @@ pub enum KenneyMaterialSlot {
     NativeGlb,
     /// ``factions/priesthood`` — shared external colormap (Blender-safe).
     Priesthood,
+    /// ``factions/synth`` — space_station colormap (Blender-safe).
+    Synth,
+    /// Synth floor / balcony deck — depth bias wins over rails.
+    SynthDeck,
+    /// Synth ground floor tiles — base look + tiled scratch detail map.
+    SynthFloor,
+    /// Synth railing — depth bias loses to deck when overlapping.
+    SynthRail,
+    /// Synth floor props (beds, desks) — depth bias wins over floor tiles.
+    SynthProp,
     SpaceCyber,
     SpaceIndustrial,
     Ceiling,
@@ -90,7 +115,29 @@ pub fn kenney_material_slot(
     if kit == Some("factions/priesthood") {
         return KenneyMaterialSlot::Priesthood;
     }
-    // Non-space kits (dungeon stone, urban/synth/necropolis native) keep their own material.
+    if kit == Some("factions/synth") {
+        // Stairs sit ON a floor block (coplanar base): bias them toward the camera so
+        // the ramp wins instead of z-fighting / vanishing into the floor.
+        if stem == "stairs" {
+            return KenneyMaterialSlot::SynthProp;
+        }
+        if stem.starts_with("balcony-floor") {
+            return KenneyMaterialSlot::SynthDeck;
+        }
+        if shared::editor_catalog::is_synth_rail_stem(stem) {
+            return KenneyMaterialSlot::SynthRail;
+        }
+        if shared::editor_catalog::is_synth_deck_prop_stem(stem) {
+            return KenneyMaterialSlot::SynthProp;
+        }
+        // Floor blocks (ground + mezzanine deck) get the tiled scratch detail map.
+        if stem == "floor" {
+            return KenneyMaterialSlot::SynthFloor;
+        }
+        // Walls use the base synth colormap.
+        return KenneyMaterialSlot::Synth;
+    }
+    // Non-space kits (dungeon stone, urban/necropolis native) keep their own material.
     if !uses_space_cyber_materials(kit) {
         return KenneyMaterialSlot::NativeGlb;
     }
@@ -103,7 +150,7 @@ pub fn kenney_material_slot(
     KenneyMaterialSlot::SpaceCyber
 }
 
-pub const EDITOR_BUILD_TAG: &str = "2026-06-21a";
+pub const EDITOR_BUILD_TAG: &str = "2026-06-24b";
 
 pub fn init_kenney_materials(
     asset_server: &AssetServer,
@@ -148,6 +195,7 @@ pub fn init_editor_kenney_materials(
     CyberMaterialIndustrial,
     CyberMaterialPinkCeiling,
     PriesthoodMaterial,
+    SynthMaterial,
 ) {
     let base = asset_server.load("models/space/cyber_colormap.png");
     let emissive = asset_server.load("models/space/cyber_colormap_emissive.png");
@@ -208,6 +256,52 @@ pub fn init_editor_kenney_materials(
     };
     priesthood_mat.cull_mode = None;
     let priesthood = materials.add(priesthood_mat);
+    let synth_colormap = asset_server.load("models/factions/synth/Textures/colormap.png");
+    let mut synth_mat = StandardMaterial {
+        base_color: Color::srgb(0.86, 0.84, 0.80),
+        base_color_texture: Some(synth_colormap),
+        metallic: 0.06,
+        perceptual_roughness: 0.48,
+        uv_transform: Affine2::from_scale_angle_translation(
+            Vec2::splat(0.35),
+            0.0,
+            Vec2::new(0.12, 0.18),
+        ),
+        ..default()
+    };
+    synth_mat.cull_mode = None;
+    let synth = materials.add(synth_mat.clone());
+    let mut synth_deck_mat = synth_mat.clone();
+    synth_deck_mat.depth_bias = 0.75;
+    let synth_deck = materials.add(synth_deck_mat);
+    let mut synth_rail_mat = synth_mat.clone();
+    synth_rail_mat.depth_bias = -0.75;
+    let synth_rail = materials.add(synth_rail_mat);
+    // Ground floor: keep the synth colour but multiply in a tiled scratch/scuff map so the
+    // floor isn't one flat colour. The floor GLB samples a tiny colormap swatch, so the
+    // detail texture is set to Repeat and uv_transform tiles it ~2x across each 4 m tile
+    // (24/15 ratio compensates the non-square swatch so scratches read square).
+    let floor_detail = asset_server.load_with_settings(
+        "models/factions/synth/Textures/floor_detail.png",
+        |s: &mut ImageLoaderSettings| {
+            s.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor {
+                address_mode_u: ImageAddressMode::Repeat,
+                address_mode_v: ImageAddressMode::Repeat,
+                ..default()
+            });
+        },
+    );
+    let mut synth_floor_mat = synth_mat.clone();
+    synth_floor_mat.base_color = Color::srgb(0.86, 0.84, 0.80);
+    synth_floor_mat.base_color_texture = Some(floor_detail);
+    synth_floor_mat.uv_transform =
+        Affine2::from_scale_angle_translation(Vec2::new(16.0, 10.0), 0.0, Vec2::ZERO);
+    let synth_floor = materials.add(synth_floor_mat);
+    // Props + stairs sit ON a floor block; positive bias makes them win the coplanar
+    // contact so beds/desks don't sink and stairs don't vanish into the deck.
+    let mut synth_prop_mat = synth_mat;
+    synth_prop_mat.depth_bias = 0.75;
+    let synth_prop = materials.add(synth_prop_mat);
     (
         CyberMaterial(cyber),
         CyberLaserMaterial(cyber_lasers),
@@ -215,6 +309,13 @@ pub fn init_editor_kenney_materials(
         CyberMaterialIndustrial(industrial),
         CyberMaterialPinkCeiling(pink_ceiling),
         PriesthoodMaterial(priesthood),
+        SynthMaterial {
+            base: synth,
+            deck: synth_deck,
+            rail: synth_rail,
+            prop: synth_prop,
+            floor: synth_floor,
+        },
     )
 }
 
@@ -374,7 +475,7 @@ fn placements_from_layout(layout: &KenneyLayout) -> Vec<Placement> {
         );
         out.push(m(
             leak_stem(&p.stem),
-            Vec3::new(p.x, p.floor as f32 * MOD_H + 0.002, p.z),
+            Vec3::new(p.x, p.world_y(), p.z),
             quantize_yaw(p.yaw),
             p.scale.max(0.01),
             collide,
@@ -540,7 +641,7 @@ fn spawn_showcase(
         return;
     }
 
-    let (cyber, cyber_lasers, cyber_ceiling, cyber_industrial, pink_ceiling, priesthood) =
+    let (cyber, cyber_lasers, cyber_ceiling, cyber_industrial, pink_ceiling, priesthood, synth) =
         init_editor_kenney_materials(&asset_server, &mut materials);
     commands.insert_resource(cyber);
     commands.insert_resource(cyber_lasers);
@@ -548,6 +649,7 @@ fn spawn_showcase(
     commands.insert_resource(cyber_industrial);
     commands.insert_resource(pink_ceiling);
     commands.insert_resource(priesthood);
+    commands.insert_resource(synth);
 
     let list = placements(test.style);
     let layout = shared::map_pool::test_play_layout();

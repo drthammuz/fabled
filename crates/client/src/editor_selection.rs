@@ -12,6 +12,7 @@ use crate::editor_workspace::EditorWorkspace;
 pub enum PieceOwner {
     Map,
     Module,
+    Dressing,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -39,6 +40,8 @@ pub struct PieceSnapshot {
     pub group_id: Option<u32>,
     pub sw_x: f32,
     pub sw_z: f32,
+    pub y: Option<f32>,
+    pub kit: Option<String>,
 }
 
 #[derive(Resource, Default)]
@@ -60,23 +63,144 @@ pub fn primary_selected(sel: &EditorSelection) -> Option<u32> {
     sel.selected.first().copied()
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum PickLayer {
+    Floor = 0,
+    Wall = 1,
+    Prop = 2,
+}
+
+fn pick_layer(stem: &str) -> PickLayer {
+    if stem.starts_with("floor") || stem.starts_with("balcony-floor") {
+        PickLayer::Floor
+    } else if stem.starts_with("wall") || stem.starts_with("balcony-rail") {
+        PickLayer::Wall
+    } else {
+        PickLayer::Prop
+    }
+}
+
+/// Half-extents in local X/Z (metres) for cursor hit-testing at piece centre.
+fn piece_half_extents_xz(stem: &str, scale: f32) -> (f32, f32) {
+    if let Some(ext) = shared::synth_placement::half_extents_xz(stem, scale) {
+        return ext;
+    }
+    let sc = scale.abs().max(0.01);
+    if let Some(p) = kenney_catalog::piece(stem) {
+        return (p.footprint_m.x * 0.5 * sc, p.footprint_m.z * 0.5 * sc);
+    }
+    if stem.starts_with("floor") {
+        (2.0 * sc, 2.0 * sc)
+    } else if stem.starts_with("balcony-floor") || stem.starts_with("balcony-rail") {
+        (2.0 * sc, 1.4 * sc)
+    } else if stem.starts_with("wall") {
+        (2.0 * sc, 0.65 * sc)
+    } else if stem.starts_with("balcony") {
+        (1.4 * sc, 1.4 * sc)
+    } else if stem.starts_with("table") {
+        (1.2 * sc, 1.2 * sc)
+    } else if stem.starts_with("chair") {
+        (0.9 * sc, 0.85 * sc)
+    } else if stem.starts_with("bed-double") {
+        (2.0 * sc, 2.0 * sc)
+    } else if stem.starts_with("bed") {
+        (1.0 * sc, 2.0 * sc)
+    } else if stem.starts_with("container") {
+        (1.2 * sc, 1.0 * sc)
+    } else if stem.starts_with("display-wall") {
+        (1.5 * sc, 0.4 * sc)
+    } else {
+        match stem {
+            "computer-wide" | "computer-system" => (1.8 * sc, 1.2 * sc),
+            "computer-screen" | "computer" => (0.85 * sc, 0.9 * sc),
+            "table-large" => (2.8 * sc, 1.8 * sc),
+            "table-display" | "table-display-small" | "table-display-planet" => (1.6 * sc, 1.2 * sc),
+            _ => (1.0 * sc, 1.0 * sc),
+        }
+    }
+}
+
+fn piece_contains_world_xz(world_x: f32, world_z: f32, tf: &Transform, stem: &str) -> bool {
+    let (hx, hz) = piece_half_extents_xz(stem, tf.scale.x);
+    let dx = world_x - tf.translation.x;
+    let dz = world_z - tf.translation.z;
+    let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
+    let cos = yaw.cos();
+    let sin = yaw.sin();
+    let lx = dx * cos + dz * sin;
+    let lz = -dx * sin + dz * cos;
+    lx.abs() <= hx + 0.08 && lz.abs() <= hz + 0.08
+}
+
+fn pick_best_at<'a>(
+    world_x: f32,
+    world_z: f32,
+    floor_level: i32,
+    owner: PieceOwner,
+    pieces: impl Iterator<Item = (u32, &'a Transform, &'a str, &'a EditorPlaced)>,
+) -> Option<u32> {
+    let mut best: Option<(u32, PickLayer, f32, f32)> = None;
+
+    for (id, tf, stem, ep) in pieces {
+        if ep.floor_level != floor_level || ep.owner != owner {
+            continue;
+        }
+        if !piece_contains_world_xz(world_x, world_z, tf, stem) {
+            continue;
+        }
+        let layer = pick_layer(stem);
+        let dx = tf.translation.x - world_x;
+        let dz = tf.translation.z - world_z;
+        let dist_sq = dx * dx + dz * dz;
+        let elev = tf.translation.y;
+        let better = match best {
+            None => true,
+            Some((_, bl, bd, be)) => {
+                layer > bl
+                    || (layer == bl
+                        && (dist_sq < bd - 0.001
+                            || ((dist_sq - bd).abs() < 0.001 && elev > be + 0.01)))
+            }
+        };
+        if better {
+            best = Some((id, layer, dist_sq, elev));
+        }
+    }
+    best.map(|(id, _, _, _)| id)
+}
+
 pub fn pick_piece_at(
+    hover: Vec2,
+    floor_level: i32,
+    owner: PieceOwner,
+    placed: &Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+) -> Option<u32> {
+    pick_best_at(
+        hover.x,
+        hover.y,
+        floor_level,
+        owner,
+        placed
+            .iter()
+            .map(|(_, tf, km, ep)| (ep.piece_id, tf, km.name, ep)),
+    )
+}
+
+pub fn pick_piece_at_mut(
     hover: Vec2,
     floor_level: i32,
     owner: PieceOwner,
     placed: &Query<(Entity, &mut Transform, &KenneyModule, &mut EditorPlaced)>,
 ) -> Option<u32> {
-    for (_, tf, km, ep) in placed.iter() {
-        if ep.floor_level != floor_level || ep.owner != owner {
-            continue;
-        }
-        let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
-        let anchor = Vec2::new(ep.sw_x, ep.sw_z);
-        if piece_covers_cell(hover, km.name, yaw, anchor) {
-            return Some(ep.piece_id);
-        }
-    }
-    None
+    pick_best_at(
+        hover.x,
+        hover.y,
+        floor_level,
+        owner,
+        placed
+            .iter()
+            .map(|(_, tf, km, ep)| (ep.piece_id, &*tf, km.name, ep)),
+    )
 }
 
 pub fn pick_pieces_in_rect(
@@ -145,7 +269,7 @@ fn collect_snapshots_for_group(
     placed
         .iter()
         .filter(|(_, _, _, ep)| ep.group_id.is_some() && ep.group_id == group_id)
-        .map(|(_, tf, km, ep)| snapshot_from_entity(ep.piece_id, km.name, tf, ep))
+        .map(|(_, tf, km, ep)| snapshot_from_entity(ep.piece_id, km.name, tf, ep, km))
         .collect()
 }
 
@@ -156,7 +280,7 @@ fn snapshot_for_id(
     placed
         .iter()
         .find(|(_, _, _, ep)| ep.piece_id == id)
-        .map(|(_, tf, km, ep)| snapshot_from_entity(ep.piece_id, km.name, tf, ep))
+        .map(|(_, tf, km, ep)| snapshot_from_entity(ep.piece_id, km.name, tf, ep, km))
 }
 
 fn push_transform_if_changed(
@@ -347,11 +471,12 @@ pub fn select_drag_input(
     let owner = match ws.workflow {
         shared::editor_map::EditorWorkflow::MapMaker => PieceOwner::Map,
         shared::editor_map::EditorWorkflow::ModuleMaker => PieceOwner::Module,
+        shared::editor_map::EditorWorkflow::SynthDressing => PieceOwner::Dressing,
     };
     let shift = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
 
     if mouse.just_pressed(MouseButton::Left) {
-        if let Some(id) = pick_piece_at(hover, ws.floor_level, owner, &placed) {
+        if let Some(id) = pick_piece_at_mut(hover, ws.floor_level, owner, &placed) {
             sel.selected = vec![id];
             sel.box_select = false;
             sel.drag_group = shift;

@@ -71,7 +71,10 @@ pub fn apply_pending_history(
                     if ep.piece_id != snap.piece_id {
                         continue;
                     }
-                    tf.translation = Vec3::new(snap.x, floor_y(snap.floor_level), snap.z);
+                    let y = snap
+                        .y
+                        .unwrap_or_else(|| floor_y(snap.floor_level));
+                    tf.translation = Vec3::new(snap.x, y, snap.z);
                     tf.rotation = Quat::from_rotation_y(quantize_yaw(snap.yaw));
                     tf.scale = Vec3::splat(snap.scale);
                     let (sw_x, sw_z) = sw_from_placement(tf.translation, km.name, snap.yaw);
@@ -96,6 +99,9 @@ pub fn apply_pending_history(
                 EditorWorkflow::ModuleMaker => {
                     *ws.module.floor_mask_for_mut(level) = after;
                 }
+                EditorWorkflow::SynthDressing => {
+                    ws.dressing.floor_mask = after;
+                }
             }
             ws.floor_dirty = true;
             ws.dirty = true;
@@ -107,6 +113,7 @@ fn document_pieces(ws: &mut EditorWorkspace, owner: PieceOwner) -> &mut Vec<Piec
     match owner {
         PieceOwner::Map => &mut ws.map.pieces,
         PieceOwner::Module => &mut ws.module.pieces,
+        PieceOwner::Dressing => &mut ws.dressing.pieces,
     }
 }
 

@@ -122,6 +122,10 @@ fn floor_context(ws: &EditorWorkspace) -> (FloorMask, f32, f32, f32) {
             let mask = ws.module.floor_mask_for(ws.floor_level);
             (mask, grid.world_x0(), grid.world_z0(), floor_y)
         }
+        EditorWorkflow::SynthDressing => {
+            let mask = ws.dressing.floor_mask.clone();
+            (mask, grid.world_x0(), grid.world_z0(), floor_y)
+        }
     }
 }
 
@@ -136,6 +140,11 @@ pub fn clone_floor_mask(ws: &EditorWorkspace) -> (EditorWorkflow, i32, FloorMask
             EditorWorkflow::ModuleMaker,
             ws.floor_level,
             ws.module.floor_mask_for(ws.floor_level),
+        ),
+        EditorWorkflow::SynthDressing => (
+            EditorWorkflow::SynthDressing,
+            ws.floor_level,
+            ws.dressing.floor_mask.clone(),
         ),
     }
 }
@@ -164,6 +173,15 @@ pub fn paint_floor_rect(ws: &mut EditorWorkspace, raw_x0: u32, raw_z0: u32, raw_
                 for ix in ix0..=ix1 {
                     if ix < grid.cells_x && iz < grid.cells_z {
                         mask.set(ix, iz, add);
+                    }
+                }
+            }
+        }
+        EditorWorkflow::SynthDressing => {
+            for iz in iz0..=iz1 {
+                for ix in ix0..=ix1 {
+                    if ix < grid.cells_x && iz < grid.cells_z {
+                        ws.dressing.floor_mask.set(ix, iz, add);
                     }
                 }
             }

@@ -43,6 +43,9 @@ pub struct SidebarFilterBtn(pub FilterGroup);
 pub struct SidebarPieceBtn(pub usize);
 
 #[derive(Component)]
+pub struct SidebarDressingCatBtn(pub editor_catalog::DressingCatFilter);
+
+#[derive(Component)]
 pub struct SidebarModuleBtn(pub usize);
 
 #[derive(Component)]
@@ -163,6 +166,7 @@ pub fn spawn_sidebar(commands: &mut Commands, ws: &EditorWorkspace) {
             if !ws.sidebar_collapsed {
                 let is_map = ws.workflow == EditorWorkflow::MapMaker;
                 let spawn_active = ws.tool == shared::editor_map::EditorTool::SetSpawn;
+                if !ws.dressing_only {
                 root.spawn((
                     SidebarSpawnBtn,
                     Button,
@@ -297,6 +301,35 @@ pub fn spawn_sidebar(commands: &mut Commands, ws: &EditorWorkspace) {
                         TextColor(Color::srgb(0.85, 0.92, 1.0)),
                     ));
                 });
+                } else {
+                    root.spawn((
+                        SidebarSpawnBtn,
+                        Button,
+                        Node {
+                            padding: UiRect::axes(Val::Px(8.0), Val::Px(6.0)),
+                            justify_content: JustifyContent::Center,
+                            width: Val::Percent(100.0),
+                            margin: UiRect::bottom(Val::Px(6.0)),
+                            ..default()
+                        },
+                        BackgroundColor(if spawn_active {
+                            Color::srgba(0.18, 0.42, 0.28, 0.98)
+                        } else {
+                            Color::srgba(0.10, 0.22, 0.16, 0.95)
+                        }),
+                        Text::new("\u{25B6} Set Spawn"),
+                        TextFont { font_size: 13.0, ..default() },
+                        TextColor(Color::srgb(0.55, 1.0, 0.65)),
+                    ));
+                    root.spawn((
+                        Text::new("Synth pieces"),
+                        TextFont {
+                            font_size: 13.0,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.45, 0.92, 1.0)),
+                    ));
+                }
                 root.spawn((
                     SidebarContent,
                     Node {
@@ -325,7 +358,7 @@ pub fn spawn_sidebar(commands: &mut Commands, ws: &EditorWorkspace) {
         });
 }
 
-fn sidebar_visibility(ws: &EditorWorkspace) -> Visibility {
+fn sidebar_visibility(_ws: &EditorWorkspace) -> Visibility {
     Visibility::Inherited
 }
 
@@ -515,7 +548,7 @@ pub fn rebuild_sidebar(
     mut commands: Commands,
     mut ws: ResMut<EditorWorkspace>,
     mut cache: ResMut<SidebarCache>,
-    state: Res<EditorState>,
+    mut state: ResMut<EditorState>,
     ratings: Res<GalleryRatings>,
     map_gen_settings: Res<crate::editor_map_gen::MapGenSettings>,
     map_gen_runtime: Res<crate::editor_map_gen::MapGenRuntime>,
@@ -525,8 +558,13 @@ pub fn rebuild_sidebar(
         (With<SidebarTabGlb>, Without<SidebarTabModule>, Without<SidebarTabGallery>, Without<SidebarTabGenerate>),
     >,
     mut tab_mod: Query<
-        &mut BackgroundColor,
-        (With<SidebarTabModule>, Without<SidebarTabGlb>, Without<SidebarTabGallery>, Without<SidebarTabGenerate>),
+        (&mut BackgroundColor, &mut Node),
+        (
+            With<SidebarTabModule>,
+            Without<SidebarTabGlb>,
+            Without<SidebarTabGallery>,
+            Without<SidebarTabGenerate>,
+        ),
     >,
     mut tab_gal: Query<
         &mut BackgroundColor,
@@ -536,7 +574,6 @@ pub fn rebuild_sidebar(
         &mut BackgroundColor,
         (With<SidebarTabGenerate>, Without<SidebarTabGlb>, Without<SidebarTabModule>, Without<SidebarTabGallery>),
     >,
-    mut mod_tab_node: Query<&mut Node, (With<SidebarTabModule>, Without<SidebarSpawnBtn>)>,
     mut spawn_btn_node: Query<&mut Node, (With<SidebarSpawnBtn>, Without<SidebarTabModule>)>,
     mut module_info_node: Query<
         &mut Node,
@@ -548,37 +585,61 @@ pub fn rebuild_sidebar(
     }
     ws.sidebar_dirty = false;
 
+    if ws.dressing_only {
+        cache.stems =
+            editor_catalog::synth_dressing_stems_filtered(ws.dressing_category);
+        ws.sidebar_tab = SidebarTab::Glb;
+        state.stems = cache.stems.clone();
+        if state.piece_index >= state.stems.len() {
+            state.piece_index = 0;
+        }
+    }
+
     // Show/hide workflow-conditional sidebar elements.
     let is_map = ws.workflow == EditorWorkflow::MapMaker;
-    if let Ok(mut node) = mod_tab_node.single_mut() {
+    let is_dressing = ws.workflow == EditorWorkflow::SynthDressing || ws.dressing_only;
+    if !ws.dressing_only {
+    if let Ok((mut bg, mut node)) = tab_mod.single_mut() {
         node.display = if is_map { Display::Flex } else { Display::None };
-    }
-    if let Ok(mut node) = spawn_btn_node.single_mut() {
-        node.display = if is_map { Display::Flex } else { Display::None };
-    }
-    if let Ok(mut node) = module_info_node.single_mut() {
-        node.display = if is_map { Display::None } else { Display::Flex };
-    }
-
-    cache.stems = editor_catalog::filtered_stems(&ws.filters);
-    // Safety: if all filters are off the GLB list would be permanently empty.
-    // Auto-reset so the editor stays usable no matter what.
-    if cache.stems.is_empty() {
-        ws.filters.set_all(true);
-        cache.stems = editor_catalog::filtered_stems(&ws.filters);
-    }
-    cache.modules = editor_catalog::list_modules_in_pool(&ws.place_pool);
-
-    // Update tab highlight colours
-    if let Ok(mut bg) = tab_glb.single_mut() {
-        *bg = BackgroundColor(if ws.sidebar_tab == SidebarTab::Glb {
+        *bg = BackgroundColor(if ws.sidebar_tab == SidebarTab::Module {
             Color::srgba(0.14, 0.28, 0.42, 0.98)
         } else {
             Color::srgba(0.08, 0.14, 0.22, 0.95)
         });
     }
-    if let Ok(mut bg) = tab_mod.single_mut() {
-        *bg = BackgroundColor(if ws.sidebar_tab == SidebarTab::Module {
+    if let Ok(mut node) = spawn_btn_node.single_mut() {
+        node.display = if is_map { Display::Flex } else { Display::None };
+    }
+    if let Ok(mut node) = module_info_node.single_mut() {
+        node.display = if is_map || is_dressing {
+            Display::None
+        } else {
+            Display::Flex
+        };
+    }
+    }
+
+    if is_dressing {
+        cache.stems = if ws.dressing_only {
+            editor_catalog::synth_dressing_stems_filtered(ws.dressing_category)
+        } else {
+            editor_catalog::synth_dressing_stems()
+        };
+        ws.sidebar_tab = SidebarTab::Glb;
+    } else {
+        cache.stems = editor_catalog::filtered_stems(&ws.filters);
+        // Safety: if all filters are off the GLB list would be permanently empty.
+        if cache.stems.is_empty() {
+            ws.filters.set_all(true);
+            cache.stems = editor_catalog::filtered_stems(&ws.filters);
+        }
+    }
+    cache.modules = editor_catalog::list_modules_in_pool(&ws.place_pool);
+
+    // Update tab highlight colours
+    if !ws.dressing_only {
+    if let Ok(mut bg) = tab_glb.single_mut() {
+        *bg = BackgroundColor(if ws.sidebar_tab == SidebarTab::Glb {
             Color::srgba(0.14, 0.28, 0.42, 0.98)
         } else {
             Color::srgba(0.08, 0.14, 0.22, 0.95)
@@ -598,6 +659,7 @@ pub fn rebuild_sidebar(
             Color::srgba(0.08, 0.14, 0.22, 0.95)
         });
     }
+    }
 
     if ws.workflow == EditorWorkflow::ModuleMaker && ws.sidebar_tab == SidebarTab::Module {
         ws.sidebar_tab = SidebarTab::Glb;
@@ -614,6 +676,15 @@ pub fn rebuild_sidebar(
     let gallery_pool = ws.gallery_pool.clone();
     let gallery_cursor = ws.gallery_cursor;
     commands.entity(content_ent).with_children(|parent| {
+        if ws.dressing_only {
+            spawn_dressing_panel(
+                parent,
+                &cache.stems,
+                state.piece_index,
+                ws.dressing_category,
+            );
+            return;
+        }
         match ws.sidebar_tab {
             SidebarTab::Glb => spawn_glb_panel(parent, &ws.filters, &cache.stems, state.piece_index),
             SidebarTab::Module if ws.workflow == EditorWorkflow::MapMaker => {
@@ -662,6 +733,80 @@ pub fn select_first_on_tab(ws: &mut EditorWorkspace, state: &mut EditorState, ca
         SidebarTab::Generate => {
             ws.tool = EditorTool::GalleryPreview;
         }
+    }
+}
+
+fn spawn_dressing_panel(
+    parent: &mut ChildSpawnerCommands,
+    stems: &[String],
+    selected_index: usize,
+    active_category: editor_catalog::DressingCatFilter,
+) {
+    parent.spawn((
+        Text::new("Category"),
+        TextFont {
+            font_size: 12.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.45, 0.92, 1.0)),
+    ));
+    parent
+        .spawn(Node {
+            flex_direction: FlexDirection::Row,
+            flex_wrap: FlexWrap::Wrap,
+            column_gap: Val::Px(4.0),
+            row_gap: Val::Px(4.0),
+            ..default()
+        })
+        .with_children(|row| {
+            for cat in editor_catalog::DressingCatFilter::SELECTABLE {
+                let on = cat == active_category;
+                row.spawn((
+                    SidebarDressingCatBtn(cat),
+                    Button,
+                    Node {
+                        padding: UiRect::axes(Val::Px(6.0), Val::Px(3.0)),
+                        ..default()
+                    },
+                    BackgroundColor(if on {
+                        Color::srgba(0.18, 0.35, 0.22, 0.98)
+                    } else {
+                        Color::srgba(0.08, 0.14, 0.20, 0.92)
+                    }),
+                    Text::new(cat.label()),
+                    TextFont {
+                        font_size: 11.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.82, 0.9, 0.98)),
+                ));
+            }
+        });
+    parent.spawn((
+        Text::new(format!("Pieces ({})", stems.len())),
+        TextFont {
+            font_size: 13.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.45, 0.92, 1.0)),
+    ));
+    for (i, stem) in stems.iter().enumerate() {
+        let sel = if stems.is_empty() {
+            false
+        } else {
+            i == selected_index.min(stems.len() - 1)
+        };
+        spawn_piece_row(parent, i, stem, sel);
+    }
+    if stems.is_empty() {
+        parent.spawn((
+            Text::new("No synth pieces in catalogue"),
+            TextFont {
+                font_size: 12.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.55, 0.62, 0.72)),
+        ));
     }
 }
 
@@ -798,10 +943,31 @@ pub fn sidebar_button_input(
     pool_btn: Query<&Interaction, (Changed<Interaction>, With<SidebarPoolCycle>)>,
     piece_btn: Query<(&Interaction, &SidebarPieceBtn), Changed<Interaction>>,
     mod_btn: Query<(&Interaction, &SidebarModuleBtn), Changed<Interaction>>,
+    dressing_cat_btn: Query<
+        (&Interaction, &SidebarDressingCatBtn),
+        (Changed<Interaction>, Without<SidebarPieceBtn>),
+    >,
 ) {
     if pressed(&spawn_btn) {
         ws.tool = EditorTool::SetSpawn;
         ws.sidebar_dirty = true;
+    }
+    for (interaction, btn) in &dressing_cat_btn {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        if ws.dressing_category == btn.0 {
+            continue;
+        }
+        ws.dressing_category = btn.0;
+        state.stems = editor_catalog::synth_dressing_stems_filtered(btn.0);
+        state.piece_index = 0;
+        state.dressing_y_steps = 0;
+        ws.respawn_ghost = true;
+        ws.sidebar_dirty = true;
+        if !cache.stems.is_empty() {
+            ws.tool = EditorTool::PlaceGlb;
+        }
     }
     if pressed(&glb_tab) {
         exit_gallery_mode(&mut ws);
@@ -849,6 +1015,7 @@ pub fn sidebar_button_input(
         if *interaction == Interaction::Pressed {
             if btn.0 < cache.stems.len() {
                 state.piece_index = btn.0;
+                state.dressing_y_steps = 0;
                 ws.tool = EditorTool::PlaceGlb;
                 ws.sidebar_dirty = true;
                 ws.respawn_ghost = true;
@@ -1390,11 +1557,13 @@ pub fn spawn_load_picker_ui(mut commands: Commands, mut ws: ResMut<EditorWorkspa
     let entries: Vec<(String, std::path::PathBuf)> = match ws.workflow {
         EditorWorkflow::MapMaker => list_map_files(),
         EditorWorkflow::ModuleMaker => editor_catalog::list_modules_in_pool(&ws.place_pool),
+        EditorWorkflow::SynthDressing => shared::editor_map::list_dressing_files(),
     };
 
     let title = match ws.workflow {
         EditorWorkflow::MapMaker => "Load map",
         EditorWorkflow::ModuleMaker => "Load module",
+        EditorWorkflow::SynthDressing => "Load dressing vignette",
     };
 
     commands
@@ -1491,6 +1660,9 @@ pub fn load_picker_input(
                 }
                 EditorWorkflow::ModuleMaker => {
                     ws.load_module_path = Some(entry.0.clone());
+                }
+                EditorWorkflow::SynthDressing => {
+                    ws.pending_load_dressing = Some(entry.0.clone());
                 }
             }
             close = true;

@@ -180,15 +180,24 @@ pub fn uses_edge_anchor(stem: &str) -> bool {
     })
 }
 
+fn snap_to_step(hit_x: f32, hit_z: f32, map_x0: f32, map_z0: f32, step: f32) -> (f32, f32) {
+    let sw_x = ((hit_x - map_x0) / step).floor() * step + map_x0;
+    let sw_z = ((hit_z - map_z0) / step).floor() * step + map_z0;
+    (sw_x, sw_z)
+}
+
 /// Snap hover position to grid before computing anchor.
 pub fn snap_hover(hit_x: f32, hit_z: f32, map_x0: f32, map_z0: f32, mode: crate::editor_map::SnapMode) -> (f32, f32) {
     match mode {
         crate::editor_map::SnapMode::FullCell => cell_sw_corner(hit_x, hit_z, map_x0, map_z0),
         crate::editor_map::SnapMode::HalfCell => {
-            const H: f32 = 2.0;
-            let sw_x = ((hit_x - map_x0) / H).floor() * H + map_x0;
-            let sw_z = ((hit_z - map_z0) / H).floor() * H + map_z0;
-            (sw_x, sw_z)
+            snap_to_step(hit_x, hit_z, map_x0, map_z0, 2.0)
+        }
+        crate::editor_map::SnapMode::QuarterCell => {
+            snap_to_step(hit_x, hit_z, map_x0, map_z0, 1.0)
+        }
+        crate::editor_map::SnapMode::EighthCell => {
+            snap_to_step(hit_x, hit_z, map_x0, map_z0, 0.5)
         }
         crate::editor_map::SnapMode::Free => (hit_x, hit_z),
     }

@@ -20,5 +20,10 @@
       0.35
     ],
     "tag": "hidden_entrance"
+  },
+  "transition": {
+    "mode": "outdoor_then_indoor",
+    "substrate_overlap_cells": 0,
+    "entrance_door": { "stem": "gate-door", "kit": "dungeon" }
   }
 }

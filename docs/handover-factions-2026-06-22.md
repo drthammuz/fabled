@@ -89,13 +89,72 @@ Known-good reference: `space_station/wall` (depth centre 0) renders flush.
 5. **Full `cargo build` needs cmd.exe/PowerShell (not Git Bash — `link.exe`
    conflict) AND the editor closed.** `cargo check -p client` works in either.
 
+## Map model — user refinements (2026-06-22)
+
+These override the naive "three equal faction zones" mental model. Full spec in
+`docs/procgen-faction-manifest.md` §2.2–2.3, §4.3, §5.4b.
+
+### Substrate vs camps
+
+- **Industrial** (`industrial_default`) is the **default substrate** — sewers,
+  ventilation, subway, anything that normally exists underground. It is not one
+  of the four "faction camps"; it is connective tissue.
+- The **four other factions** each have **camps** (stations between maps). The
+  camp hub is built in that faction's architecture. When the player leaves a
+  camp, the **next level starts in that faction's buildings**; when they
+  approach the next camp, that faction's buildings appear again at the end.
+- Realistic level fractions along spawn→extract are **~15% / 60% / 35%**
+  (prev-faction / industrial / next-faction), not equal thirds. Current
+  `level_composition.py` defaults are 25/50/25 — treat 15/60/35 as the target
+  preset once the zone planner lands.
+
+### Transitions must use entrances, not instant interiors
+
+**Current behaviour (wrong):** `gen_freeform` paints prev/default/next kits
+along the spine; the player steps from industrial straight into enclosed faction
+rooms with no door read.
+
+**Target behaviour:**
+
+1. The level is **technically built on industrial**; faction architecture
+   attaches at transition nodes through **doors / entrances**, not by swapping
+   the whole grid interior-first.
+2. Transition path is **faction-dependent:**
+   - **Higher-tech** factions (e.g. synth / space_station) → more likely an
+     **outdoor or exterior** buffer (plaza, station apron) before indoor halls.
+   - **Lower-tier / rogue** factions (e.g. outlaw) → buildings **directly on
+     dirt**; industrial substrate may **continue for several tiles** after
+     faction walls begin (no landscaped outdoor).
+3. Every faction entrance from industrial should include a **door frame** and,
+   where the kit provides them, **small entrance stairs** (space_station:
+   `stairs-small-*` straight and rounded variants) to **elevate** buildings
+   above the substrate floor — learn these pieces for every hand-off.
+4. Camps mirror this: approaching a camp, faction buildings appear; the camp
+   itself is that faction's hub architecture, entered through the same entrance
+   vocabulary.
+
+### Props — not random scatter
+
+Props are per-faction and must respect **setup patterns**, not uniform random
+placement. Examples: office = desk + computer clusters; cantina = table groups;
+some setups need **special room shapes** or **spine-centre corridor slots**;
+outdoor setups may need a **specific courtyard shape** or **buildings
+surrounding an open centre**. See manifest §5.4b (`structural archetypes`) and
+§5.1 `prop_setups` — implement with the props pass, not before Phase 1 Kenney
+layout is trustworthy.
+
+Implemented (2026-06-22): `tools/transition_entrances.py` — doors + entrance
+stairs at industrial↔faction spine boundaries; `transition` block on faction
+profiles; substrate overlap (`substrate_overlap_cells`) for
+`direct_on_substrate` factions; default zone weights 15/60/35 (normalized).
+
 ## Remaining work (roster build order)
 
-1. **Props system** (biggest gap): a generator feature to scatter each faction's
-   dressing kit on floor cells — `factory`/`city_industrial` (industrial),
-   `retro_fantasy`/`castle` banners (priesthood), `furniture`/computers (synth),
-   `retro_urban` details/trucks (urban), `graveyard` gravestones/crypts/lanterns
-   (necropolis). Props are per-faction, NOT a shared pool. None placed yet.
+1. **Props system** (biggest gap): faction-specific **setup patterns** (not random
+   scatter) using each faction's dressing kit — `factory`/`space_kit`
+   (industrial), `retro_fantasy`/`castle` (priesthood), `furniture`/computers
+   (synth), `retro_urban` details/trucks (urban), `graveyard`
+   gravestones/crypts/lanterns (necropolis). None placed yet.
 2. **Castle pass** for Priesthood (fortress walls/towers/gates from `castle/`).
 3. **Platformer slopes** as a shared verticality utility (`platformer/` ramps).
 4. **Faction-driven ceilings**: ceilings are currently always neutral

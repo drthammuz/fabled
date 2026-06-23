@@ -70,6 +70,7 @@ pub fn snapshot_from_entity(
     stem: &str,
     tf: &Transform,
     ep: &crate::editor_selection::EditorPlaced,
+    km: &crate::test_showcase::KenneyModule,
 ) -> PieceSnapshot {
     PieceSnapshot {
         piece_id,
@@ -83,6 +84,8 @@ pub fn snapshot_from_entity(
         group_id: ep.group_id,
         sw_x: ep.sw_x,
         sw_z: ep.sw_z,
+        y: Some(tf.translation.y),
+        kit: km.kit.map(|k| k.to_string()),
     }
 }
 
@@ -99,6 +102,8 @@ pub fn snapshot_from_record(id: u32, owner: PieceOwner, record: &PieceRecord) ->
         group_id: record.group_id,
         sw_x: record.x,
         sw_z: record.z,
+        y: record.y,
+        kit: record.kit.clone(),
     }
 }
 
@@ -113,10 +118,11 @@ pub fn record_from_snapshot(s: &PieceSnapshot) -> PieceRecord {
         group_id: s.group_id,
         ceiling: false,
         underside: false,
-        kit: None,
+        kit: s.kit.clone(),
         tint: None,
         tags: vec![],
         zone: None,
+        y: s.y,
     }
 }
 

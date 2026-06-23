@@ -20,5 +20,10 @@
       0.42
     ],
     "tag": "hidden_entrance"
+  },
+  "transition": {
+    "mode": "direct_on_substrate",
+    "substrate_overlap_cells": 3,
+    "entrance_door": { "stem": "gate-door", "kit": "space" }
   }
 }

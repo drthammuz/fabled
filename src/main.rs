@@ -57,8 +57,12 @@ struct Cli {
     kenney: bool,
 
     /// Kenney module layout editor (zoomed-out map view). Implies `--host`.
-    #[arg(long, conflicts_with_all = ["test", "kenney", "rusty", "city"])]
+    #[arg(long, conflicts_with_all = ["test", "kenney", "rusty", "city", "dressing"])]
     editor: bool,
+
+    /// Synth interior vignette sandbox (minimal UI). Implies `--host --editor`.
+    #[arg(long, conflicts_with_all = ["test", "kenney", "rusty", "city", "editor"])]
+    dressing: bool,
 
     /// Walk `assets/models/misc/cyberpunk_city.glb` with collision + daylight. Implies `--host`.
     #[arg(long, conflicts_with_all = ["server", "client", "test", "editor"])]
@@ -72,7 +76,7 @@ fn main() {
         run_server();
     } else if let Some(address) = cli.client {
         run_client(address);
-    } else if cli.host || cli.test || cli.editor || cli.city {
+    } else if cli.host || cli.test || cli.editor || cli.city || cli.dressing {
         run_host(&cli);
     } else {
         eprintln!("error: specify one of --server, --client <ip>, --host, or --city");
@@ -111,6 +115,8 @@ fn run_client(address: String) {
 fn run_host(cli: &Cli) {
     let title = if cli.city {
         "fabled - cyberpunk city"
+    } else if cli.dressing {
+        "fabled - dressing [build 2025-06-15d]"
     } else if cli.editor {
         "fabled - editor [build 2025-06-15d]"
     } else if cli.test {
@@ -119,7 +125,7 @@ fn run_host(cli: &Cli) {
         "fabled - host"
     };
     let settings = shared::editor_settings::UserEditorPrefs::load();
-    let window_mode = if cli.editor {
+    let window_mode = if cli.editor || cli.dressing {
         client::display_settings::window_mode_for(settings.editor_display)
     } else if cli.test {
         client::display_settings::window_mode_for(settings.test_display)
@@ -131,6 +137,14 @@ fn run_host(cli: &Cli) {
     let mut app = App::new();
     if cli.city {
         app.insert_resource(shared::CityViewMode);
+    } else if cli.dressing {
+        shared::level::set_test_map_style(shared::TestMapStyle::Rusty);
+        shared::level::set_editor_layout(true);
+        app.insert_resource(shared::EditorMode);
+        app.insert_resource(shared::DressingShellMode);
+        app.insert_resource(shared::TestMode {
+            style: shared::TestMapStyle::Rusty,
+        });
     } else if cli.editor {
         shared::level::set_test_map_style(shared::TestMapStyle::Rusty);
         shared::level::set_editor_layout(true);

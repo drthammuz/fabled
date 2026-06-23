@@ -6,7 +6,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::camera::Exposure;
 use bevy::ecs::schedule::common_conditions::{not, resource_exists};
 use bevy::gltf::GltfLoaderSettings;
-use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
+use bevy::input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use shared::editor_map::{
@@ -14,7 +14,13 @@ use shared::editor_map::{
 };
 use shared::editor_settings::UserEditorPrefs;
 use crate::door_anim::HiddenEntranceDoor;
-use shared::editor_catalog::{glb_asset_path, glb_asset_path_in_kit};
+use shared::editor_catalog::{
+    glb_asset_path, glb_asset_path_in_kit, synth_dressing_stems, synth_dressing_stems_filtered,
+    synth_dressing_placement_y, synth_wall_decal_mount_offset, synth_back_anchor_offset,
+    synth_wall_face_offset, synth_balcony_outward_offset, is_synth_balcony_stem,
+    synth_face_yaw, is_synth_structure_wall, SYNTH_DRESSING_SCALE, SYNTH_KIT,
+    SYNTH_DECK_Y,
+};
 use shared::kenney_catalog::{
     self, placement_for_hover, quantize_yaw, rotated_grid_size, sw_from_placement, KENNEY_CELL,
     KENNEY_MOD_M,
@@ -34,7 +40,7 @@ use crate::editor_history::{
 use crate::editor_ops::{apply_pending_history, remove_group_from_document, remove_piece_from_document};
 use crate::editor_playtest::{enter_in_process_playtest, exit_in_process_playtest, EditorPlaytestActive};
 use crate::editor_selection::{
-    draw_selection_gizmo, piece_covers_cell, select_drag_input,
+    draw_selection_gizmo, pick_piece_at, select_drag_input,
     select_tool_input, EditorPlaced, EditorSelection, PieceOwner,
 };
 use crate::editor_sidebar::{
@@ -53,7 +59,7 @@ use crate::process_spawn::relaunch_fabled;
 use crate::test_showcase::{
     cut_kenney_mesh, init_editor_kenney_materials, kenney_material_slot, KenneyMaterialSlot,
     CyberLaserMaterial, CyberMaterial, CyberMaterialCeiling, CyberMaterialIndustrial,
-    CyberMaterialPinkCeiling, KenneyModule, PriesthoodMaterial,
+    CyberMaterialPinkCeiling, KenneyModule, PriesthoodMaterial, SynthMaterial,
     PieceTint, EDITOR_BUILD_TAG,
 };
 
@@ -101,19 +107,25 @@ impl Plugin for KenneyEditorPlugin {
                     crate::editor_sidebar::sidebar_pointer_and_scroll,
                     spawn_naming_ui,
                     naming_modal_input,
-                    spawn_load_picker_ui,
-                    load_picker_input,
-                    clear_module_pieces,
+                    clear_workflow_pieces,
                     file_menu_actions,
                     persist_module_on_map_switch,
                     sync_cam_on_workflow_change,
                     load_module_requested,
                     maybe_respawn_ghost,
+                )
+                    .chain()
+                    .run_if(editor_active),
+            )
+            .add_systems(
+                Update,
+                (
+                    spawn_load_picker_ui,
+                    load_picker_input,
                     menu_button_input,
                     sync_menu_labels,
                     cancel_floor_tool,
                 )
-                    .chain()
                     .run_if(editor_active),
             )
             .add_systems(
@@ -140,6 +152,7 @@ impl Plugin for KenneyEditorPlugin {
                     update_ghost,
                     update_piece_visibility,
                     pan_camera,
+                    orbit_camera,
                     zoom_camera,
                     update_editor_camera,
                 )
@@ -196,33 +209,53 @@ impl Plugin for KenneyEditorPlugin {
 #[derive(Resource)]
 pub struct EditorCam {
     pub focus: Vec3,
+    /// Orbit distance from `focus` (scroll wheel adjusts this).
     pub height: f32,
+    pub orbit_yaw: f32,
+    pub orbit_pitch: f32,
 }
+
+/// Default elevation above the xz plane — matches legacy editor (height : back = 1 : 0.45).
+const DEFAULT_EDITOR_ELEVATION: f32 = 1.148;
 
 #[derive(Clone, Copy)]
 struct CamSnapshot {
     focus: Vec3,
     height: f32,
+    orbit_yaw: f32,
+    orbit_pitch: f32,
 }
 
 #[derive(Resource)]
 pub struct EditorCamState {
     map: CamSnapshot,
     module: CamSnapshot,
+    dressing: CamSnapshot,
 }
 
 impl Default for EditorCamState {
     fn default() -> Self {
         let (cx, cz) = shared::editor_map::MapDocument::new_default().grid().center_xz();
         let (mx, mz) = GridSpec::for_workflow(EditorWorkflow::ModuleMaker, 1, 1).center_xz();
+        let (dx, dz) = shared::editor_map::DressingDocument::grid().center_xz();
         Self {
             map: CamSnapshot {
                 focus: Vec3::new(cx, 0.0, cz),
                 height: 88.0,
+                orbit_yaw: 0.0,
+                orbit_pitch: DEFAULT_EDITOR_ELEVATION,
             },
             module: CamSnapshot {
                 focus: Vec3::new(mx, 0.0, mz),
                 height: 42.0,
+                orbit_yaw: 0.0,
+                orbit_pitch: DEFAULT_EDITOR_ELEVATION,
+            },
+            dressing: CamSnapshot {
+                focus: Vec3::new(dx, 0.0, dz),
+                height: 220.0,
+                orbit_yaw: 0.0,
+                orbit_pitch: DEFAULT_EDITOR_ELEVATION,
             },
         }
     }
@@ -233,6 +266,7 @@ impl EditorCamState {
         match workflow {
             EditorWorkflow::MapMaker => self.map,
             EditorWorkflow::ModuleMaker => self.module,
+            EditorWorkflow::SynthDressing => self.dressing,
         }
     }
 
@@ -240,16 +274,21 @@ impl EditorCamState {
         let snap = CamSnapshot {
             focus: cam.focus,
             height: cam.height,
+            orbit_yaw: cam.orbit_yaw,
+            orbit_pitch: cam.orbit_pitch,
         };
         match workflow {
             EditorWorkflow::MapMaker => self.map = snap,
             EditorWorkflow::ModuleMaker => self.module = snap,
+            EditorWorkflow::SynthDressing => self.dressing = snap,
         }
     }
 
     fn apply(snap: CamSnapshot, cam: &mut EditorCam) {
         cam.focus = snap.focus;
         cam.height = snap.height;
+        cam.orbit_yaw = snap.orbit_yaw;
+        cam.orbit_pitch = snap.orbit_pitch;
     }
 }
 
@@ -292,6 +331,8 @@ impl Default for EditorCam {
         Self {
             focus: Vec3::new(cx, 0.0, cz),
             height: 72.0,
+            orbit_yaw: 0.0,
+            orbit_pitch: DEFAULT_EDITOR_ELEVATION,
         }
     }
 }
@@ -299,6 +340,7 @@ impl Default for EditorCam {
 fn editor_startup(
     mut commands: Commands,
     editor: Option<Res<EditorMode>>,
+    dressing_shell: Option<Res<shared::DressingShellMode>>,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut state: ResMut<EditorState>,
@@ -315,17 +357,28 @@ fn editor_startup(
     window.grab_mode = CursorGrabMode::None;
     window.visible = true;
 
-    load_initial_documents(&mut ws);
-    crate::editor_sidebar::sync_stems_from_filters(&mut state, &ws.filters);
+    if dressing_shell.is_some() {
+        ws.dressing_only = true;
+        ws.set_workflow(EditorWorkflow::SynthDressing);
+        let name = shared::editor_catalog::suggest_dressing_name();
+        ws.begin_new_dressing(&name);
+        state.stems = synth_dressing_stems_filtered(ws.dressing_category);
+        state.piece_index = 0;
+    } else {
+        load_initial_documents(&mut ws);
+        crate::editor_sidebar::sync_stems_from_filters(&mut state, &ws.filters);
+    }
     let (cx, cz) = ws.grid().center_xz();
     let snap = cam_state.get(ws.workflow);
     cam.focus = snap.focus;
     cam.height = snap.height;
+    cam.orbit_yaw = snap.orbit_yaw;
+    cam.orbit_pitch = snap.orbit_pitch;
     if cam.focus == Vec3::ZERO {
         cam.focus = Vec3::new(cx, 0.0, cz);
     }
 
-    let (cyber, cyber_lasers, cyber_ceiling, cyber_industrial, pink_ceiling, priesthood) =
+    let (cyber, cyber_lasers, cyber_ceiling, cyber_industrial, pink_ceiling, priesthood, synth) =
         init_editor_kenney_materials(&asset_server, &mut materials);
     commands.insert_resource(cyber);
     commands.insert_resource(cyber_lasers);
@@ -333,6 +386,7 @@ fn editor_startup(
     commands.insert_resource(cyber_industrial);
     commands.insert_resource(pink_ceiling);
     commands.insert_resource(priesthood);
+    commands.insert_resource(synth);
 
     commands.spawn((
         Camera3d::default(),
@@ -341,7 +395,7 @@ fn editor_startup(
         editor_cam_transform(&cam),
     ));
 
-    spawn_ghost(&mut commands, &asset_server, &state, ws.floor_level);
+    spawn_ghost(&mut commands, &asset_server, &state, ws.as_ref());
     load_pieces(&mut commands, &asset_server, &mut state, &ws);
 
     commands.spawn((
@@ -361,23 +415,30 @@ fn editor_startup(
         },
     ));
 
-    spawn_editor_chrome(&mut commands, &ws, &prefs);
+    spawn_editor_chrome(&mut commands, &ws, &state, &prefs);
     ws.floor_dirty = true;
     ws.sidebar_dirty = true;
+    if ws.dressing_only || ws.workflow == EditorWorkflow::SynthDressing {
+        ws.spawn_marker_dirty = true;
+    }
 
     info!(
         "Editor ready [build {}] — {} | piece: {}",
         EDITOR_BUILD_TAG,
-        status_line(&ws),
+        status_line(&ws, &state),
         state.stems.first().map(|s| s.as_str()).unwrap_or("(none)"),
     );
 }
 
-fn set_editor_window_title(mut windows: Query<&mut Window, With<PrimaryWindow>>) {
+fn set_editor_window_title(ws: Res<EditorWorkspace>, mut windows: Query<&mut Window, With<PrimaryWindow>>) {
     let Ok(mut window) = windows.single_mut() else {
         return;
     };
-    window.title = format!("fabled editor [build {EDITOR_BUILD_TAG}]");
+    window.title = if ws.dressing_only {
+        format!("fabled dressing [build {EDITOR_BUILD_TAG}]")
+    } else {
+        format!("fabled editor [build {EDITOR_BUILD_TAG}]")
+    };
 }
 
 fn load_initial_documents(ws: &mut EditorWorkspace) {
@@ -403,6 +464,7 @@ fn load_initial_documents(ws: &mut EditorWorkspace) {
             tint: p.tint,
             tags: p.tags.clone(),
             zone: None,
+            y: p.y,
         });
     }
 }
@@ -433,12 +495,41 @@ fn owner_for_workflow(w: EditorWorkflow) -> PieceOwner {
     match w {
         EditorWorkflow::MapMaker => PieceOwner::Map,
         EditorWorkflow::ModuleMaker => PieceOwner::Module,
+        EditorWorkflow::SynthDressing => PieceOwner::Dressing,
     }
+}
+
+fn is_dressing_workflow(ws: &EditorWorkspace) -> bool {
+    ws.workflow == EditorWorkflow::SynthDressing || ws.dressing_only
+}
+
+fn dressing_ghost_scale(ws: &EditorWorkspace) -> f32 {
+    if is_dressing_workflow(ws) {
+        SYNTH_DRESSING_SCALE
+    } else {
+        1.0
+    }
+}
+
+fn hover_plane_y(ws: &EditorWorkspace) -> f32 {
+    if is_dressing_workflow(ws) {
+        floor_y(0)
+    } else {
+        floor_y(ws.floor_level)
+    }
+}
+
+fn dressing_snap_y(stem: &str, steps: i32) -> f32 {
+    synth_dressing_placement_y(stem, steps)
 }
 
 fn update_snap(state: &mut EditorState, ws: &EditorWorkspace) {
     let stem = current_stem(state);
-    let y = floor_y(ws.floor_level);
+    let y = if is_dressing_workflow(ws) {
+        dressing_snap_y(stem, state.dressing_y_steps)
+    } else {
+        floor_y(ws.floor_level)
+    };
     let grid = ws.grid();
     let hover_x = state.cell_sw.x;
     let hover_z = state.cell_sw.y;
@@ -452,6 +543,19 @@ fn update_snap(state: &mut EditorState, ws: &EditorWorkspace) {
         grid.world_z0(),
         ws.snap,
     );
+    let mut pos = pos;
+    if is_dressing_workflow(ws) {
+        if is_synth_structure_wall(stem) && ws.snap == shared::editor_map::SnapMode::FullCell {
+            pos += synth_wall_face_offset(yaw);
+        }
+        if is_synth_balcony_stem(stem) && ws.snap == shared::editor_map::SnapMode::FullCell {
+            pos += synth_balcony_outward_offset(yaw);
+        }
+        if let Some(off) = synth_back_anchor_offset(stem, yaw) {
+            pos += off;
+        }
+        pos += synth_wall_decal_mount_offset(stem, yaw);
+    }
     state.snap = pos;
     state.yaw = yaw;
     state.cell_sw = Vec2::new(sw_x, sw_z);
@@ -465,9 +569,21 @@ fn keep_cursor_free(mut window: Single<&mut CursorOptions, With<PrimaryWindow>>)
 }
 
 pub fn editor_cam_transform(cam: &EditorCam) -> Transform {
-    let back = cam.height * 0.45;
-    Transform::from_xyz(cam.focus.x, cam.height, cam.focus.z + back)
-        .looking_at(cam.focus, Vec3::Y)
+    let dist = cam.height.max(ZOOM_MIN);
+    let elev = cam.orbit_pitch.clamp(0.12, 1.52);
+    let yaw = cam.orbit_yaw;
+    let horiz = dist * elev.cos();
+    let vert = dist * elev.sin();
+    let pos = cam.focus + Vec3::new(horiz * yaw.sin(), vert, horiz * yaw.cos());
+    Transform::from_translation(pos).looking_at(cam.focus, Vec3::Y)
+}
+
+/// Horizontal forward/right on the xz plane for camera-relative panning.
+fn editor_camera_pan_basis(cam: &EditorCam) -> (Vec2, Vec2) {
+    let yaw = cam.orbit_yaw;
+    let forward = Vec2::new(-yaw.sin(), -yaw.cos());
+    let right = Vec2::new(yaw.cos(), -yaw.sin());
+    (forward, right)
 }
 
 fn spawn_module(
@@ -495,7 +611,7 @@ fn spawn_module(
         .map(|k| glb_asset_path_in_kit(stem, k))
         .unwrap_or_else(|| glb_asset_path(stem));
     let kit_static = kit.map(stem_static);
-    let mut bundle = (
+    let bundle = (
         SceneRoot(asset_server.load_with_settings(
             GltfAssetLabel::Scene(0).from_asset(path),
             |s: &mut GltfLoaderSettings| s.load_meshes = RenderAssetUsages::all(),
@@ -553,7 +669,7 @@ pub fn spawn_piece_record_pub(
         return;
     }
     let yaw = quantize_yaw(p.yaw);
-    let pos = Vec3::new(p.x, floor_y(p.floor_level), p.z);
+    let pos = Vec3::new(p.x, p.world_y(), p.z);
     let (sw_x, sw_z) = sw_from_placement(pos, &p.stem, yaw);
     let collide = kenney_catalog::piece(&p.stem)
         .map(|x| x.collide_default)
@@ -581,26 +697,44 @@ pub fn spawn_piece_record_pub(
     );
 }
 
-fn spawn_ghost(commands: &mut Commands, asset_server: &AssetServer, state: &EditorState, floor_level: i32) {
+fn spawn_ghost(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    state: &EditorState,
+    ws: &EditorWorkspace,
+) {
     let Some(stem) = state.stems.get(state.piece_index).or(state.stems.first()) else {
         return;
     };
     let name = stem_static(stem);
-    let path = glb_asset_path(stem);
+    let dressing = is_dressing_workflow(ws);
+    let path = if dressing {
+        glb_asset_path_in_kit(stem, SYNTH_KIT)
+    } else {
+        glb_asset_path(stem)
+    };
+    let scale = dressing_ghost_scale(ws);
+    let y = if dressing {
+        dressing_snap_y(stem, state.dressing_y_steps)
+    } else {
+        floor_y(ws.floor_level)
+    };
     commands.spawn((
         SceneRoot(asset_server.load_with_settings(
             GltfAssetLabel::Scene(0).from_asset(path),
             |s: &mut GltfLoaderSettings| s.load_meshes = RenderAssetUsages::all(),
         )),
-        Transform::default(),
+        Transform::from_xyz(state.snap.x, y, state.snap.z)
+            .with_rotation(Quat::from_rotation_y(state.yaw))
+            .with_scale(Vec3::splat(scale)),
         KenneyModule {
             name,
             collide: false,
             mesh_cutouts: kenney_pit::KenneyMeshCutouts::default(),
             group_id: None,
-            floor: floor_level,
+            floor: ws.floor_level,
             ceiling: false,
-            kit: None,
+            kit: if dressing { Some(stem_static(SYNTH_KIT)) } else { None },
         },
         EditorGhost,
         Visibility::Inherited,
@@ -683,6 +817,18 @@ fn load_pieces(
         );
         state.next_id += 1;
     }
+    for p in &ws.dressing.pieces {
+        let id = state.next_id;
+        spawn_piece_record_pub(
+            commands,
+            asset_server,
+            p,
+            PieceOwner::Dressing,
+            id,
+            None,
+        );
+        state.next_id += 1;
+    }
 }
 
 fn spawn_piece_record(
@@ -706,17 +852,16 @@ fn spawn_piece_record(
 fn ray_world_hit(
     window: &Window,
     camera: (&Camera, &GlobalTransform),
-    floor_level: i32,
+    plane_y: f32,
 ) -> Option<Vec3> {
     let (cam, cam_gt) = camera;
     let cursor = window.cursor_position()?;
     let ray = cam.viewport_to_world(cam_gt, cursor).ok()?;
-    let y = floor_y(floor_level);
     let dir = ray.direction.as_vec3();
     if dir.y.abs() < 1e-5 {
         return None;
     }
-    let t = (y - ray.origin.y) / dir.y;
+    let t = (plane_y - ray.origin.y) / dir.y;
     if t < 0.0 {
         return None;
     }
@@ -737,8 +882,9 @@ fn cycle_piece(
     }
     let idx = state.piece_index as i32;
     state.piece_index = ((idx + delta).rem_euclid(n as i32)) as usize;
+    state.dressing_y_steps = 0;
     update_snap(state, ws);
-    respawn_ghost(commands, asset_server, state, ghosts, ws.floor_level);
+    respawn_ghost(commands, asset_server, state, ghosts, ws);
 }
 
 fn sync_pieces_from_world(
@@ -776,6 +922,11 @@ fn sync_pieces_from_world(
                 tint: prior.and_then(|p| p.tint),
                 tags: prior.map(|p| p.tags.clone()).unwrap_or_default(),
                 zone: prior.and_then(|p| p.zone.clone()),
+                y: if owner == PieceOwner::Dressing {
+                    Some(tf.translation.y)
+                } else {
+                    prior.and_then(|p| p.y)
+                },
             }
         })
         .collect()
@@ -839,12 +990,40 @@ fn quicksave(
                 }
             }
         }
+        EditorWorkflow::SynthDressing => {
+            let prev = std::mem::take(&mut ws.dressing.pieces);
+            ws.dressing.pieces = sync_pieces_from_world(placed, PieceOwner::Dressing, &prev);
+            match ws.dressing.save() {
+                Ok(path) => {
+                    ws.active.path = Some(path.clone());
+                    ws.active.kind = ActiveDocKind::Dressing;
+                    ws.dirty = false;
+                    save_fb.message = format!(
+                        "Saved dressing {} ({} pieces)",
+                        path.display(),
+                        ws.dressing.pieces.len()
+                    );
+                    save_fb.ok = true;
+                    save_fb.hide_after = time.elapsed_secs() + 4.0;
+                    true
+                }
+                Err(e) => {
+                    save_fb.message = format!("Save failed: {e}");
+                    save_fb.ok = false;
+                    save_fb.hide_after = time.elapsed_secs() + 5.0;
+                    false
+                }
+            }
+        }
     };
-    if ok {
+    if ok && ws.workflow == EditorWorkflow::MapMaker {
         let prev = std::mem::take(&mut ws.map.pieces);
         ws.map.pieces = sync_pieces_from_world(placed, PieceOwner::Map, &prev);
         ws.map.apply_hub_playtest_patches();
         let _ = ws.map.export_playtest_layout();
+    }
+    if ok && ws.workflow == EditorWorkflow::SynthDressing {
+        let _ = ws.dressing.export_playtest_layout();
     }
     ok
 }
@@ -877,8 +1056,8 @@ fn restore_editor_shell(
         EditorCamera,
         editor_cam_transform(cam),
     ));
-    spawn_ghost(commands, asset_server, state, ws.floor_level);
-    spawn_editor_chrome(commands, ws, prefs);
+    spawn_ghost(commands, asset_server, state, ws);
+    spawn_editor_chrome(commands, ws, state, prefs);
     commands.spawn((
         SaveToastText,
         Text::new(toast_message),
@@ -950,6 +1129,24 @@ fn editor_input(
         ws.floor_dirty = true;
         update_snap(&mut state, &ws);
     }
+    if is_dressing_workflow(&ws) && ws.tool == EditorTool::PlaceGlb {
+        if keys.just_pressed(KeyCode::KeyE) {
+            state.dressing_y_steps += 1;
+            update_snap(&mut state, &ws);
+        }
+        if keys.just_pressed(KeyCode::KeyQ) {
+            state.dressing_y_steps -= 1;
+            update_snap(&mut state, &ws);
+        }
+        if keys.just_pressed(KeyCode::KeyF) {
+            update_snap(&mut state, &ws);
+            let stem = current_stem(&state);
+            let dx = state.hover_world.x - state.snap.x;
+            let dz = state.hover_world.y - state.snap.z;
+            state.yaw = synth_face_yaw(stem, dx, dz);
+            update_snap(&mut state, &ws);
+        }
+    }
 
     // Gallery preview mode: all placement/ghost/scroll handled by gallery_controller_input.
     if ws.tool == EditorTool::GalleryPreview {
@@ -985,7 +1182,7 @@ fn editor_input(
     let Ok(cam) = camera.single() else {
         return;
     };
-    if let Some(hit) = ray_world_hit(window, cam, ws.floor_level) {
+    if let Some(hit) = ray_world_hit(window, cam, hover_plane_y(&ws)) {
         state.hover_world = Vec2::new(hit.x, hit.z);
         state.cell_sw = state.hover_world;
         update_snap(&mut state, &ws);
@@ -1052,13 +1249,23 @@ fn editor_input(
             .map(|p| p.collide_default)
             .unwrap_or(true);
         let piece_id = state.next_id;
+        let dressing = is_dressing_workflow(&ws);
+        let (kit, scale, y) = if dressing {
+            (
+                Some(SYNTH_KIT),
+                SYNTH_DRESSING_SCALE,
+                Some(dressing_snap_y(&stem, state.dressing_y_steps)),
+            )
+        } else {
+            (None, 1.0, None)
+        };
         spawn_module(
             &mut commands,
             &asset_server,
             &stem,
             state.snap,
             state.yaw,
-            1.0,
+            scale,
             collide,
             ws.floor_level,
             state.cell_sw.x,
@@ -1068,7 +1275,7 @@ fn editor_input(
             None,
             false,
             false,
-            None,
+            kit,
             None,
             &[],
         );
@@ -1080,18 +1287,20 @@ fn editor_input(
             z: state.snap.z,
             yaw: state.yaw,
             floor_level: ws.floor_level,
-            scale: 1.0,
+            scale,
             group_id: None,
             ceiling: false,
             underside: false,
-            kit: None,
+            kit: kit.map(|k| k.to_string()),
             tint: None,
             tags: vec![],
             zone: None,
+            y,
         };
         match ws.workflow {
             EditorWorkflow::MapMaker => ws.map.pieces.push(record.clone()),
             EditorWorkflow::ModuleMaker => ws.module.pieces.push(record.clone()),
+            EditorWorkflow::SynthDressing => ws.dressing.pieces.push(record.clone()),
         }
         history.push(HistoryOp::Place(vec![snapshot_from_record(
             piece_id, owner, &record,
@@ -1118,12 +1327,18 @@ fn editor_input(
         }
     }
 
-    if ws.workflow == EditorWorkflow::MapMaker
+    if (ws.workflow == EditorWorkflow::MapMaker || is_dressing_workflow(&ws))
         && ws.tool == EditorTool::SetSpawn
         && mouse.just_pressed(MouseButton::Left)
         && !ws.pointer_over_ui
     {
-        ws.map.spawn_xz = Some([state.hover_world.x, state.hover_world.y]);
+        let xz = [state.hover_world.x, state.hover_world.y];
+        if is_dressing_workflow(&ws) {
+            ws.dressing.spawn_xz = Some(xz);
+            ws.dressing.spawn_y = Some(SYNTH_DECK_Y);
+        } else {
+            ws.map.spawn_xz = Some(xz);
+        }
         ws.dirty = true;
         ws.spawn_marker_dirty = true;
     }
@@ -1145,7 +1360,7 @@ fn editor_input(
                     } else {
                         to_despawn.push(e);
                         all_undo_snaps
-                            .push(snapshot_from_entity(ep.piece_id, km.name, tf, ep));
+                            .push(snapshot_from_entity(ep.piece_id, km.name, tf, ep, km));
                     }
                     break;
                 }
@@ -1156,7 +1371,7 @@ fn editor_input(
                     if groups_to_remove.contains(&gid) && gep.owner == owner {
                         to_despawn.push(ge);
                         all_undo_snaps
-                            .push(snapshot_from_entity(gep.piece_id, gkm.name, gtf, gep));
+                            .push(snapshot_from_entity(gep.piece_id, gkm.name, gtf, gep, gkm));
                     }
                 }
             }
@@ -1180,20 +1395,17 @@ fn editor_input(
     }
 
     if mouse.just_pressed(MouseButton::Right) && !ws.pointer_over_ui {
-        let hover = state.cell_sw;
         let mut found_group: Option<u32> = None;
-        for (e, tf, km, ep) in &placed {
-            if ep.floor_level != ws.floor_level || ep.owner != owner {
-                continue;
-            }
-            let yaw = tf.rotation.to_euler(EulerRot::YXZ).0;
-            let anchor = Vec2::new(ep.sw_x, ep.sw_z);
-            if piece_covers_cell(hover, km.name, yaw, anchor) {
+        if let Some(id) = pick_piece_at(state.hover_world, ws.floor_level, owner, &placed) {
+            for (e, tf, km, ep) in &placed {
+                if ep.piece_id != id || ep.floor_level != ws.floor_level || ep.owner != owner {
+                    continue;
+                }
                 if let Some(gid) = ep.group_id {
                     remove_group_from_document(&mut ws, owner, gid);
                     found_group = Some(gid);
                 } else {
-                    let snap = snapshot_from_entity(ep.piece_id, km.name, tf, ep);
+                    let snap = snapshot_from_entity(ep.piece_id, km.name, tf, ep, km);
                     history.push(HistoryOp::Delete(vec![snap.clone()]));
                     remove_piece_from_document(&mut ws, &snap);
                     commands.entity(e).despawn();
@@ -1210,7 +1422,7 @@ fn editor_input(
             let mut undo_snaps = Vec::new();
             for (ge, gtf, gkm, gep) in &placed {
                 if gep.group_id == Some(gid) && gep.owner == owner {
-                    undo_snaps.push(snapshot_from_entity(gep.piece_id, gkm.name, gtf, gep));
+                    undo_snaps.push(snapshot_from_entity(gep.piece_id, gkm.name, gtf, gep, gkm));
                     commands.entity(ge).despawn();
                 }
             }
@@ -1258,6 +1470,7 @@ fn place_module_on_map(
             tint: p.tint,
             tags: p.tags.clone(),
             zone: p.zone.clone(),
+            y: p.y,
         };
         spawn_piece_record(
             commands,
@@ -1295,22 +1508,30 @@ fn spawn_naming_ui(mut commands: Commands, mut ws: ResMut<EditorWorkspace>) {
     }
 }
 
-fn clear_module_pieces(
+fn clear_workflow_pieces(
     mut commands: Commands,
     mut ws: ResMut<EditorWorkspace>,
     placed: Query<(Entity, &EditorPlaced)>,
 ) {
-    if !ws.clear_module_pieces {
-        return;
-    }
-    ws.clear_module_pieces = false;
-    for (e, ep) in &placed {
-        if ep.owner == PieceOwner::Module {
-            commands.entity(e).despawn();
+    if ws.clear_module_pieces {
+        ws.clear_module_pieces = false;
+        for (e, ep) in &placed {
+            if ep.owner == PieceOwner::Module {
+                commands.entity(e).despawn();
+            }
         }
+        ws.set_workflow(EditorWorkflow::ModuleMaker);
+        ws.sidebar_dirty = true;
     }
-    ws.set_workflow(EditorWorkflow::ModuleMaker);
-    ws.sidebar_dirty = true;
+    if ws.clear_dressing_pieces {
+        ws.clear_dressing_pieces = false;
+        for (e, ep) in &placed {
+            if ep.owner == PieceOwner::Dressing {
+                commands.entity(e).despawn();
+            }
+        }
+        ws.sidebar_dirty = true;
+    }
 }
 
 fn file_menu_actions(
@@ -1356,7 +1577,7 @@ fn file_menu_actions(
                 // user doesn't accidentally overwrite it with the new name.
                 if ws.dirty {
                     let prev_mod = std::mem::take(&mut ws.module.pieces);
-            ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module, &prev_mod);
+                    ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module, &prev_mod);
                     if let Ok(path) = ws.module.save() {
                         ws.active.path = Some(path);
                         ws.dirty = false;
@@ -1366,6 +1587,22 @@ fn file_menu_actions(
                     }
                 }
                 ws.new_module_requested = true;
+                ws.open_naming_modal();
+            }
+            EditorWorkflow::SynthDressing => {
+                if ws.dirty {
+                    let prev = std::mem::take(&mut ws.dressing.pieces);
+                    ws.dressing.pieces =
+                        sync_pieces_from_world(&placed, PieceOwner::Dressing, &prev);
+                    if let Ok(path) = ws.dressing.save() {
+                        ws.active.path = Some(path);
+                        ws.dirty = false;
+                        save_fb.message = "Auto-saved before new vignette".into();
+                        save_fb.ok = true;
+                        save_fb.hide_after = time.elapsed_secs() + 2.0;
+                    }
+                }
+                ws.new_dressing_requested = true;
                 ws.open_naming_modal();
             }
         }
@@ -1430,6 +1667,38 @@ fn file_menu_actions(
         }
     }
 
+    if let Some(path) = ws.pending_load_dressing.take() {
+        if let Some(doc) = shared::editor_map::DressingDocument::load(&path) {
+            ws.dressing = doc;
+            ws.active.path = Some(path);
+            ws.active.kind = ActiveDocKind::Dressing;
+            for (e, ep) in &map_placed {
+                if ep.owner == PieceOwner::Dressing {
+                    commands.entity(e).despawn();
+                }
+            }
+            for p in &ws.dressing.pieces.clone() {
+                let id = state.next_id;
+                spawn_piece_record_pub(
+                    &mut commands,
+                    &asset_server,
+                    p,
+                    PieceOwner::Dressing,
+                    id,
+                    None,
+                );
+                state.next_id += 1;
+            }
+            ws.floor_dirty = true;
+            ws.spawn_marker_dirty = true;
+            ws.refocus_camera = true;
+            ws.dirty = false;
+            save_fb.message = "Dressing vignette loaded".into();
+            save_fb.ok = true;
+            save_fb.hide_after = time.elapsed_secs() + 3.0;
+        }
+    }
+
     if let Some(name) = ws.pending_save_as_name.take() {
         if ws.new_module_requested {
             // "New module" path: clear everything and start fresh with the chosen name.
@@ -1450,6 +1719,38 @@ fn file_menu_actions(
             save_fb.message = "New module created".into();
             save_fb.ok = true;
             save_fb.hide_after = time.elapsed_secs() + 2.0;
+        } else if ws.new_dressing_requested {
+            ws.new_dressing_requested = false;
+            for (e, ep) in &map_placed {
+                if ep.owner == PieceOwner::Dressing {
+                    commands.entity(e).despawn();
+                }
+            }
+            ws.begin_new_dressing(&name);
+            history.clear();
+            save_fb.message = "New dressing vignette".into();
+            save_fb.ok = true;
+            save_fb.hide_after = time.elapsed_secs() + 2.0;
+        } else if ws.workflow == EditorWorkflow::SynthDressing {
+            let prev = std::mem::take(&mut ws.dressing.pieces);
+            ws.dressing.pieces = sync_pieces_from_world(&placed, PieceOwner::Dressing, &prev);
+            ws.dressing.name = name.clone();
+            ws.dressing.vignette = Some(name);
+            match ws.dressing.save() {
+                Ok(path) => {
+                    ws.active.path = Some(path.clone());
+                    ws.dirty = false;
+                    ws.sidebar_dirty = true;
+                    save_fb.message = format!("Saved as {}", path.display());
+                    save_fb.ok = true;
+                    save_fb.hide_after = time.elapsed_secs() + 4.0;
+                }
+                Err(e) => {
+                    save_fb.message = format!("Save as failed: {e}");
+                    save_fb.ok = false;
+                    save_fb.hide_after = time.elapsed_secs() + 5.0;
+                }
+            }
         } else {
             // "Save As" path: save current content under a new name.
             let prev_mod = std::mem::take(&mut ws.module.pieces);
@@ -1511,12 +1812,24 @@ fn persist_module_on_map_switch(
     *last = Some(ws.workflow);
     if from == EditorWorkflow::ModuleMaker && ws.dirty {
         let prev_mod = std::mem::take(&mut ws.module.pieces);
-            ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module, &prev_mod);
+        ws.module.pieces = sync_pieces_from_world(&placed, PieceOwner::Module, &prev_mod);
         if let Ok(path) = ws.module.save() {
             ws.active.path = Some(path.clone());
             ws.dirty = false;
             ws.sidebar_dirty = true;
             save_fb.message = format!("Module saved — visible in Modules list ({})", path.display());
+            save_fb.ok = true;
+            save_fb.hide_after = time.elapsed_secs() + 4.0;
+        }
+    }
+    if from == EditorWorkflow::SynthDressing && ws.dirty {
+        let prev = std::mem::take(&mut ws.dressing.pieces);
+        ws.dressing.pieces = sync_pieces_from_world(&placed, PieceOwner::Dressing, &prev);
+        if let Ok(path) = ws.dressing.save() {
+            ws.active.path = Some(path.clone());
+            ws.dirty = false;
+            ws.sidebar_dirty = true;
+            save_fb.message = format!("Dressing saved ({})", path.display());
             save_fb.ok = true;
             save_fb.hide_after = time.elapsed_secs() + 4.0;
         }
@@ -1553,6 +1866,17 @@ fn maybe_respawn_ghost(
     }
     ws.respawn_ghost = false;
 
+    if is_dressing_workflow(&ws) {
+        state.stems = if ws.dressing_only {
+            synth_dressing_stems_filtered(ws.dressing_category)
+        } else {
+            synth_dressing_stems()
+        };
+        if state.piece_index >= state.stems.len() {
+            state.piece_index = 0;
+        }
+    }
+
     // Despawn all existing ghost entities.
     for e in &ghosts {
         commands.entity(e).despawn();
@@ -1562,7 +1886,7 @@ fn maybe_respawn_ghost(
         spawn_module_ghost(&mut commands, &asset_server, &ws);
     } else {
         update_snap(&mut state, &ws);
-        spawn_ghost(&mut commands, &asset_server, &state, ws.floor_level);
+        spawn_ghost(&mut commands, &asset_server, &state, &ws);
     }
 }
 
@@ -1642,12 +1966,12 @@ fn respawn_ghost(
     asset_server: &AssetServer,
     state: &EditorState,
     ghosts: &Query<Entity, With<EditorGhost>>,
-    floor_level: i32,
+    ws: &EditorWorkspace,
 ) {
     for e in ghosts.iter() {
         commands.entity(e).despawn();
     }
-    spawn_ghost(commands, asset_server, state, floor_level);
+    spawn_ghost(commands, asset_server, state, ws);
 }
 
 fn update_ghost(
@@ -1666,7 +1990,10 @@ fn update_ghost(
     let show_glb =
         ws.tool == EditorTool::PlaceGlb && !state.stems.is_empty() && !ws.pointer_over_ui;
     for (mut tf, mut vis) in &mut glb_ghosts {
-        *tf = Transform::from_translation(state.snap).with_rotation(Quat::from_rotation_y(state.yaw));
+        let scale = dressing_ghost_scale(&ws);
+        *tf = Transform::from_translation(state.snap)
+            .with_rotation(Quat::from_rotation_y(state.yaw))
+            .with_scale(Vec3::splat(scale));
         *vis = if show_glb {
             Visibility::Inherited
         } else {
@@ -1723,18 +2050,22 @@ fn refocus_camera(
     ws.refocus_camera = false;
     let (cx, cz) = ws.grid().center_xz();
     cam.focus = Vec3::new(cx, 0.0, cz);
-    cam.height = if ws.workflow == EditorWorkflow::MapMaker {
-        88.0
-    } else {
-        42.0
+    cam.height = match ws.workflow {
+        EditorWorkflow::MapMaker => 88.0,
+        EditorWorkflow::ModuleMaker => 42.0,
+        EditorWorkflow::SynthDressing => 220.0,
     };
+    cam.orbit_yaw = 0.0;
+    cam.orbit_pitch = DEFAULT_EDITOR_ELEVATION;
     cam_state.set(ws.workflow, &cam);
 }
 
 fn pan_camera(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
+    ws: Res<EditorWorkspace>,
     mut cam: ResMut<EditorCam>,
+    mut cam_state: ResMut<EditorCamState>,
 ) {
     let mut delta = Vec2::ZERO;
     if keys.pressed(KeyCode::KeyW) {
@@ -1752,9 +2083,34 @@ fn pan_camera(
     if delta == Vec2::ZERO {
         return;
     }
+    let (forward, right) = editor_camera_pan_basis(&cam);
     let speed = 20.0;
-    cam.focus.x += delta.x * speed * time.delta_secs();
-    cam.focus.z += delta.y * speed * time.delta_secs();
+    let step = speed * time.delta_secs();
+    cam.focus.x += (forward.x * (-delta.y) + right.x * delta.x) * step;
+    cam.focus.z += (forward.y * (-delta.y) + right.y * delta.x) * step;
+    cam_state.set(ws.workflow, &cam);
+}
+
+fn orbit_camera(
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut motion: MessageReader<MouseMotion>,
+    ws: Res<EditorWorkspace>,
+    mut cam: ResMut<EditorCam>,
+    mut cam_state: ResMut<EditorCamState>,
+) {
+    if ws.pointer_over_ui {
+        for _ in motion.read() {}
+        return;
+    }
+    if !mouse.pressed(MouseButton::Middle) {
+        for _ in motion.read() {}
+        return;
+    }
+    for ev in motion.read() {
+        cam.orbit_yaw -= ev.delta.x * 0.005;
+        cam.orbit_pitch = (cam.orbit_pitch + ev.delta.y * 0.005).clamp(0.12, 1.52);
+    }
+    cam_state.set(ws.workflow, &cam);
 }
 
 fn update_editor_camera(cam: Res<EditorCam>, mut q: Query<&mut Transform, With<EditorCamera>>) {
@@ -1856,6 +2212,7 @@ fn editor_apply_materials(
     cyber_industrial: Option<Res<CyberMaterialIndustrial>>,
     cyber_lasers: Option<Res<CyberLaserMaterial>>,
     priesthood: Option<Res<PriesthoodMaterial>>,
+    synth: Option<Res<SynthMaterial>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     modules: Query<
@@ -1883,19 +2240,37 @@ fn editor_apply_materials(
         let want_ceiling = placed.ceiling || module.ceiling;
         let px = root_gt.translation().x;
         let pz = root_gt.translation().z;
-        let matched = ws.map.pieces.iter().find(|p| {
-            p.floor_level == placed.floor_level
-                && p.ceiling == want_ceiling
-                && (p.x - px).abs() < 0.05
-                && (p.z - pz).abs() < 0.05
-                && stem_static(&p.stem) == module.name
-        });
+        let py = root_gt.translation().y;
+        let pieces = match placed.owner {
+            PieceOwner::Dressing => &ws.dressing.pieces,
+            PieceOwner::Module => &ws.module.pieces,
+            PieceOwner::Map => &ws.map.pieces,
+        };
+        let matched = pieces
+            .iter()
+            .filter(|p| {
+                p.floor_level == placed.floor_level
+                    && p.ceiling == want_ceiling
+                    && (p.x - px).abs() < 0.12
+                    && (p.z - pz).abs() < 0.12
+                    && stem_static(&p.stem) == module.name
+            })
+            .min_by(|a, b| {
+                let da = (a.y.unwrap_or(0.0) - py).abs();
+                let db = (b.y.unwrap_or(0.0) - py).abs();
+                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .filter(|p| (p.y.unwrap_or(0.0) - py).abs() < 0.15);
         let zone = matched.and_then(|p| p.zone.as_deref());
+        let kit = module
+            .kit
+            .as_deref()
+            .or_else(|| matched.and_then(|p| p.kit.as_deref()));
         let slot = if ghost.is_some() {
             None
         } else {
             Some(kenney_material_slot(
-                module.kit.as_deref(),
+                kit,
                 zone,
                 playtest.is_some(),
                 want_ceiling,
@@ -1919,7 +2294,7 @@ fn editor_apply_materials(
         let piece_yaw = matched
             .map(|p| quantize_yaw(p.yaw))
             .unwrap_or_else(|| root_gt.rotation().to_euler(EulerRot::YXZ).0);
-        let mesh_cutouts = if want_ceiling {
+        let mesh_cutouts = if want_ceiling || placed.owner == PieceOwner::Dressing {
             kenney_pit::KenneyMeshCutouts::default()
         } else {
             kenney_pit::mesh_cutouts_for_piece(
@@ -1962,6 +2337,26 @@ fn editor_apply_materials(
                 KenneyMaterialSlot::Priesthood => {
                     let Some(priesthood) = priesthood.as_ref() else { continue };
                     Some(priesthood.0.clone())
+                }
+                KenneyMaterialSlot::SynthDeck => {
+                    let Some(synth) = synth.as_ref() else { continue };
+                    Some(synth.deck.clone())
+                }
+                KenneyMaterialSlot::SynthFloor => {
+                    let Some(synth) = synth.as_ref() else { continue };
+                    Some(synth.floor.clone())
+                }
+                KenneyMaterialSlot::SynthRail => {
+                    let Some(synth) = synth.as_ref() else { continue };
+                    Some(synth.rail.clone())
+                }
+                KenneyMaterialSlot::SynthProp => {
+                    let Some(synth) = synth.as_ref() else { continue };
+                    Some(synth.prop.clone())
+                }
+                KenneyMaterialSlot::Synth => {
+                    let Some(synth) = synth.as_ref() else { continue };
+                    Some(synth.base.clone())
                 }
                 KenneyMaterialSlot::Lasers => {
                     let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
@@ -2042,10 +2437,12 @@ fn discard_all_content(
     ws.map = shared::editor_map::MapDocument::new_default();
     let pool = ws.module.pool.clone();
     ws.module = shared::editor_map::ModuleDocument::new_named("untitled", &pool);
+    ws.dressing = shared::editor_map::DressingDocument::new_default();
     ws.active.path = None;
     ws.active.kind = match ws.workflow {
         EditorWorkflow::MapMaker => ActiveDocKind::Map,
         EditorWorkflow::ModuleMaker => ActiveDocKind::Module,
+        EditorWorkflow::SynthDressing => ActiveDocKind::Dressing,
     };
     state.next_id = 1;
     history.clear();
@@ -2168,30 +2565,42 @@ fn editor_playtest_exit(
         commands.entity(e).remove::<EditorModuleReady>();
     }
 
+    let dressing = is_dressing_workflow(&ws);
+    let owner = if dressing {
+        PieceOwner::Dressing
+    } else {
+        PieceOwner::Map
+    };
+    let pieces = if dressing {
+        ws.dressing.pieces.clone()
+    } else {
+        ws.map.pieces.clone()
+    };
+
     // The in-process playtest reuses and mutates/despawns the editor's placed-piece
-    // entities (repositioning, mesh cutouts, hatch hiding). Rebuild the map pieces
-    // verbatim from `ws.map` so the editor returns to its exact saved state — this is
-    // what keeps roofs/ceilings intact across a playtest round-trip.
+    // entities (repositioning, mesh cutouts, hatch hiding). Rebuild from the saved
+    // document so the editor returns to its exact saved state.
     for (e, ep) in &map_placed {
-        if ep.owner == PieceOwner::Map {
+        if ep.owner == owner {
             commands.entity(e).despawn();
         }
     }
-    for p in &ws.map.pieces.clone() {
+    for p in &pieces {
         let id = state.next_id;
         spawn_piece_record_pub(
             &mut commands,
             &asset_server,
             p,
-            PieceOwner::Map,
+            owner,
             id,
-            ws.map.extraction_xz,
+            if dressing { None } else { ws.map.extraction_xz },
         );
         state.next_id += 1;
     }
 
     ws.floor_dirty = true;
     ws.spawn_marker_dirty = true;
+    ws.sidebar_dirty = true;
     restore_editor_shell(
         &mut commands,
         &asset_server,
@@ -2235,14 +2644,24 @@ pub fn sync_spawn_marker(
         commands.entity(e).despawn();
     }
 
-    let Some([sx, sz]) = ws.map.spawn_xz else {
+    let (spawn_xz, marker_y) = if is_dressing_workflow(&ws) {
+        (
+            ws.dressing
+                .spawn_xz
+                .or_else(|| Some(shared::editor_map::DressingDocument::default_spawn_xz())),
+            ws.dressing.spawn_y.unwrap_or(SYNTH_DECK_Y),
+        )
+    } else {
+        (ws.map.spawn_xz, floor_y(0))
+    };
+
+    let Some([sx, sz]) = spawn_xz else {
         return;
     };
 
-    let fy = floor_y(0);
     commands.spawn((
         SpawnMarker,
         SceneRoot(asset_server.load("models/Knight.glb#Scene0")),
-        Transform::from_xyz(sx, fy, sz).with_scale(Vec3::splat(1.0)),
+        Transform::from_xyz(sx, marker_y, sz).with_scale(Vec3::splat(1.0)),
     ));
 }

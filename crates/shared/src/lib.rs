@@ -3,6 +3,7 @@ pub mod config;
 pub mod editor_catalog;
 pub mod editor_map;
 pub mod editor_settings;
+pub mod synth_placement;
 pub mod hidden_door;
 pub mod items;
 pub mod map_pool;
@@ -35,6 +36,10 @@ pub struct KenneyPlaytestGeneration(pub u32);
 /// Present when running `--host --editor` (Kenney layout tool).
 #[derive(bevy::prelude::Resource, Clone, Copy, Default)]
 pub struct EditorMode;
+
+/// Present when running `--dressing`: synth vignette sandbox only (no map/module/proc UI).
+#[derive(bevy::prelude::Resource, Clone, Copy, Default)]
+pub struct DressingShellMode;
 
 /// Present when running `--city` (standalone GLB viewer, no gameplay).
 #[derive(bevy::prelude::Resource, Clone, Copy, Default)]

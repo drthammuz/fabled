@@ -1620,11 +1620,13 @@ def export_kenney_layout(doc: dict) -> None:
                 **({"underside": True} if p.get("underside") else {}),
                 **({"kit": p["kit"]} if p.get("kit") else {}),
                 **({"tint": p["tint"]} if p.get("tint") else {}),
-                **({"tags": p["tags"]} if p.get("tags") else {}),
+                **({"y": p["y"]} if p.get("y") is not None else {}),
+                **({"zone": p["zone"]} if p.get("zone") else {}),
             }
             for p in doc["pieces"]
         ],
         "spawn_xz": doc.get("spawn_xz"),
+        "spawn_y": doc.get("spawn_y"),
         "extraction_xz": doc.get("extraction_xz"),
         "hub_exits": doc.get("hub_exits"),
         "branch_levels": doc.get("branch_levels"),

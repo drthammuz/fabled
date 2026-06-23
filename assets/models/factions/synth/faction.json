@@ -8,9 +8,9 @@
   "scale": 4.0,
   "colormaps": { "primary": "Textures/colormap.png" },
   "material": {
-    "mode": "native_glb",
-    "client_slot": "NativeGlb",
-    "albedo": null,
+    "mode": "explicit",
+    "client_slot": "Synth",
+    "albedo": "Textures/colormap.png",
     "base_color": [1.0, 1.0, 1.0],
     "metallic": 0.0,
     "roughness": 1.0,
@@ -30,12 +30,9 @@
       "alt_stems": ["wall-window"]
     },
     "corridor": {
-      "corner_stem": "wall-corner",
-      "yaw_offset": 1.5708,
-      "collide": true,
-      "floorless_corner": true,
+      "walls_only_corner": true,
       "built_from": ["floor", "wall"],
-      "yaw_note": "space_station wall-corner native facing is 90 deg off the space corridor-corner the CORNER_YAW table targets; +pi/2 corrects it."
+      "yaw_note": "wall-corner GLB sits ~1m inset at scale 4 and does not wrap the bend; L-bends use two straight walls instead."
     }
   },
   "provides": ["wall", "corridor"],

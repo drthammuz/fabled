@@ -160,6 +160,9 @@ impl PoolMapDocument {
                 .get("spawn_xz")
                 .and_then(|s| serde_json::from_value(s.clone()).ok())
                 .or(Some(entry.spawn_xz)),
+            spawn_y: v
+                .get("spawn_y")
+                .and_then(|s| serde_json::from_value(s.clone()).ok()),
             extraction_xz: v
                 .get("extraction_xz")
                 .and_then(|s| serde_json::from_value(s.clone()).ok())
@@ -361,7 +364,7 @@ pub fn play_layout(editor_active: bool) -> KenneyLayout {
     } else {
         test_play_layout()
     };
-    crate::kenney_hub::patch_hub_branch_layout(layout)
+    crate::kenney_hub::patch_hub_branch_layout(layout.resolve_for_playtest())
 }
 
 /// World XZ spawn with per-player spread.
@@ -370,6 +373,11 @@ pub fn play_spawn_xz(editor_active: bool, player_index: usize) -> Option<[f32; 2
     let spread_x = (player_index % 2) as f32 * 2.0 - 1.0;
     let spread_z = (player_index / 2) as f32 * 2.0;
     Some([sx + spread_x, sz + spread_z])
+}
+
+/// Walkable surface Y at the spawn marker (0 = industrial substrate).
+pub fn play_spawn_y(editor_active: bool) -> f32 {
+    play_layout(editor_active).spawn_floor_y()
 }
 
 /// World XZ spawn for standalone pool test play.

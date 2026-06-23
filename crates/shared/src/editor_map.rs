@@ -12,6 +12,9 @@ pub const CELLS_PER_MODULE: u32 = 5;
 pub const DEFAULT_MAP_MODULES: u32 = 3;
 pub const MAPS_DIR: &str = "userinput/maps";
 pub const MODULES_DIR: &str = "userinput/modules";
+pub const DRESSING_DIR: &str = "userinput/synth_dressing";
+/// Synth dressing sandbox — one cell grid for authoring interior vignettes.
+pub const DRESSING_GRID_CELLS: u32 = 40;
 pub const DEFAULT_POOL: &str = "default";
 pub const PLAYTEST_LAYOUT_PATH: &str = "userinput/kenney_layout.json";
 /// Fixed path written by `gen_maps.py --preview` for live editor regeneration.
@@ -27,6 +30,10 @@ pub fn maps_dir() -> PathBuf {
 
 pub fn pool_dir(pool: &str) -> PathBuf {
     userinput_root().join("modules").join(pool)
+}
+
+pub fn dressing_dir() -> PathBuf {
+    userinput_root().join("synth_dressing")
 }
 
 pub fn timestamp_name() -> String {
@@ -61,6 +68,8 @@ pub enum EditorWorkflow {
     #[default]
     MapMaker,
     ModuleMaker,
+    /// Synth interior vignette authoring (`userinput/synth_dressing/`).
+    SynthDressing,
 }
 
 impl EditorWorkflow {
@@ -68,6 +77,7 @@ impl EditorWorkflow {
         match self {
             EditorWorkflow::MapMaker => "Map",
             EditorWorkflow::ModuleMaker => "Module",
+            EditorWorkflow::SynthDressing => "Dressing",
         }
     }
 }
@@ -77,16 +87,26 @@ pub enum SnapMode {
     #[default]
     FullCell,
     HalfCell,
+    QuarterCell,
+    EighthCell,
     Free,
 }
 
 impl SnapMode {
-    pub const ALL: [SnapMode; 3] = [SnapMode::FullCell, SnapMode::HalfCell, SnapMode::Free];
+    pub const ALL: [SnapMode; 5] = [
+        SnapMode::FullCell,
+        SnapMode::HalfCell,
+        SnapMode::QuarterCell,
+        SnapMode::EighthCell,
+        SnapMode::Free,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
             SnapMode::FullCell => "4 m snap",
             SnapMode::HalfCell => "2 m snap",
+            SnapMode::QuarterCell => "1 m snap",
+            SnapMode::EighthCell => "0.5 m snap",
             SnapMode::Free => "Free",
         }
     }
@@ -94,7 +114,9 @@ impl SnapMode {
     pub fn next(self) -> Self {
         match self {
             SnapMode::FullCell => SnapMode::HalfCell,
-            SnapMode::HalfCell => SnapMode::Free,
+            SnapMode::HalfCell => SnapMode::QuarterCell,
+            SnapMode::QuarterCell => SnapMode::EighthCell,
+            SnapMode::EighthCell => SnapMode::Free,
             SnapMode::Free => SnapMode::FullCell,
         }
     }
@@ -143,6 +165,10 @@ impl GridSpec {
             EditorWorkflow::MapMaker => Self {
                 cells_x: modules_x * CELLS_PER_MODULE,
                 cells_z: modules_z * CELLS_PER_MODULE,
+            },
+            EditorWorkflow::SynthDressing => Self {
+                cells_x: DRESSING_GRID_CELLS,
+                cells_z: DRESSING_GRID_CELLS,
             },
         }
     }
@@ -238,6 +264,27 @@ pub struct PieceRecord {
     /// Level-composition zone (`prev` / `default` / `next`) for material routing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub zone: Option<String>,
+    /// Absolute world Y when a faction deck is raised above the substrate (e.g. synth).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y: Option<f32>,
+}
+
+impl PieceRecord {
+    pub fn world_y(&self) -> f32 {
+        if let Some(y) = self.y {
+            return y;
+        }
+        if self.is_synth_dressing_piece() {
+            return crate::editor_catalog::synth_dressing_default_y(&self.stem)
+                .unwrap_or(crate::editor_catalog::SYNTH_DECK_Y);
+        }
+        crate::kenney_layout::piece_world_y(self.floor_level, None)
+    }
+
+    fn is_synth_dressing_piece(&self) -> bool {
+        self.kit.as_deref() == Some(crate::editor_catalog::SYNTH_KIT)
+            || (self.scale - crate::editor_catalog::SYNTH_DRESSING_SCALE).abs() < 0.01
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -309,6 +356,150 @@ impl ModuleDocument {
     }
 }
 
+/// User-authored synth interior vignette (editor Dressing mode).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DressingDocument {
+    pub version: u32,
+    pub name: String,
+    /// Room role hint, e.g. `bunk`, `lab`, `mess` — used when deriving procgen setups.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vignette: Option<String>,
+    pub floor_mask: FloorMask,
+    pub pieces: Vec<PieceRecord>,
+    /// Playtest spawn [x, z]; defaults to grid centre when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spawn_xz: Option<[f32; 2]>,
+    /// Walkable Y at spawn (elevated synth deck). Inferred at playtest when unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spawn_y: Option<f32>,
+}
+
+impl DressingDocument {
+    pub fn new_default() -> Self {
+        let (cx, cz) = Self::grid().center_xz();
+        Self {
+            version: 1,
+            name: "untitled".into(),
+            vignette: None,
+            floor_mask: FloorMask::filled(DRESSING_GRID_CELLS, DRESSING_GRID_CELLS),
+            pieces: Vec::new(),
+            spawn_xz: Some([cx, cz]),
+            spawn_y: Some(crate::editor_catalog::SYNTH_DECK_Y),
+        }
+    }
+
+    pub fn default_spawn_xz() -> [f32; 2] {
+        let (cx, cz) = Self::grid().center_xz();
+        [cx, cz]
+    }
+
+    pub fn to_kenney_layout(&self) -> crate::kenney_layout::KenneyLayout {
+        use std::collections::HashMap;
+
+        use crate::kenney_layout::{KenneyLayout, KenneyPlacement};
+
+        let modules = DRESSING_GRID_CELLS / CELLS_PER_MODULE;
+        let mut floors = HashMap::new();
+        floors.insert(0, self.floor_mask.clone());
+        KenneyLayout {
+            grid_unit_m: KENNEY_CELL,
+            modules_x: modules,
+            modules_z: modules,
+            floors,
+            pieces: self
+                .pieces
+                .iter()
+                .map(|p| KenneyPlacement {
+                    stem: p.stem.clone(),
+                    x: p.x,
+                    z: p.z,
+                    yaw: p.yaw,
+                    floor: 0,
+                    scale: p.scale,
+                    group_id: p.group_id,
+                    ceiling: p.ceiling,
+                    underside: p.underside,
+                    kit: p.kit.clone(),
+                    tint: p.tint,
+                    tags: p.tags.clone(),
+                    zone: p.zone.clone(),
+                    y: p.y,
+                })
+                .collect(),
+            spawn_xz: self
+                .spawn_xz
+                .or_else(|| Some(Self::default_spawn_xz())),
+            spawn_y: self.spawn_y,
+            extraction_xz: None,
+            hub_exits: HashMap::new(),
+            hub_model: None,
+            branch_levels: HashMap::new(),
+        }
+    }
+
+    pub fn export_playtest_layout(&self) -> std::io::Result<()> {
+        let layout = self.to_kenney_layout().resolve_for_playtest();
+        let path = userinput_root().join("kenney_layout.json");
+        save_json(&path, &layout)
+    }
+
+    pub fn grid() -> GridSpec {
+        GridSpec {
+            cells_x: DRESSING_GRID_CELLS,
+            cells_z: DRESSING_GRID_CELLS,
+        }
+    }
+
+    pub fn path_for_name(name: &str) -> PathBuf {
+        dressing_dir().join(format!("{}.json", sanitize_filename(name)))
+    }
+
+    pub fn save(&self) -> std::io::Result<PathBuf> {
+        let dir = dressing_dir();
+        std::fs::create_dir_all(&dir)?;
+        let path = dir.join(format!("{}.json", sanitize_filename(&self.name)));
+        save_json(&path, self)?;
+        Ok(path)
+    }
+
+    pub fn load(path: &Path) -> Option<Self> {
+        let mut doc: Self = read_json(path)?;
+        if doc.spawn_xz.is_none() {
+            doc.spawn_xz = Some(Self::default_spawn_xz());
+        }
+        for p in &mut doc.pieces {
+            crate::editor_catalog::normalize_synth_dressing_piece(p);
+        }
+        Some(doc)
+    }
+}
+
+/// List saved dressing vignettes `(display_name, path)`.
+pub fn list_dressing_files() -> Vec<(String, PathBuf)> {
+    let dir = dressing_dir();
+    let mut out = Vec::new();
+    let Ok(read) = std::fs::read_dir(&dir) else {
+        return out;
+    };
+    for ent in read.flatten() {
+        let path = ent.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("?")
+            .to_string();
+        if name == "README" {
+            continue;
+        }
+        out.push((name, path));
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BranchLevel {
     pub x: f32,
@@ -329,6 +520,9 @@ pub struct MapDocument {
     /// Explicit spawn point [x, z] placed by the editor.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spawn_xz: Option<[f32; 2]>,
+    /// Walkable surface Y at spawn (elevated faction deck). From procgen or inferred at export.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spawn_y: Option<f32>,
     /// Extraction pit centre [x, z] on floor 0.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extraction_xz: Option<[f32; 2]>,
@@ -370,6 +564,7 @@ impl MapDocument {
             floors,
             pieces: Vec::new(),
             spawn_xz: None,
+            spawn_y: None,
             extraction_xz: None,
             branch_levels: HashMap::new(),
             hub_exits: HashMap::new(),
@@ -482,6 +677,7 @@ impl MapDocument {
                                 })
                                 .unwrap_or_default(),
                             zone: p.get("zone").and_then(|x| x.as_str()).map(str::to_string),
+                            y: p.get("y").and_then(|x| x.as_f64()).map(|x| x as f32),
                         })
                     })
                     .collect()
@@ -524,6 +720,9 @@ impl MapDocument {
             pieces,
             spawn_xz: v
                 .get("spawn_xz")
+                .and_then(|s| serde_json::from_value(s.clone()).ok()),
+            spawn_y: v
+                .get("spawn_y")
                 .and_then(|s| serde_json::from_value(s.clone()).ok()),
             extraction_xz: v
                 .get("extraction_xz")
@@ -573,9 +772,11 @@ impl MapDocument {
                     tint: p.tint,
                     tags: p.tags.clone(),
                     zone: p.zone.clone(),
+                    y: p.y,
                 })
                 .collect(),
             spawn_xz: self.spawn_xz,
+            spawn_y: self.spawn_y,
             extraction_xz: self.extraction_xz,
             hub_exits: self.hub_exits.clone(),
             hub_model: self.hub_model.clone(),
@@ -609,6 +810,7 @@ impl MapDocument {
                 tint: p.tint,
                 tags: p.tags.clone(),
                 zone: p.zone.clone(),
+                y: p.y,
             })
             .collect();
         self.floors = layout.floors;
@@ -644,6 +846,7 @@ pub enum ActiveDocKind {
     #[default]
     Map,
     Module,
+    Dressing,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -676,6 +879,15 @@ impl ActiveDocument {
         let path = dir.join(format!("{}.json", timestamp_name()));
         save_json(&path, doc)?;
         Ok(path)
+    }
+
+    pub fn quicksave_path_dressing(&self, doc: &DressingDocument) -> PathBuf {
+        if let Some(p) = &self.path {
+            if self.kind == ActiveDocKind::Dressing {
+                return p.clone();
+            }
+        }
+        dressing_dir().join(format!("{}.json", sanitize_filename(&doc.name)))
     }
 
     pub fn latest_module_snapshot(pool: &str) -> Option<PathBuf> {

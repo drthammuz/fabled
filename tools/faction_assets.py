@@ -84,6 +84,11 @@ class FactionAsset:
     def floorless_corner(self) -> bool:
         return bool(self.roles.get("corridor", {}).get("floorless_corner", False))
 
+    @property
+    def walls_only_corner(self) -> bool:
+        """L-bends use floor + two straight walls instead of a corner GLB."""
+        return bool(self.roles.get("corridor", {}).get("walls_only_corner", False))
+
     def kit_for_role(self, role: str) -> Optional[str]:
         """Kit folder for a role, or None to fall back to the space grammar."""
         return self.kit if role in self.provides else None
@@ -140,6 +145,11 @@ def asset_for_profile(
 def floorless_corner_kits(assets: Optional[Dict[str, FactionAsset]] = None) -> Set[str]:
     assets = assets if assets is not None else load_all()
     return {fa.kit for fa in assets.values() if fa.floorless_corner}
+
+
+def walls_only_corner_kits(assets: Optional[Dict[str, FactionAsset]] = None) -> Set[str]:
+    assets = assets if assets is not None else load_all()
+    return {fa.kit for fa in assets.values() if fa.walls_only_corner}
 
 
 if __name__ == "__main__":

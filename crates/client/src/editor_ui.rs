@@ -5,6 +5,7 @@ use shared::editor_map::{EditorTool, EditorWorkflow};
 use shared::editor_settings::UserEditorPrefs;
 
 use crate::editor_sidebar::spawn_sidebar;
+use crate::editor_state::EditorState;
 use crate::editor_workspace::{EditorMenuRoot, EditorToolbarRoot, EditorWorkspace};
 
 #[derive(Component, Clone, Copy)]
@@ -55,12 +56,17 @@ pub enum MenuLabel {
     ModeToggle,
 }
 
-pub fn spawn_editor_chrome(commands: &mut Commands, ws: &EditorWorkspace, prefs: &UserEditorPrefs) {
-    spawn_toolbar(commands, ws);
+pub fn spawn_editor_chrome(
+    commands: &mut Commands,
+    ws: &EditorWorkspace,
+    state: &EditorState,
+    _prefs: &UserEditorPrefs,
+) {
+    spawn_toolbar(commands, ws, state);
     spawn_sidebar(commands, ws);
 }
 
-fn spawn_toolbar(commands: &mut Commands, ws: &EditorWorkspace) {
+fn spawn_toolbar(commands: &mut Commands, ws: &EditorWorkspace, state: &EditorState) {
     commands
         .spawn((
             EditorToolbarRoot,
@@ -88,7 +94,7 @@ fn spawn_toolbar(commands: &mut Commands, ws: &EditorWorkspace) {
                 bar.spawn(menu_header_btn("Actions", MenuBarBtn::Actions));
                 bar.spawn((
                     MenuLabel::Status,
-                    Text::new(status_line(ws)),
+                    Text::new(status_line(ws, state)),
                     TextFont {
                         font_size: 12.5,
                         ..default()
@@ -100,11 +106,26 @@ fn spawn_toolbar(commands: &mut Commands, ws: &EditorWorkspace) {
                         ..default()
                     },
                 ));
-                bar.spawn(toolbar_btn_label(
-                    ToolbarBtn::ModeToggle,
-                    MenuLabel::ModeToggle,
-                    mode_btn_text(ws),
-                ));
+                if !ws.dressing_only {
+                    bar.spawn(toolbar_btn_label(
+                        ToolbarBtn::ModeToggle,
+                        MenuLabel::ModeToggle,
+                        mode_btn_text(ws),
+                    ));
+                } else {
+                    bar.spawn((
+                        Text::new("Synth vignette"),
+                        TextFont {
+                            font_size: 12.5,
+                            ..default()
+                        },
+                        TextColor(Color::srgb(0.55, 0.75, 0.95)),
+                        Node {
+                            margin: UiRect::left(Val::Px(8.0)),
+                            ..default()
+                        },
+                    ));
+                }
                 bar.spawn(toolbar_btn("Select", ToolbarBtn::Select));
                 bar.spawn(toolbar_btn("Place", ToolbarBtn::Place));
                 bar.spawn(toolbar_btn_label(
@@ -131,6 +152,7 @@ fn mode_btn_text(ws: &EditorWorkspace) -> String {
     match ws.workflow {
         EditorWorkflow::MapMaker => "Mode: Map".into(),
         EditorWorkflow::ModuleMaker => "Mode: Module".into(),
+        EditorWorkflow::SynthDressing => "Mode: Dressing".into(),
     }
 }
 
@@ -208,8 +230,23 @@ fn dropdown_btn(label: String, action: impl Bundle) -> impl Bundle {
     )
 }
 
-pub fn status_line(ws: &EditorWorkspace) -> String {
+pub fn status_line(ws: &EditorWorkspace, state: &EditorState) -> String {
     let grid = ws.grid();
+    if ws.dressing_only || ws.workflow == shared::editor_map::EditorWorkflow::SynthDressing {
+        let elev = state.dressing_y_steps;
+        let elev_label = if elev == 0 {
+            String::new()
+        } else {
+            format!(" · elev {:+} ({:+.1} m)", elev, elev as f32 * shared::editor_catalog::SYNTH_DECK_Y)
+        };
+        return format!(
+            "Dressing · {} · {}×{} · mouse4/5 rotate · F face hover{}",
+            ws.tool.label(),
+            grid.cells_x,
+            grid.cells_z,
+            elev_label,
+        );
+    }
     format!(
         "{} · {} · floor {} · {}×{} cells",
         ws.workflow.label(),
@@ -269,6 +306,8 @@ pub fn sync_dropdown_menus(
                 .with_children(|col| {
                     if ws.workflow == EditorWorkflow::ModuleMaker {
                         col.spawn(dropdown_btn("New".into(), FileAction::New));
+                    } else if ws.workflow == EditorWorkflow::SynthDressing {
+                        col.spawn(dropdown_btn("New vignette".into(), FileAction::New));
                     } else {
                         col.spawn(dropdown_btn("New map".into(), FileAction::New));
                     }
@@ -445,11 +484,12 @@ pub fn menu_button_input(
 
 pub fn sync_menu_labels(
     ws: Res<EditorWorkspace>,
+    state: Res<crate::editor_state::EditorState>,
     mut labels: Query<(&MenuLabel, &mut Text)>,
 ) {
     for (kind, mut text) in &mut labels {
         text.0 = match kind {
-            MenuLabel::Status => status_line(&ws),
+            MenuLabel::Status => status_line(&ws, &state),
             MenuLabel::Snap => format!("Snap: {}", ws.snap.label()),
             MenuLabel::ModeToggle => mode_btn_text(&ws),
         };

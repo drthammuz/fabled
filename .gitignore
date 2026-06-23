@@ -23,3 +23,6 @@ tools/__pycache__/
 # Throwaway generator map dumps (the curated maps live in userinput/maps/pool/)
 /userinput/maps/gen_map_*.json
 /userinput/maps/_roof_test.json
+# Local agent preview renders and logs (regenerated; see docs/handover-synth §7)
+/tools/_*.png
+/tools/_*.log

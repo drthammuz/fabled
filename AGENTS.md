@@ -1,5 +1,22 @@
 # Agent instructions (Fabled)
 
+## Game vision — read before player-facing features (roles, quests, rep, chapters)
+
+Author-stated design (professions, faction camps, reputation, prologue → campaign → open world): **[docs/game-pitch.md](docs/game-pitch.md)**. Implementation still largely ahead of this doc; use it for intent, not current behaviour.
+
+## Synth dressing sandbox — read before interior / balcony / mezzanine work
+
+**Master plan:** [docs/synth-master-plan.md](docs/synth-master-plan.md). **Handover (transition + dressing):** [docs/handover-synth-2026-06-23.md](docs/handover-synth-2026-06-23.md) §7.
+
+Launch **`dressing.bat`** (not `editor.bat`). Saves under `userinput/synth_dressing/`. After generator changes:
+
+```bash
+python tools/gen_dressing_showcase.py
+python tools/verify_synth_placement.py userinput/synth_dressing/*.json
+```
+
+Placement source of truth: `tools/synth_interior.py` + `assets/models/factions/synth/placement_catalog.json`.
+
 ## Faction asset system — read FIRST if continuing faction / per-faction architecture work
 
 **Latest handover (2026-06-22): [docs/handover-factions-2026-06-22.md](docs/handover-factions-2026-06-22.md)** — self-contained context with no prior chat needed. Covers the per-faction asset-folder pipeline, the 5 current factions (industrial, priesthood, synth, outlaw/urban, necropolis), calibration (scale/yaw_offset/inset), critical gotchas (Blender white-bug, role-aware floor audits, faction-driven colour), and the remaining roster (props system, castle pass, slopes). Detailed refs: [docs/faction_assets.md](docs/faction_assets.md), [docs/faction_roster.md](docs/faction_roster.md).
@@ -8,14 +25,15 @@
 
 Kenney map procgen is mid-refactor: **tile synthesis only**, **no room GLBs**, **mission graph not yet implemented**.
 
-**Before changing `tools/gen_maps.py`, `tools/gen_modules.py` (strat_planned / synthesis), `editor_map_gen.rs`, or Kenney layout generation:**
+**Before changing `tools/gen_maps.py`, `tools/gen_modules.py` (strat_planned / synthesis), `editor_map_gen.rs`, `level_composition.py`, `gen_freeform.py`, or Kenney layout generation:**
 
 1. Read **[docs/procgen-faction-manifest.md](docs/procgen-faction-manifest.md)** — start at **§0 Agent handoff** if you have no prior chat context. It defines phased delivery, current vs target state, and the **Phase 1** task (spine + branches + role-based synthesis).
-2. **Scope:** Phase 1 = Kenney layout quality only. Do not wire faction profiles, industrial merge, or camp transitions until Phase 1 exit criteria in the manifest are met.
-3. After map gen changes, run:
+2. For **multi-faction zone paint, prev/next adjacency, or per-faction corridor/room requirements**, read **[docs/procgen-zone-composition.md](docs/procgen-zone-composition.md)** — current pipeline vs manifest layer order, options, and recommendations.
+3. **Scope:** Phase 1 = Kenney layout quality only. Do not wire faction profiles, industrial merge, or camp transitions until Phase 1 exit criteria in the manifest are met.
+4. After map gen changes, run:
    - `python tools/gen_maps.py --seed 42 --probe`
    - `python tools/probe_layout_decor.py userinput/kenney_layout.json`
-4. Editor: Map mode → sidebar **Proc** tab for live regen (`python tools/gen_maps.py --preview`).
+5. Editor: Map mode → sidebar **Proc** tab for live regen (`python tools/gen_maps.py --preview`).
 
 Long-term procgen (multi-faction, sewer/Kenney transitions) is spec’d in the manifest §2–6; **do not implement Phase 2+ while Phase 1 is open** unless the user explicitly redirects.
 
@@ -55,10 +73,15 @@ For hub / extraction / Kenney playtest visual–physics work, Bugbot should use 
 
 | Topic | Doc |
 |-------|-----|
+| **Synth master plan & interior roadmap (START HERE for synth)** | [docs/synth-master-plan.md](docs/synth-master-plan.md) |
+| Synth handover (transition D-table + dressing §7) | [docs/handover-synth-2026-06-23.md](docs/handover-synth-2026-06-23.md) |
+| Synth transition & elevated deck (rules + D-table) | [docs/synth-transition-architecture.md](docs/synth-transition-architecture.md) |
 | **Faction asset system (latest handover, 2026-06-22)** | [docs/handover-factions-2026-06-22.md](docs/handover-factions-2026-06-22.md) |
 | Faction asset folders / manifest schema | [docs/faction_assets.md](docs/faction_assets.md) |
 | Faction roster (5 factions × 13 kits) | [docs/faction_roster.md](docs/faction_roster.md) |
 | Procgen / factions / Phase 1 task | [docs/procgen-faction-manifest.md](docs/procgen-faction-manifest.md) |
+| **Zone composition (paint order, adjacency, spatial options)** | [docs/procgen-zone-composition.md](docs/procgen-zone-composition.md) |
+| **Game pitch (author vision: roles, camps, rep, release chapters)** | [docs/game-pitch.md](docs/game-pitch.md) |
 | Hub / extraction failures | [docs/hub-extraction-agent-failures.md](docs/hub-extraction-agent-failures.md) |
 | Kenney GLB catalogue | [docs/kenney_space_kit.md](docs/kenney_space_kit.md) |
 | Game loop / milestones | [update2.md](update2.md) |

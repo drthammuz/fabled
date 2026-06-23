@@ -113,7 +113,7 @@ pub fn init_kenney_stream(
 fn mount_hub_candidates(
     mut commands: Commands,
     test: Option<Res<TestMode>>,
-    mut stream: Option<ResMut<KenneyStreamWorld>>,
+    stream: Option<ResMut<KenneyStreamWorld>>,
     mut run_q: Query<&mut RunState>,
     asset_server: Res<AssetServer>,
     scenes: Query<Entity, With<KenneyColliderScene>>,
@@ -188,7 +188,7 @@ fn mount_hub_candidates(
 fn stream_hub_commit(
     mut commands: Commands,
     test: Option<Res<TestMode>>,
-    mut stream: Option<ResMut<KenneyStreamWorld>>,
+    stream: Option<ResMut<KenneyStreamWorld>>,
     mut layout_cache: ResMut<KenneyLayoutCache>,
     mut run_q: Query<&mut RunState>,
     players: Query<(&Transform, &PlayerAlive, &PlayerName), With<Player>>,

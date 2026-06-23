@@ -10,10 +10,10 @@ use shared::map_pool;
 use shared::{EditorMode, KenneyPlaytestGeneration, TestMapStyle, TestMode};
 
 use crate::editor_selection::EditorPlaced;
-use crate::editor_state::floor_y;
 use crate::kenney_editor::EditorModuleReady;
 use crate::test_showcase::{apply_room_shell_mesh_cutouts, KenneyModule};
-use crate::editor_workspace::{EditorMenuRoot, EditorSidebarRoot, FloorSlab};
+use crate::editor_workspace::{EditorMenuRoot, EditorSidebarRoot, EditorWorkspace, FloorSlab};
+use shared::editor_map::EditorWorkflow;
 use crate::fly_camera::FlyCamera;
 use crate::netplay::{LookAngles, OwnPlayer};
 
@@ -119,6 +119,7 @@ fn update_playtest_coords_hud(
 
 fn sync_playtest_patched_pieces(
     mut commands: Commands,
+    ws: Res<EditorWorkspace>,
     generation: Res<KenneyPlaytestGeneration>,
     mut last_gen: Local<u32>,
     mut placed: Query<(
@@ -130,6 +131,13 @@ fn sync_playtest_patched_pieces(
         Option<&EditorModuleReady>,
     )>,
 ) {
+    // Dressing vignettes are NOT Kenney maps: this patches piece heights against the
+    // Kenney play layout, which (4 m grids align) collapses elevated dressing pieces
+    // — the mezzanine deck + stairs — down onto the ground floor, making them vanish
+    // in playtest while looking correct in the editor.
+    if ws.workflow == EditorWorkflow::SynthDressing || ws.dressing_only {
+        return;
+    }
     if *last_gen == generation.0 {
         return;
     }
@@ -194,13 +202,14 @@ fn sync_playtest_patched_pieces(
         };
         ep.floor_level = piece.floor;
         let yaw = shared::kenney_catalog::quantize_yaw(piece.yaw);
-        tf.translation = Vec3::new(piece.x, floor_y(piece.floor), piece.z);
+        tf.translation = Vec3::new(piece.x, piece.world_y(), piece.z);
         tf.rotation = Quat::from_rotation_y(yaw);
     }
 }
 
 fn sync_playtest_mesh_cutouts(
     mut commands: Commands,
+    ws: Res<EditorWorkspace>,
     mut meshes: ResMut<Assets<Mesh>>,
     placed: Query<
         (
@@ -214,6 +223,9 @@ fn sync_playtest_mesh_cutouts(
     children_q: Query<&Children>,
     mesh_q: Query<(&Mesh3d, &GlobalTransform)>,
 ) {
+    if ws.workflow == EditorWorkflow::SynthDressing || ws.dressing_only {
+        return;
+    }
     let layout = map_pool::play_layout(true);
     let Some([ex, ez]) = layout.extraction_xz else {
         return;
@@ -282,12 +294,13 @@ pub fn enter_in_process_playtest(
     }
 
     let layout = map_pool::play_layout(true);
+    let floor_y = layout.spawn_floor_y();
     let look = layout
         .spawn_xz
-        .map(|[sx, sz]| Vec3::new(sx, 0.0, sz))
+        .map(|[sx, sz]| Vec3::new(sx, floor_y, sz))
         .unwrap_or_else(|| {
             let focus = layout.focus_xz();
-            Vec3::new(focus.x, 0.0, focus.y)
+            Vec3::new(focus.x, floor_y, focus.y)
         });
     let cam_pos = look + Vec3::new(0.0, shared::config::PLAYER_EYE_HEIGHT, 0.0);
     commands.spawn((

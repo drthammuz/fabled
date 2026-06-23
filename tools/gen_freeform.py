@@ -630,6 +630,21 @@ def _world_to_cell(gx: int, gz: int, wx: float, wz: float) -> Cell:
     return (ix, iz)
 
 
+def _face_cells(gx: int, gz: int, wx: float, wz: float) -> List[Cell]:
+    """Cell(s) a piece sits over. Centred pieces → 1 cell; a wall on a cell **face**
+    (half-cell offset) → both cells sharing that face, so elevation is robust to which
+    side the float rounds to (a synth/default seam wall belongs to the synth side)."""
+    fx = (wx + gx * CELL * 0.5 - CELL * 0.5) / CELL
+    fz = (wz + gz * CELL * 0.5 - CELL * 0.5) / CELL
+    ix, iz = round(fx), round(fz)
+    cells = [(ix, iz)]
+    if abs(fx - ix) > 0.25:  # wall on an E-W face (vertical grid line)
+        cells = [(int(round(fx - 0.5)), iz), (int(round(fx + 0.5)), iz)]
+    elif abs(fz - iz) > 0.25:  # wall on a N-S face (horizontal grid line)
+        cells = [(ix, int(round(fz - 0.5))), (ix, int(round(fz + 0.5)))]
+    return cells
+
+
 # ---------------------------------------------------------------------------
 # Faction-zone CATALOGUE: which architecture kit each composition zone uses for
 # each piece ROLE. A transition map runs prev -> default -> next zones, mapped to
@@ -648,6 +663,7 @@ def _world_to_cell(gx: int, gz: int, wx: float, wz: float) -> Cell:
 # the factions and the visuals move with them). Empty default = pure space grammar.
 _ACTIVE_ZONE_KITS: Dict[str, Dict[str, str]] = {}
 _ACTIVE_FLOORLESS: Set[str] = set()
+_ACTIVE_WALLS_ONLY_CORNERS: Set[str] = set()
 # Per-zone emit-slot ("floor"/"wall"/"corner") overrides from faction manifests:
 # stems (default = template-*/corridor-corner) and a uniform scale (default 1.0).
 _ACTIVE_ZONE_STEMS: Dict[str, Dict[str, str]] = {}
@@ -723,10 +739,12 @@ def build_zone_kits(comp) -> None:
         else:
             kit = fp.architecture_kit(fp.load_profile(profile_id))
             zone_kits[zone] = {role: kit for role in fa.ROLES} if kit else {}
-    global _ACTIVE_ZONE_KITS, _ACTIVE_FLOORLESS, _ACTIVE_ZONE_STEMS, _ACTIVE_ZONE_SCALE
+    global _ACTIVE_ZONE_KITS, _ACTIVE_FLOORLESS, _ACTIVE_WALLS_ONLY_CORNERS
+    global _ACTIVE_ZONE_STEMS, _ACTIVE_ZONE_SCALE
     global _ACTIVE_ZONE_YAW, _ACTIVE_ZONE_INSET
     _ACTIVE_ZONE_KITS = zone_kits
     _ACTIVE_FLOORLESS = fa.floorless_corner_kits(assets)
+    _ACTIVE_WALLS_ONLY_CORNERS = fa.walls_only_corner_kits(assets)
     _ACTIVE_ZONE_YAW = zone_yaw
     _ACTIVE_ZONE_INSET = zone_inset
     _ACTIVE_ZONE_STEMS = zone_stems
@@ -752,7 +770,9 @@ def _piece_floor_surface(p: dict) -> bool:
         return False
     if role == "corridor":  # a corner piece
         return kit not in _ACTIVE_FLOORLESS
-    if role == "floor":
+    if role == "floor" or role == "deck":
+        return True
+    if stem.startswith("floor") and kit in ("space_station", "factions/synth"):
         return True
     if stem.startswith("corridor"):
         return _corner_has_floor(stem, kit)
@@ -856,6 +876,8 @@ def emit_all_roofs(
     that is handled by ``skip_roof`` in the landing pass. Ceiling slabs are visual-only
     (no collider), so the player walks freely beneath them."""
     holes0 = holes0 or set()
+    import level_composition as lc
+
     if hub:
         hub_extension = (hub.floor1 - hub.holes1) - fm.walkable
         emit_roofs(pieces, gx, gz, -1, hub_extension, kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup)
@@ -867,7 +889,17 @@ def emit_all_roofs(
                 skip_roof=ex.landing & hub.holes1,
                 kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup,
             )
-    emit_roofs(pieces, gx, gz, 0, fm.walkable, kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup)
+    skip_roof: Set[Cell] = set()
+    comp = (fm.composition or lc.LevelComposition(mix_mode="single")).normalized()
+    if comp.mix_mode == "transition":
+        spine, _, _, _ = lc.plan_zones_for_map(fm)
+        elev_fn = lc.make_elevation_lookup(fm.walkable, spine, comp)
+        skip_roof = {c for c in fm.walkable if elev_fn(c) > 0}
+    emit_roofs(
+        pieces, gx, gz, 0, fm.walkable,
+        skip_roof=skip_roof,
+        kit_lookup=kit_lookup, kit=kit, zone_lookup=zone_lookup,
+    )
 
 
 def emit_floor_tiles(
@@ -979,17 +1011,18 @@ def emit_pieces(
         if (ix, iz) in fm.corridor_cells:
             faces_set = set(faces)
             fs = frozenset(faces)
-            # Only the rounded L-bend keeps the corridor GLB. Straight / end /
-            # junction / cross corridors are built from floor + wall tiles so floor
-            # and walls each take the per-zone kit & material — corridor GLBs bundle
-            # a fixed floor under one material we cannot retint per zone.
-            if len(faces) == 2 and fs not in (frozenset({'N', 'S'}), frozenset({'E', 'W'})):
+            is_elbow = (
+                len(faces) == 2
+                and fs not in (frozenset({"N", "S"}), frozenset({"E", "W"}))
+            )
+            corner_kit = _ACTIVE_ZONE_KITS.get(z(ix, iz) or "", {}).get("corridor")
+            walls_only = corner_kit in _ACTIVE_WALLS_ONLY_CORNERS
+            if is_elbow and not walls_only:
                 # If this cell's faction uses a FLOORLESS corner GLB (its floor mesh
                 # was removed), lay a matching floor tile under it — that tile takes
                 # the per-zone kit like every other floor, so the corner floor
                 # matches the surrounding floors. Factions whose corner still
                 # bundles a floor get no extra tile (would double-floor / z-fight).
-                corner_kit = _ACTIVE_ZONE_KITS.get(z(ix, iz) or "", {}).get("corridor")
                 if corner_kit in _ACTIVE_FLOORLESS:
                     add_floor(ix, iz)
                 add_corner(ix, iz, CORNER_YAW.get(fs, 0.0))
@@ -1018,6 +1051,325 @@ def _mask(gx: int, gz: int, footprint: Set[Cell], holes: Set[Cell]) -> dict:
     return {"cells_x": gx, "cells_z": gz, "cells": cells}
 
 
+def _apply_synth_exterior_floors(
+    pieces: List[dict],
+    gx: int,
+    gz: int,
+    walkable: Set[Cell],
+    zone_lookup: ZoneLookup,
+    comp: "LevelComposition",
+    interior_cells: Set[Cell],
+    deck_cells: Set[Cell],
+) -> None:
+    """Ground-level synth ``floor`` on exterior corridors (no 1.2 m zone uplift)."""
+    import level_composition as lc
+
+    if comp.mix_mode != "transition":
+        return
+    synth_zones = {"prev", "next"}
+    skip = interior_cells | deck_cells
+    for p in pieces:
+        if p.get("role") != "floor" or p.get("stem") != "template-floor":
+            continue
+        if p.get("ceiling"):
+            continue
+        ix = int(round((p["x"] / CELL) + gx / 2 - 0.5))
+        iz = int(round((p["z"] / CELL) + gz / 2 - 0.5))
+        cell = (ix, iz)
+        if cell not in walkable or cell in skip:
+            continue
+        zone = zone_lookup(cell)
+        if zone not in synth_zones:
+            continue
+        p["stem"] = "floor"
+        p["kit"] = "factions/synth"
+        p["scale"] = 4.0
+        # Pin to EXACTLY y=0 (top 1.2 m) to match deck pieces. Without this the piece
+        # has no `y` and the client falls back to default_placement_y = -0.005, so synth
+        # floor blocks sat 5 mm below the deck tiles → a visible seam "line" at every
+        # deck/floor boundary ("2 tiles a pixel too high"). All synth surfaces flush now.
+        p["y"] = 0.0
+        p["tags"] = list(p.get("tags") or []) + ["synth_exterior_floor"]
+
+
+def _ensure_synth_accessibility(
+    pieces: List[dict],
+    fm: "FreeformMap",
+    spine: List[Cell],
+    comp: "LevelComposition",
+    zone_lookup: ZoneLookup,
+    gx: int,
+    gz: int,
+    door_spec,
+) -> int:
+    """Guarantee every synth cell is reachable from spawn.
+
+    The envelope pass walls synth↔default seams, which can seal off a whole synth
+    region that the base graph reached through those open faces (D3/D4 — inaccessible
+    areas / transition without an opening).  This pass BFS-walks from spawn honouring
+    walls/doors/stairs + the 1.2 m elevation, and for each still-unreachable synth cell
+    adjacent to a reached cell it opens a real entrance there (remove the seam wall;
+    add a door, plus stairs if it crosses the level).  Repeats until everything reachable.
+    """
+    import level_composition as lc
+    import synth_transition as st
+    import transition_entrances as te
+
+    DELTA = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
+    elev = lc.make_elevation_lookup(fm.walkable, spine, comp)
+
+    def facekey(c, s):
+        dx, dz = DELTA[s]
+        return (round(world_x(gx, c[0]) + dx * CELL * 0.5, 1),
+                round(world_z(gz, c[1]) + dz * CELL * 0.5, 1))
+
+    def rebuild_lookups():
+        wall = {}
+        door = set()
+        stair = set()
+        for p in pieces:
+            if p.get("ceiling") or int(p.get("floor_level", 0)) != 0:
+                continue
+            r = p.get("role")
+            if r == "wall":
+                wall.setdefault((round(p["x"], 1), round(p["z"], 1)), []).append(p)
+            elif r == "door":
+                door.add((round(p["x"], 1), round(p["z"], 1)))
+            elif r == "stairs":
+                stair.add((int(round(p["x"] / CELL + gx / 2 - 0.5)),
+                           int(round(p["z"] / CELL + gz / 2 - 0.5))))
+        return wall, door, stair
+
+    def reach(wall, door, stair):
+        spawn = fm.rooms[fm.spawn_room]
+        start = (spawn.cx, spawn.cz)
+        seen = {start}
+        stack = [start]
+        while stack:
+            c = stack.pop()
+            for s, (dx, dz) in DELTA.items():
+                nb = (c[0] + dx, c[1] + dz)
+                if nb not in fm.walkable or nb in seen:
+                    continue
+                k = facekey(c, s)
+                if k in wall and k not in door:
+                    continue
+                if abs(elev(c) - elev(nb)) > 0.5 and not (c in stair or nb in stair):
+                    continue
+                seen.add(nb)
+                stack.append(nb)
+        return seen
+
+    synth = {"prev", "next"}
+    opened = 0
+    for _ in range(400):  # bounded; each iteration opens >=1 entrance
+        wall, door, stair = rebuild_lookups()
+        seen = reach(wall, door, stair)
+        frontier = None
+        for c in sorted(fm.walkable):
+            if c in seen:
+                continue
+            for s, (dx, dz) in DELTA.items():
+                nb = (c[0] + dx, c[1] + dz)
+                if nb in seen and nb in fm.walkable:
+                    frontier = (c, nb, s)
+                    break
+            if frontier:
+                break
+        if frontier is None:
+            break
+        c, nb, s = frontier  # c = unreached cell, nb = reached neighbour
+        k = facekey(c, s)
+        if k in wall:  # remove the sealing wall(s)
+            for w in wall[k]:
+                if w in pieces:
+                    pieces.remove(w)
+        za, zb = zone_lookup(c), zone_lookup(nb)
+        need_stair = abs(elev(c) - elev(nb)) > 0.5 and nb not in stair and c not in stair
+        if za in synth and zb in synth:
+            # same elevated building, internal opening — a door is enough.
+            dx2, dy2, dyaw2 = te._cell_face_pose(gx, gz, c, s)
+            pieces.append({
+                "stem": door_spec.stem, "x": dx2, "z": dy2, "yaw": dyaw2,
+                "y": st.FLIGHT_RISE, "floor_level": 0, "scale": door_spec.scale,
+                "kit": door_spec.kit, "zone": za, "role": "door",
+                "tags": ["synth_transition", "access_repair", "elevated_door"],
+            })
+        elif za in synth or zb in synth:
+            # one side is the elevated building: door on the synth face, stairs on the
+            # default cell (works both ways — climb up or descend into a default pocket).
+            synth_cell, default_cell = (c, nb) if za in synth else (nb, c)
+            pieces.extend(st.crossing_pieces(
+                gx, gz, synth_cell, default_cell, zone_lookup(synth_cell),
+                door_spec, need_stair=need_stair,
+            ))
+        # both default at same level: removing the wall is enough (no door needed).
+        opened += 1
+    return opened
+
+
+def _attach_walls_to_doors(
+    pieces: List[dict],
+    fm: "FreeformMap",
+    spine: List[Cell],
+    comp: "LevelComposition",
+    gx: int,
+    gz: int,
+) -> int:
+    """Give every floor-0 door a wall on each open flank so it reads as a real doorway,
+    not a freestanding frame in open floor ("doorway with no connected walls").
+
+    A door's flanks are the two face positions along its own wall line. If a flank is
+    open (no wall, between two walkable cells) we add a jamb wall there — UNLESS doing
+    so would cut the only connection between those two cells (reachability-safe). Walls
+    inherit the door's yaw/Y so they sit flush."""
+    import level_composition as lc
+
+    DELTA = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
+    elev = lc.make_elevation_lookup(fm.walkable, spine, comp)
+
+    def fkey(c, s):
+        dx, dz = DELTA[s]
+        return (round(world_x(gx, c[0]) + dx * CELL * 0.5, 1),
+                round(world_z(gz, c[1]) + dz * CELL * 0.5, 1))
+
+    wall_faces = {
+        (round(p["x"], 1), round(p["z"], 1))
+        for p in pieces
+        if p.get("role") == "wall" and int(p.get("floor_level", 0)) == 0
+    }
+    door_faces = {
+        (round(p["x"], 1), round(p["z"], 1))
+        for p in pieces
+        if p.get("role") == "door" and int(p.get("floor_level", 0)) == 0
+    }
+
+    def connected(a: Cell, b: Cell, blocked: tuple) -> bool:
+        """BFS a→b honouring walls/doors, with one extra blocked face ``blocked``."""
+        seen = {a}
+        stack = [a]
+        while stack:
+            c = stack.pop()
+            if c == b:
+                return True
+            for s in DELTA:
+                dx, dz = DELTA[s]
+                nb = (c[0] + dx, c[1] + dz)
+                if nb not in fm.walkable or nb in seen:
+                    continue
+                k = fkey(c, s)
+                if k == blocked:
+                    continue
+                if k in wall_faces and k not in door_faces:
+                    continue
+                seen.add(nb)
+                stack.append(nb)
+        return False
+
+    def flank_cells(fx: float, fz: float):
+        gxf = fx / CELL + gx / 2 - 0.5
+        gzf = fz / CELL + gz / 2 - 0.5
+        if abs(gxf - round(gxf)) > 0.25:
+            return (int(round(gxf - 0.5)), int(round(gzf))), (int(round(gxf + 0.5)), int(round(gzf)))
+        return (int(round(gxf)), int(round(gzf - 0.5))), (int(round(gxf)), int(round(gzf + 0.5)))
+
+    added = 0
+    new: List[dict] = []
+    for p in list(pieces):
+        if p.get("role") != "door" or int(p.get("floor_level", 0)) != 0:
+            continue
+        x, z = p["x"], p["z"]
+        gxf = x / CELL + gx / 2 - 0.5
+        vertical = abs(gxf - round(gxf)) > 0.25
+        flanks = [(x, z - CELL), (x, z + CELL)] if vertical else [(x - CELL, z), (x + CELL, z)]
+        for fx, fz in flanks:
+            key = (round(fx, 1), round(fz, 1))
+            if key in wall_faces or key in door_faces:
+                continue
+            a, b = flank_cells(fx, fz)
+            if a not in fm.walkable or b not in fm.walkable:
+                continue  # against void — already a fine jamb
+            if not connected(a, b, key):
+                continue  # this flank is the only path between a,b — leave it open
+            y = max(elev(a), elev(b))
+            w = {
+                "stem": "wall", "x": fx, "z": fz, "yaw": p.get("yaw", 0.0),
+                "floor_level": 0, "scale": 4.0, "kit": "factions/synth",
+                "zone": p.get("zone"), "role": "wall",
+                "tags": ["synth_transition", "door_jamb"],
+            }
+            if y > 0:
+                w["y"] = y
+            new.append(w)
+            wall_faces.add(key)
+            added += 1
+    pieces.extend(new)
+    return added
+
+
+def _strip_walls_under_doors(pieces: List[dict]) -> int:
+    """Remove any floor-0 wall sharing a door's face (a door must be an OPENING, not
+    lodged inside a wall — D2).  Doors win over walls."""
+    door_keys = {
+        (round(p["x"], 1), round(p["z"], 1))
+        for p in pieces
+        if p.get("role") == "door" and int(p.get("floor_level", 0)) == 0
+    }
+    if not door_keys:
+        return 0
+    kept: List[dict] = []
+    removed = 0
+    for p in pieces:
+        if (
+            p.get("role") == "wall"
+            and int(p.get("floor_level", 0)) == 0
+            and (round(p["x"], 1), round(p["z"], 1)) in door_keys
+        ):
+            removed += 1
+            continue
+        kept.append(p)
+    if removed:
+        pieces.clear()
+        pieces.extend(kept)
+    return removed
+
+
+def _apply_zone_elevation(
+    pieces: List[dict],
+    gx: int,
+    gz: int,
+    fm: FreeformMap,
+    spine: List[Cell],
+    comp: "LevelComposition",
+    *,
+    interior_cells: Optional[Set[Cell]] = None,
+) -> None:
+    """Raise faction-deck pieces to ``elevation_rise`` (synth station height)."""
+    import level_composition as lc
+
+    if comp.mix_mode != "transition":
+        return
+    elev = lc.make_elevation_lookup(
+        fm.walkable, spine, comp, interior_cells=interior_cells,
+    )
+    for p in pieces:
+        if "y" in p or p.get("ceiling"):
+            continue
+        # Deck uplift is a floor-0 concept only — never raise the underground hub
+        # floors/walls (floor_level -1/-2) that happen to sit under a synth cell.
+        if int(p.get("floor_level", 0)) != 0:
+            continue
+        if p.get("role") == "deck":
+            continue
+        if p.get("stem", "").startswith("floor") and p.get("kit") in ("space_station", "factions/synth"):
+            continue
+        # Walls sit on a cell FACE; a synth/default seam wall belongs to the synth
+        # (elevated) side, so take the max elevation over both cells sharing the face.
+        e = max((elev(c) for c in _face_cells(gx, gz, p["x"], p["z"])), default=0.0)
+        if e > 0:
+            p["y"] = e
+
+
 def to_doc(fm: FreeformMap, name: str) -> dict:
     import faction_profiles as fp
     import level_composition as lc
@@ -1037,7 +1389,49 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
     for (ix, iz) in fm.walkable:
         mask0[iz * gx + ix] = (ix, iz) != (hub.trap0 if hub else None)
 
+    import transition_entrances as te
+
     pieces = emit_pieces(fm, holes0, kit_lookup=kit_lookup, zone_lookup=zone_lookup)
+
+    transition_rng = random.Random((fm.seed * 1597334677) & 0xFFFFFFFF)
+    transition_pieces, transition_plans = te.emit_transition_pieces(
+        gx, gz, spine, comp, fm.walkable, zone_lookup, transition_rng,
+        existing_pieces=pieces,
+    )
+    pieces.extend(transition_pieces)
+
+    import synth_transition as st
+
+    interior_cells: Optional[Set[Cell]] = None
+    deck_cells: Set[Cell] = set()
+    for plan in transition_plans:
+        deck_cells |= plan.deck_cells
+    if transition_plans:
+        # The synth zone is one elevated building: EVERY synth cell sits on the 1.2 m
+        # deck (so every synth wall is at 1.2 m).  Earlier this was a 1-D BFS line, which
+        # left branch cells — and their walls — at y=0.  Whole footprint now elevates.
+        synth_zones = {"prev", "next"}
+        interior_cells = {c for c in fm.walkable if zone_lookup(c) in synth_zones}
+        _apply_synth_exterior_floors(
+            pieces, gx, gz, fm.walkable, zone_lookup, comp, set(), deck_cells,
+        )
+    # Close the synth footprint: wall every synth cell that borders a walkable
+    # non-synth cell (base-gen only walls void faces, so synth/default seams leak).
+    # Corridor crossings become door+stairs instead of a blocking wall.
+    if transition_plans:
+        synth_door = te._resolve_door(fp.load_profile("synth"))
+        pieces.extend(st.emit_synth_envelope_walls(
+            gx, gz, fm.walkable, zone_lookup, deck_cells, pieces,
+            corridor_cells=fm.corridor_cells, door_spec=synth_door,
+        ))
+        # Guarantee every synth region is reachable from spawn (open a stair+door
+        # entrance into any area the envelope walls sealed off).
+        _ensure_synth_accessibility(
+            pieces, fm, spine, comp, zone_lookup, gx, gz, synth_door,
+        )
+        # Give every door a wall jamb on open flanks (no freestanding doorframes).
+        # Reachability-safe: never jambs the sole path between two cells.
+        _attach_walls_to_doors(pieces, fm, spine, comp, gx, gz)
     floors = {"0": {"cells_x": gx, "cells_z": gz, "cells": mask0}}
     hub_exits: Dict[str, dict] = {}
 
@@ -1065,9 +1459,23 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
             **hd.to_piece_extras(),
         })
 
+    _strip_walls_under_doors(pieces)
+
+    # Interior dressing: windows on the synth perimeter, banners inside (drop-in stem
+    # swaps — still solid walls, integrity/reachability unchanged).
+    if transition_plans:
+        st.decorate_synth_walls(pieces, gx, gz, fm.walkable, zone_lookup, fm.seed)
+        st.furnish_synth_interior(pieces, gx, gz, fm.walkable, zone_lookup, deck_cells, fm.seed)
+
     emit_all_roofs(pieces, fm, hub, gx, gz, holes0, kit_lookup=kit_lookup, zone_lookup=zone_lookup)
 
+    _apply_zone_elevation(
+        pieces, gx, gz, fm, spine, comp, interior_cells=interior_cells,
+    )
+
     spawn = fm.rooms[fm.spawn_room]
+    spawn_cell = (spawn.cx, spawn.cz)
+    spawn_y = lc.make_elevation_lookup(fm.walkable, spine, comp)(spawn_cell)
     building = comp.next_faction if comp.mix_mode == "transition" else fm.faction_profile_id
     return {
         "version": 1,
@@ -1081,10 +1489,14 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
         "floors": floors,
         "pieces": pieces,
         "spawn_xz": [world_x(gx, spawn.cx), world_z(gz, spawn.cz)],
+        "spawn_y": spawn_y,
         "extraction_xz": [world_x(gx, hub.trap0[0]) if hub else 0.0,
                           world_z(gz, hub.trap0[1]) if hub else 0.0],
         "hub_exits": hub_exits,
         "spine_len": len(spine),
+        "transition_entrances": len([
+            p for p in pieces if "transition_entrance" in (p.get("tags") or [])
+        ]),
     }
 
 
@@ -1118,6 +1530,18 @@ def ascii_map(fm: FreeformMap) -> str:
 
 
 # ─── validation ──────────────────────────────────────────────────────────────
+
+def _preview_error_summary(errs: List[str], *, max_len: int = 140) -> str:
+    """One readable line for the editor Proc status (avoid semicolon mash)."""
+    if not errs:
+        return "Generation failed"
+    head = errs[0]
+    if len(errs) > 1:
+        head = f"{head} (+{len(errs) - 1} more)"
+    if len(head) > max_len:
+        return head[: max_len - 1] + "…"
+    return head
+
 
 def audit_floor_overlaps(pieces: List[dict], *, eps: float = 0.01) -> List[str]:
     """Two solid floor tiles at the same floor + centre → z-fighting."""
@@ -1162,6 +1586,32 @@ def validate(fm: FreeformMap, doc: Optional[dict] = None) -> List[str]:
             errs.append("hub needs 2 exits")
         elif fm.hub.exits[0].landing & fm.hub.exits[1].landing:
             errs.append("hub floor -2 landings overlap")
+    if doc is not None:
+        import level_composition as lc
+
+        pieces = doc.get("pieces", [])
+        gx, gz = fm.gx, fm.gz
+        comp = (fm.composition or lc.LevelComposition(mix_mode="single")).normalized()
+        spine, _, _, _ = lc.plan_zones_for_map(fm)
+        elev_fn = (
+            lc.make_elevation_lookup(fm.walkable, spine, comp)
+            if comp.mix_mode == "transition"
+            else (lambda _c: 0.0)
+        )
+        # Every walkable floor-0 tile needs a ceiling at floor 1 except open elevated decks.
+        for c in fm.walkable:
+            wx, wz = world_x(gx, c[0]), world_z(gz, c[1])
+            if elev_fn(c) > 0:
+                continue
+            has_ceil = any(
+                p.get("ceiling")
+                and int(p.get("floor_level", 0)) == 1
+                and abs(float(p["x"]) - wx) < 0.01
+                and abs(float(p["z"]) - wz) < 0.01
+                for p in pieces
+            )
+            if not has_ceil:
+                errs.append(f"walkable cell {c} missing roof (ceiling at floor 1)")
     if doc is not None and fm.hub:
         pieces = doc.get("pieces", [])
         gx, gz = fm.gx, fm.gz
@@ -1177,19 +1627,6 @@ def validate(fm: FreeformMap, doc: Optional[dict] = None) -> List[str]:
             )
             if not has_f0 and not has_ceil:
                 errs.append(f"hub trap {c} missing ceiling at floor 0")
-        # Every walkable floor-0 tile (trap included) must have a ceiling slab at floor 1
-        # so the roof is continuous — no hole above the trapdoor.
-        for c in fm.walkable:
-            wx, wz = world_x(gx, c[0]), world_z(gz, c[1])
-            has_ceil = any(
-                p.get("ceiling")
-                and int(p.get("floor_level", 0)) == 1
-                and abs(float(p["x"]) - wx) < 0.01
-                and abs(float(p["z"]) - wz) < 0.01
-                for p in pieces
-            )
-            if not has_ceil:
-                errs.append(f"walkable cell {c} missing roof (ceiling at floor 1)")
         for i, ex in enumerate(fm.hub.exits):
             trap_cells = ex.landing & fm.hub.holes1
             for c in ex.landing - trap_cells:
@@ -1286,9 +1723,9 @@ def run(
     prev_faction: str = "priesthood",
     next_faction: str = "industrial_default",
     default_faction: str = "industrial_default",
-    prev_fraction: float = 0.25,
-    default_fraction: float = 0.50,
-    next_fraction: float = 0.25,
+    prev_fraction: float = 0.15,
+    default_fraction: float = 0.60,
+    next_fraction: float = 0.35,
 ) -> dict:
     """Generate one free-form map, write it, export the layout, return a report.
 
@@ -1333,7 +1770,7 @@ def run(
         return {
             "ok": False,
             "seed": seed,
-            "error": "; ".join(overlap[:3]),
+            "error": _preview_error_summary(overlap),
             "elapsed_s": round(time.time() - t0, 2),
         }
     geo = validate(fm, doc)
@@ -1341,7 +1778,7 @@ def run(
         return {
             "ok": False,
             "seed": seed,
-            "error": "; ".join(geo[:3]),
+            "error": _preview_error_summary(geo),
             "elapsed_s": round(time.time() - t0, 2),
         }
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1373,9 +1810,9 @@ def main() -> None:
     ap.add_argument('--prev-faction', default='priesthood')
     ap.add_argument('--next-faction', default='industrial_default')
     ap.add_argument('--default-faction', default='industrial_default')
-    ap.add_argument('--prev-fraction', type=float, default=0.25)
-    ap.add_argument('--default-fraction', type=float, default=0.50)
-    ap.add_argument('--next-fraction', type=float, default=0.25)
+    ap.add_argument('--prev-fraction', type=float, default=0.15)
+    ap.add_argument('--default-fraction', type=float, default=0.60)
+    ap.add_argument('--next-fraction', type=float, default=0.35)
     ap.add_argument('--attempts', type=int, default=20, help='Generation retries')
     ap.add_argument('--out', default=None)
     ap.add_argument('--preview', action='store_true')

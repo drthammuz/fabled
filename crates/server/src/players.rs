@@ -161,11 +161,10 @@ fn on_client_disconnected(
     }
 }
 
-fn capsule_center_on_floor(x: f32, z: f32) -> Vec3 {
-    const FLOOR_TOP: f32 = 0.0;
+fn capsule_center_on_floor(x: f32, z: f32, floor_top: f32) -> Vec3 {
     Vec3::new(
         x,
-        FLOOR_TOP + config::PLAYER_CAPSULE_LENGTH / 2.0 + config::PLAYER_CAPSULE_RADIUS,
+        floor_top + config::PLAYER_CAPSULE_LENGTH / 2.0 + config::PLAYER_CAPSULE_RADIUS,
         z,
     )
 }
@@ -179,18 +178,19 @@ fn testmap_spawn_pos(index: usize, test: Option<&TestMode>, editor_active: bool)
     if let Some(test) = test {
         if test.style == TestMapStyle::Kenney {
             if let Some([x, z]) = map_pool::play_spawn_xz(editor_active, index) {
-                return capsule_center_on_floor(x, z);
+                let floor_y = map_pool::play_spawn_y(editor_active);
+                return capsule_center_on_floor(x, z, floor_y);
             }
             let layout = map_pool::play_layout(editor_active);
             if !layout.pieces.is_empty() {
                 let focus = layout.focus_xz();
                 let spread = Vec3::new((index % 2) as f32 * 2.0 - 1.0, 0.0, (index / 2) as f32 * 2.0);
-                return capsule_center_on_floor(focus.x + spread.x, focus.y + spread.z);
+                return capsule_center_on_floor(focus.x + spread.x, focus.y + spread.z, 0.0);
             }
         }
         let (cx, cz) = level::kenney_sandbox_center_xz();
         let spread = Vec3::new((index % 2) as f32 * 2.0 - 1.0, 0.0, (index / 2) as f32 * 2.0);
-        return capsule_center_on_floor(cx + spread.x, cz - 6.0 + spread.z);
+        return capsule_center_on_floor(cx + spread.x, cz - 6.0 + spread.z, 0.0);
     }
     let spawns = level::active_level().player_spawns;
     spawns[index % spawns.len()]

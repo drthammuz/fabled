@@ -17,6 +17,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import mesh_metrics
+
 ROOT = Path(__file__).resolve().parent.parent
 FACTION_DIR = ROOT / "userinput" / "factions"
 
@@ -38,6 +40,37 @@ class HiddenDoorSpec:
 
 
 @dataclass
+class EntrancePieceSpec:
+    """Door or stair GLB placed at an industrial ↔ faction boundary."""
+
+    stem: str
+    kit: str
+    scale: float = 1.0
+    yaw_offset: float = 0.0
+
+
+def stair_ramp_footprint_m(stem: str, scale: float, kit: str = "space_station") -> Tuple[float, float]:
+    """World metres (high-end extent, low-end extent) along the ramp axis."""
+    return mesh_metrics.stair_ramp_footprint_m(stem, scale, kit)
+
+
+def stair_top_height_m(stem: str, scale: float, kit: str = "space_station") -> float:
+    return mesh_metrics.stair_top_y_m(stem, scale, kit)
+
+
+@dataclass
+class TransitionSpec:
+    """How this faction meets the industrial substrate (manifest §2.3)."""
+
+    mode: str = "direct_on_substrate"  # outdoor_then_indoor | direct_on_substrate
+    substrate_overlap_cells: int = 0
+    # Top of stairs-small-center @ scale 4 (space_station bbox ymax 0.3 × 4).
+    elevation_rise: float = 1.2
+    entrance_door: Optional[EntrancePieceSpec] = None
+    entrance_stairs: Optional[EntrancePieceSpec] = None
+
+
+@dataclass
 class FactionProcgenProfile:
     """Quantifiable procgen knobs for one faction building tradition."""
 
@@ -54,6 +87,7 @@ class FactionProcgenProfile:
     loops: int = 3
     notes: str = ""
     hidden_door: HiddenDoorSpec = field(default_factory=HiddenDoorSpec)
+    transition: TransitionSpec = field(default_factory=TransitionSpec)
 
     def apply_generation_defaults(self, kwargs: dict) -> dict:
         """Fill missing gen_freeform kwargs from profile defaults."""
@@ -84,6 +118,10 @@ _BUILTIN: Dict[str, FactionProcgenProfile] = {
         hidden_door=HiddenDoorSpec(
             stem="gate-door", kit="dungeon", tint=(0.95, 0.72, 0.35),
         ),
+        transition=TransitionSpec(
+            mode="outdoor_then_indoor",
+            entrance_door=EntrancePieceSpec(stem="gate-door", kit="dungeon"),
+        ),
     ),
     "synth": FactionProcgenProfile(
         id="synth",
@@ -93,8 +131,17 @@ _BUILTIN: Dict[str, FactionProcgenProfile] = {
         organicness=0.4,
         corridor_width=1.2,
         hidden_door=HiddenDoorSpec(
-            # station kit has no gate-door; reuse space gate until station doors are wired
             stem="gate-door", kit="space", tint=(0.55, 0.95, 0.88),
+        ),
+        transition=TransitionSpec(
+            mode="outdoor_then_indoor",
+            elevation_rise=1.2,
+            entrance_door=EntrancePieceSpec(
+                stem="wall-door", kit="space_station", scale=4.0,
+            ),
+            entrance_stairs=EntrancePieceSpec(
+                stem="stairs-small-center", kit="space_station", scale=4.0,
+            ),
         ),
     ),
     "outlaw": FactionProcgenProfile(
@@ -105,6 +152,11 @@ _BUILTIN: Dict[str, FactionProcgenProfile] = {
         organicness=0.6,
         hidden_door=HiddenDoorSpec(
             stem="gate-door", kit="space", tint=(0.92, 0.55, 0.42),
+        ),
+        transition=TransitionSpec(
+            mode="direct_on_substrate",
+            substrate_overlap_cells=3,
+            entrance_door=EntrancePieceSpec(stem="gate-door", kit="space"),
         ),
     ),
     "industrial_default": FactionProcgenProfile(
@@ -122,8 +174,34 @@ _BUILTIN: Dict[str, FactionProcgenProfile] = {
 }
 
 
+def _piece_spec(raw: Optional[dict]) -> Optional[EntrancePieceSpec]:
+    if not raw:
+        return None
+    return EntrancePieceSpec(
+        stem=str(raw["stem"]),
+        kit=str(raw.get("kit", "space")),
+        scale=float(raw.get("scale", 1.0)),
+        yaw_offset=float(raw.get("yaw_offset", 0.0)),
+    )
+
+
+def _transition_from_dict(raw: Optional[dict], profile_id: str) -> TransitionSpec:
+    if not raw:
+        if profile_id in _BUILTIN:
+            return _BUILTIN[profile_id].transition
+        return TransitionSpec()
+    return TransitionSpec(
+        mode=str(raw.get("mode", "direct_on_substrate")),
+        substrate_overlap_cells=int(raw.get("substrate_overlap_cells", 0)),
+        elevation_rise=float(raw.get("elevation_rise", 1.2)),
+        entrance_door=_piece_spec(raw.get("entrance_door")),
+        entrance_stairs=_piece_spec(raw.get("entrance_stairs")),
+    )
+
+
 def _profile_from_dict(data: dict) -> FactionProcgenProfile:
     hd_raw = data.pop("hidden_door", {}) or {}
+    tr_raw = data.pop("transition", None)
     tint = hd_raw.get("tint")
     hidden_door = HiddenDoorSpec(
         stem=hd_raw.get("stem", "gate-door"),
@@ -132,7 +210,10 @@ def _profile_from_dict(data: dict) -> FactionProcgenProfile:
         tag=hd_raw.get("tag", "hidden_entrance"),
     )
     pid = data["id"]
-    return FactionProcgenProfile(hidden_door=hidden_door, **data)
+    transition = _transition_from_dict(tr_raw, pid)
+    return FactionProcgenProfile(
+        hidden_door=hidden_door, transition=transition, **data,
+    )
 
 
 MODULAR_GRAMMAR_KITS = frozenset({"space", "dungeon"})

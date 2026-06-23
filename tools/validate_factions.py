@@ -23,7 +23,7 @@ PROFILE_DIR = ROOT / "userinput" / "factions"
 
 # Mirror of the client KenneyMaterialSlot enum (test_showcase.rs). Keep in sync.
 KNOWN_SLOTS = {
-    "NativeGlb", "Priesthood", "SpaceDefault", "SpaceCyber",
+    "NativeGlb", "Priesthood", "Synth", "SpaceDefault", "SpaceCyber",
     "SpaceIndustrial", "Ceiling", "CeilingPink", "Lasers",
 }
 
