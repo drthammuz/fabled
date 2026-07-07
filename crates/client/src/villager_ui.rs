@@ -49,8 +49,12 @@ struct VillagerLabel {
     stats_line: Entity,
 }
 
-fn toggle_label_mode(keys: Res<ButtonInput<KeyCode>>, mut mode: ResMut<LabelMode>) {
-    if keys.just_pressed(KeyCode::KeyT) {
+fn toggle_label_mode(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut mode: ResMut<LabelMode>,
+    capture: Res<crate::netplay::InputCapture>,
+) {
+    if !capture.0 && keys.just_pressed(KeyCode::KeyT) {
         *mode = match *mode {
             LabelMode::Nearby => LabelMode::All,
             LabelMode::All => LabelMode::Off,

@@ -1,0 +1,16 @@
+Synth Interior Sweep Report
+Best composite: 16.1
+Best params: {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.0, 'quarters_area_max': 6}
+Best metrics: {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}
+
+Recent trials (last 10):
+  {'trial': 2787, 'params': {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.22, 'quarters_area_max': 5}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}, 'rank': 16.1}
+  {'trial': 2788, 'params': {'gap_multiplier': 1.39, 'pairing_aggressiveness': 0.7, 'quarters_area_max': 5}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.622, 'avg_composite': 15.92, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 15.92}, 'rank': 15.92}
+  {'trial': 2789, 'params': {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.0, 'quarters_area_max': 6}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}, 'rank': 16.1}
+  {'trial': 2790, 'params': {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.0, 'quarters_area_max': 6}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}, 'rank': 16.1}
+  {'trial': 2791, 'params': {'gap_multiplier': 1.5, 'pairing_aggressiveness': 1.24, 'quarters_area_max': 7}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.571, 'avg_composite': 15.41, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 15.41}, 'rank': 15.41}
+  {'trial': 2792, 'params': {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.0, 'quarters_area_max': 6}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}, 'rank': 16.1}
+  {'trial': 2793, 'params': {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.0, 'quarters_area_max': 6}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}, 'rank': 16.1}
+  {'trial': 2794, 'params': {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.0, 'quarters_area_max': 6}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}, 'rank': 16.1}
+  {'trial': 2795, 'params': {'gap_multiplier': 1.28, 'pairing_aggressiveness': 0.72, 'quarters_area_max': 5}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.622, 'avg_composite': 15.92, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 15.92}, 'rank': 15.92}
+  {'trial': 2796, 'params': {'gap_multiplier': 1.2, 'pairing_aggressiveness': 1.18, 'quarters_area_max': 5}, 'metrics': {'avg_pairs': 5, 'avg_free_walk': 0.64, 'avg_composite': 16.1, 'hard_errors_total': 0, 'avg_props': 32.0, 'composite_for_ranking': 16.1}, 'rank': 16.1}

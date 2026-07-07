@@ -3,8 +3,11 @@ use bevy::prelude::*;
 pub mod audio;
 pub mod character_animation;
 pub mod city_viewer;
+pub mod crosshair;
 pub mod door_anim;
 pub mod class_select;
+pub mod dev_tools;
+pub mod dialogue;
 pub mod display_settings;
 pub mod process_spawn;
 pub mod darkness;
@@ -18,6 +21,10 @@ pub mod netplay;
 pub mod prop_render;
 pub mod run_ui;
 pub mod sewer_atmosphere;
+pub mod tab_overlay;
+pub mod terminal;
+pub mod terminal_shell;
+pub mod ui_theme;
 pub mod editor_floor;
 pub mod editor_ops;
 pub mod editor_history;
@@ -29,6 +36,7 @@ pub mod editor_state;
 pub mod editor_ui;
 pub mod editor_workspace;
 pub mod kenney_editor;
+pub mod proc_stream;
 pub mod test_showcase;
 pub mod tunnel_mesh;
 pub mod water_render;
@@ -68,11 +76,18 @@ impl Plugin for ClientCorePlugin {
             character_animation::CharacterAnimationPlugin,
         ))
         .add_plugins((
+            ui_theme::UiThemePlugin,
+            crosshair::CrosshairPlugin,
+            dialogue::DialoguePlugin,
+            terminal::TerminalPlugin,
+            tab_overlay::TabOverlayPlugin,
+            dev_tools::DevToolsPlugin,
             door_anim::DoorAnimPlugin,
             test_showcase::TestShowcasePlugin,
             city_viewer::CityViewerPlugin,
             editor_playtest::EditorPlaytestPlugin,
             kenney_editor::KenneyEditorPlugin,
+            proc_stream::ProcStreamPlugin,
             floor_debug::FloorDebugPlugin,
         ))
         .add_systems(Startup, log_startup);

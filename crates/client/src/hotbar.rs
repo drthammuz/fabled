@@ -7,6 +7,8 @@ use shared::config;
 use shared::protocol::{Item, InventoryUpdate};
 use shared::EditorMode;
 
+use crate::ui_theme as theme;
+
 pub struct HotbarPlugin;
 
 impl Plugin for HotbarPlugin {
@@ -15,8 +17,28 @@ impl Plugin for HotbarPlugin {
             .add_systems(Startup, setup_hotbar)
             .add_systems(
                 Update,
-                (receive_inventory, select_slot, refresh_hotbar).chain(),
+                (sync_hotbar_visibility, receive_inventory, select_slot, refresh_hotbar)
+                    .chain(),
             );
+    }
+}
+
+#[derive(Component)]
+struct HotbarRoot;
+
+/// Visible during gameplay AND editor playtest; hidden in the editor itself.
+fn sync_hotbar_visibility(
+    editor: Option<Res<EditorMode>>,
+    playtest: Option<Res<crate::editor_playtest::EditorPlaytestActive>>,
+    mut root: Query<&mut Visibility, With<HotbarRoot>>,
+) {
+    let hidden = editor.is_some() && playtest.is_none();
+    for mut vis in &mut root {
+        *vis = if hidden {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
     }
 }
 
@@ -39,48 +61,69 @@ impl Default for OwnInventory {
 #[derive(Component)]
 struct HotbarSlot(usize);
 
+/// Large colored item tag in the slot center (the v1 "icon").
 #[derive(Component)]
-struct HotbarSlotText(usize);
+struct HotbarSlotTag(usize);
 
-const SLOT_BG: Color = Color::srgba(0.1, 0.1, 0.12, 0.75);
-const SLOT_BG_SELECTED: Color = Color::srgba(0.35, 0.3, 0.1, 0.9);
+/// Small item name under the tag.
+#[derive(Component)]
+struct HotbarSlotName(usize);
 
-fn setup_hotbar(mut commands: Commands, editor: Option<Res<EditorMode>>) {
-    if editor.is_some() {
-        return;
-    }
+fn setup_hotbar(mut commands: Commands) {
     commands
-        .spawn(Node {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(18.0),
-            width: Val::Percent(100.0),
-            justify_content: JustifyContent::Center,
-            column_gap: Val::Px(8.0),
-            ..default()
-        })
+        .spawn((
+            HotbarRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(18.0),
+                width: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                column_gap: Val::Px(6.0),
+                ..default()
+            },
+        ))
         .with_children(|row| {
             for i in 0..config::INVENTORY_SLOTS {
                 row.spawn((
                     HotbarSlot(i),
                     Node {
-                        width: Val::Px(110.0),
-                        height: Val::Px(44.0),
+                        width: Val::Px(64.0),
+                        height: Val::Px(64.0),
+                        border: UiRect::all(Val::Px(1.0)),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
                         flex_direction: FlexDirection::Column,
+                        row_gap: Val::Px(2.0),
+                        overflow: Overflow::clip(),
                         ..default()
                     },
-                    BackgroundColor(SLOT_BG),
+                    BackgroundColor(theme::PANEL_BG),
+                    BorderColor::all(theme::PANEL_BORDER),
                 ))
                 .with_children(|slot| {
+                    // Key hint, pinned to the slot corner.
                     slot.spawn((
-                        HotbarSlotText(i),
                         Text::new(format!("{}", i + 1)),
-                        TextFont {
-                            font_size: 13.0,
+                        TextFont { font_size: 10.0, ..default() },
+                        TextColor(theme::TEXT_DIM),
+                        Node {
+                            position_type: PositionType::Absolute,
+                            top: Val::Px(2.0),
+                            left: Val::Px(4.0),
                             ..default()
                         },
-                        TextColor(Color::srgb(0.8, 0.8, 0.8)),
+                    ));
+                    slot.spawn((
+                        HotbarSlotTag(i),
+                        Text::new(""),
+                        TextFont { font_size: 17.0, ..default() },
+                        TextColor(theme::TEXT_DIM),
+                    ));
+                    slot.spawn((
+                        HotbarSlotName(i),
+                        Text::new(""),
+                        TextFont { font_size: 9.0, ..default() },
+                        TextColor(theme::TEXT_DIM),
                     ));
                 });
             }
@@ -96,7 +139,15 @@ fn receive_inventory(
     }
 }
 
-fn select_slot(keys: Res<ButtonInput<KeyCode>>, mut inventory: ResMut<OwnInventory>) {
+fn select_slot(
+    keys: Res<ButtonInput<KeyCode>>,
+    capture: Res<crate::netplay::InputCapture>,
+    mut inventory: ResMut<OwnInventory>,
+) {
+    // Number keys belong to the dialogue/trade window while it's open.
+    if capture.0 {
+        return;
+    }
     const SLOT_KEYS: [KeyCode; 4] = [
         KeyCode::Digit1,
         KeyCode::Digit2,
@@ -112,24 +163,41 @@ fn select_slot(keys: Res<ButtonInput<KeyCode>>, mut inventory: ResMut<OwnInvento
 
 fn refresh_hotbar(
     inventory: Res<OwnInventory>,
-    mut slots: Query<(&HotbarSlot, &mut BackgroundColor)>,
-    mut texts: Query<(&HotbarSlotText, &mut Text)>,
+    mut slots: Query<(&HotbarSlot, &mut BorderColor, &mut BackgroundColor)>,
+    mut tags: Query<(&HotbarSlotTag, &mut Text, &mut TextColor), Without<HotbarSlotName>>,
+    mut names: Query<(&HotbarSlotName, &mut Text), Without<HotbarSlotTag>>,
 ) {
     if !inventory.is_changed() {
         return;
     }
-    for (slot, mut bg) in &mut slots {
-        bg.0 = if slot.0 == inventory.selected {
-            SLOT_BG_SELECTED
+    for (slot, mut border, mut bg) in &mut slots {
+        let selected = slot.0 == inventory.selected;
+        *border = BorderColor::all(if selected { theme::ACCENT } else { theme::PANEL_BORDER });
+        bg.0 = if selected {
+            Color::srgba(0.06, 0.12, 0.15, 0.9)
         } else {
-            SLOT_BG
+            theme::PANEL_BG
         };
     }
-    for (slot, mut text) in &mut texts {
-        let label = match inventory.slots.get(slot.0).and_then(Option::as_ref) {
-            Some(item) => format!("{} {}", slot.0 + 1, item.name),
-            None => format!("{}", slot.0 + 1),
-        };
-        text.0 = label;
+    for (tag, mut text, mut color) in &mut tags {
+        match inventory.slots.get(tag.0).and_then(Option::as_ref) {
+            Some(item) => {
+                let (label, tint) = theme::item_style(item.id);
+                text.0 = label.to_string();
+                color.0 = tint;
+            }
+            None => {
+                text.0 = "·".to_string();
+                color.0 = theme::TEXT_DIM;
+            }
+        }
+    }
+    for (name, mut text) in &mut names {
+        text.0 = inventory
+            .slots
+            .get(name.0)
+            .and_then(Option::as_ref)
+            .map(|item| item.name.clone())
+            .unwrap_or_default();
     }
 }

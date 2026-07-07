@@ -49,6 +49,11 @@ pub struct UserEditorPrefs {
     pub editor_display: DisplayMode,
     #[serde(default)]
     pub test_display: DisplayMode,
+    /// Editor playtest (G): show the real class-selection screen on entry
+    /// instead of auto-picking Soldier. Off by default; toggle lives in the
+    /// editor's Options menu ("Playtest class select").
+    #[serde(default)]
+    pub playtest_class_select: bool,
 }
 
 impl UserEditorPrefs {

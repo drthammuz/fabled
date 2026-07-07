@@ -48,6 +48,7 @@ fn spawn_run_entity(
     mut commands: Commands,
     test: Option<Res<shared::TestMode>>,
     city: Option<Res<shared::CityViewMode>>,
+    editor: Option<Res<shared::EditorMode>>,
 ) {
     let start = run::start_node();
     let level_id = if city.is_some() {
@@ -68,7 +69,9 @@ fn spawn_run_entity(
             phase: RunPhase::InStretch,
             level_id,
             hub_id: None,
-            credits: 0,
+            // Dev modes start with a wallet so NPC trading is testable in the
+            // editor playtest without grinding credit pickups first.
+            credits: if test.is_some() || city.is_some() || editor.is_some() { 60 } else { 0 },
             scrap: 0,
             map_holder: None,
             route_options: vec![],

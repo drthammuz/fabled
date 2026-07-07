@@ -173,6 +173,21 @@ impl PoolMapDocument {
                 .and_then(|m| m.as_str())
                 .map(str::to_owned),
             branch_levels,
+            enemy_spawns: v
+                .get("enemy_spawns")
+                .and_then(|s| serde_json::from_value(s.clone()).ok())
+                .unwrap_or_default(),
+            npc_spawns: v
+                .get("npc_spawns")
+                .and_then(|s| serde_json::from_value(s.clone()).ok())
+                .unwrap_or_default(),
+            enemy_patrols: v
+                .get("enemy_patrols")
+                .and_then(|s| serde_json::from_value(s.clone()).ok())
+                .unwrap_or_default(),
+            nav: v
+                .get("nav")
+                .and_then(|s| serde_json::from_value(s.clone()).ok()),
         };
 
         Some(Self { pool_id, layout })
@@ -454,7 +469,11 @@ mod tests {
                 patched.extraction_xz.is_some(),
                 "playtest layout must infer extraction_xz from floor-0 pit marker"
             );
-            assert!(!patched.branch_levels.is_empty());
+            // Legacy hubs get default branch levels; freeform hubs route via
+            // hub_exits instead and legitimately keep branch_levels empty.
+            if !crate::kenney_hub::is_freeform_hub_layout(&patched) {
+                assert!(!patched.branch_levels.is_empty());
+            }
         }
     }
 }

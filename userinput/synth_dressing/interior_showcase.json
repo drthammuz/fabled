@@ -2,6 +2,8 @@
   "version": 1,
   "name": "interior_showcase",
   "vignette": "showcase_wing",
+  "seed": 42,
+  "note": "Showcase \u2014 10 rooms, 84 corridor cells, 32 props, 0 balcony pieces, 36 mezzanine pieces. Perimeter balconies abut the building edge; command hall has a stair-up mezzanine.",
   "floor_mask": {
     "cells_x": 40,
     "cells_z": 40,
@@ -1608,6 +1610,108 @@
       true
     ]
   },
+  "room_manifest": [
+    {
+      "id": 0,
+      "role": "lab",
+      "area_cells": 9,
+      "mouths": 3,
+      "centre_xz": [
+        -36.0,
+        16.0
+      ]
+    },
+    {
+      "id": 1,
+      "role": "mess",
+      "area_cells": 16,
+      "mouths": 4,
+      "centre_xz": [
+        -22.0,
+        18.0
+      ]
+    },
+    {
+      "id": 2,
+      "role": "command",
+      "area_cells": 30,
+      "mouths": 6,
+      "centre_xz": [
+        -2.0,
+        20.0
+      ]
+    },
+    {
+      "id": 3,
+      "role": "lab",
+      "area_cells": 12,
+      "mouths": 4,
+      "centre_xz": [
+        18.0,
+        16.0
+      ]
+    },
+    {
+      "id": 4,
+      "role": "mess",
+      "area_cells": 16,
+      "mouths": 4,
+      "centre_xz": [
+        34.0,
+        18.0
+      ]
+    },
+    {
+      "id": 5,
+      "role": "lab",
+      "area_cells": 12,
+      "mouths": 4,
+      "centre_xz": [
+        -34.0,
+        -12.0
+      ]
+    },
+    {
+      "id": 6,
+      "role": "mess",
+      "area_cells": 16,
+      "mouths": 4,
+      "centre_xz": [
+        -18.0,
+        -14.0
+      ]
+    },
+    {
+      "id": 7,
+      "role": "lab",
+      "area_cells": 12,
+      "mouths": 4,
+      "centre_xz": [
+        6.0,
+        -12.0
+      ]
+    },
+    {
+      "id": 8,
+      "role": "mess",
+      "area_cells": 20,
+      "mouths": 5,
+      "centre_xz": [
+        24.0,
+        -14.0
+      ]
+    },
+    {
+      "id": 9,
+      "role": "lab",
+      "area_cells": 6,
+      "mouths": 2,
+      "centre_xz": [
+        38.0,
+        -12.0
+      ]
+    }
+  ],
   "pieces": [
     {
       "stem": "floor",
@@ -1617,7 +1721,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1627,7 +1732,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1637,7 +1743,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1647,7 +1754,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1657,7 +1765,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1667,7 +1776,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1677,7 +1787,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1687,7 +1798,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1697,7 +1809,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1707,7 +1820,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1717,7 +1831,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1727,7 +1842,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1737,7 +1853,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1747,7 +1864,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1757,7 +1875,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1767,7 +1886,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1777,7 +1897,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1787,7 +1908,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1797,7 +1919,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1807,7 +1930,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1817,7 +1941,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1827,7 +1952,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1837,7 +1963,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1847,7 +1974,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1857,7 +1985,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1867,7 +1996,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1877,7 +2007,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1887,7 +2018,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1897,7 +2029,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1907,7 +2040,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1917,7 +2051,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1927,7 +2062,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1937,7 +2073,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1947,7 +2084,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1957,7 +2095,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1967,7 +2106,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1977,7 +2117,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1987,7 +2128,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -1997,7 +2139,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2007,7 +2150,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2017,7 +2161,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2027,7 +2172,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2037,7 +2183,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2047,7 +2194,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2057,7 +2205,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2067,7 +2216,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2077,7 +2227,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2087,7 +2238,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2097,7 +2249,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2107,7 +2260,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2117,7 +2271,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2127,7 +2282,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2137,7 +2293,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2147,7 +2304,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2157,7 +2315,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2167,7 +2326,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2177,7 +2337,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2187,7 +2348,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2197,7 +2359,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2207,7 +2370,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2217,7 +2381,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2227,7 +2392,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2237,7 +2403,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2247,7 +2414,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2257,7 +2425,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2267,7 +2436,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2277,7 +2447,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2287,7 +2458,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2297,7 +2469,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2307,7 +2480,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2317,7 +2491,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2327,7 +2502,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2337,7 +2513,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2347,7 +2524,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2357,7 +2535,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2367,7 +2546,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2377,7 +2557,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2387,7 +2568,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2397,7 +2579,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2407,7 +2590,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2417,7 +2601,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2427,7 +2612,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2437,7 +2623,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2447,7 +2634,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2457,7 +2645,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2467,7 +2656,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2477,7 +2667,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2487,7 +2678,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2497,7 +2689,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2507,7 +2700,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2517,7 +2711,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2527,7 +2722,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2537,7 +2733,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2547,7 +2744,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2557,7 +2755,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2567,7 +2766,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2577,7 +2777,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2587,7 +2788,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2597,7 +2799,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2607,7 +2810,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2617,7 +2821,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2627,7 +2832,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2637,7 +2843,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2647,7 +2854,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2657,7 +2865,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2667,7 +2876,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2677,7 +2887,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2687,7 +2898,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2697,7 +2909,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2707,7 +2920,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2717,7 +2931,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2727,7 +2942,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2737,7 +2953,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2747,7 +2964,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2757,7 +2975,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2767,7 +2986,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2777,7 +2997,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2787,7 +3008,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2797,7 +3019,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2807,7 +3030,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2817,7 +3041,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2827,7 +3052,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2837,7 +3063,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2847,7 +3074,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2857,7 +3085,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2867,7 +3096,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2877,7 +3107,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2887,7 +3118,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2897,7 +3129,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2907,7 +3140,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2917,7 +3151,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2927,7 +3162,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2937,7 +3173,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2947,7 +3184,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2957,7 +3195,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2967,7 +3206,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2977,7 +3217,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2987,7 +3228,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -2997,7 +3239,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3007,7 +3250,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3017,7 +3261,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3027,7 +3272,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3037,7 +3283,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3047,7 +3294,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3057,7 +3305,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3067,7 +3316,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3077,7 +3327,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3087,7 +3338,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3097,7 +3349,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3107,7 +3360,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3117,7 +3371,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3127,7 +3382,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3137,7 +3393,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3147,7 +3404,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3157,7 +3415,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3167,7 +3426,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3177,7 +3437,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3187,7 +3448,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3197,7 +3459,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3207,7 +3470,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3217,7 +3481,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3227,7 +3492,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3237,7 +3503,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3247,7 +3514,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3257,7 +3525,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3267,7 +3536,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3277,7 +3547,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3287,7 +3558,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3297,7 +3569,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3307,7 +3580,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3317,7 +3591,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3327,7 +3602,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3337,7 +3613,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3347,7 +3624,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3357,7 +3635,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3367,7 +3646,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3377,7 +3657,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3387,7 +3668,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3397,7 +3679,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3407,7 +3690,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3417,7 +3701,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3427,7 +3712,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3437,7 +3723,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3447,7 +3734,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3457,7 +3745,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3467,7 +3756,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3477,7 +3767,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3487,7 +3778,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3497,7 +3789,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3507,7 +3800,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3517,7 +3811,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3527,7 +3822,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3537,7 +3833,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3547,7 +3844,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3557,7 +3855,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3567,7 +3866,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3577,7 +3877,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3587,7 +3888,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3597,7 +3899,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3607,7 +3910,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3617,7 +3921,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3627,7 +3932,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3637,7 +3943,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3647,7 +3954,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3657,7 +3965,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3667,7 +3976,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3677,7 +3987,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3687,7 +3998,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3697,7 +4009,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3707,7 +4020,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3717,7 +4031,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3727,7 +4042,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3737,7 +4053,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3747,7 +4064,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3757,7 +4075,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3767,7 +4086,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3777,7 +4097,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3787,7 +4108,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3797,7 +4119,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3807,7 +4130,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3817,7 +4141,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3827,7 +4152,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3837,7 +4163,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3847,7 +4174,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3857,7 +4185,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3867,7 +4196,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3877,7 +4207,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3887,7 +4218,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3897,7 +4229,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3907,7 +4240,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3917,7 +4251,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3927,7 +4262,8 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
       "stem": "floor",
@@ -3937,277 +4273,481 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 0.0
+      "y": 0.0,
+      "role": "floor"
     },
     {
-      "stem": "floor",
-      "x": -12.0,
-      "z": 12.0,
+      "stem": "wall",
+      "x": -40.0,
+      "z": -18.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 2.4
+      "y": 1.2,
+      "role": "wall"
     },
     {
-      "stem": "floor",
-      "x": 4.0,
-      "z": 12.0,
-      "yaw": 0.0,
+      "stem": "wall",
+      "x": -42.0,
+      "z": -16.0,
+      "yaw": 4.71238898038469,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 2.4
+      "y": 1.2,
+      "role": "wall"
     },
     {
-      "stem": "floor",
-      "x": -8.0,
-      "z": 16.0,
-      "yaw": 0.0,
+      "stem": "wall",
+      "x": -42.0,
+      "z": -12.0,
+      "yaw": 4.71238898038469,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 2.4
+      "y": 1.2,
+      "role": "wall"
     },
     {
-      "stem": "floor",
-      "x": -4.0,
-      "z": 16.0,
-      "yaw": 0.0,
+      "stem": "wall",
+      "x": -42.0,
+      "z": -8.0,
+      "yaw": 4.71238898038469,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": 8.0,
-      "z": 16.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": 0.0,
-      "z": 16.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": -8.0,
-      "z": 12.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": -4.0,
-      "z": 12.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": -12.0,
-      "z": 16.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": 0.0,
-      "z": 12.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": 4.0,
-      "z": 16.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": 8.0,
-      "z": 12.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 2.4
-    },
-    {
-      "stem": "floor",
-      "x": -8.0,
-      "z": 20.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -42.0,
       "z": -4.0,
-      "yaw": 4.712389,
+      "yaw": 4.71238898038469,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -42.0,
       "z": 0.0,
-      "yaw": 4.712389,
+      "yaw": 4.71238898038469,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -42.0,
       "z": 4.0,
-      "yaw": 4.712389,
+      "yaw": 4.71238898038469,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -42.0,
       "z": 8.0,
-      "yaw": 4.712389,
+      "yaw": 4.71238898038469,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -42.0,
+      "z": 12.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -42.0,
+      "z": 16.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -40.0,
+      "z": 22.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -42.0,
+      "z": 20.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -36.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -36.0,
+      "z": 22.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -32.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -30.0,
       "z": 12.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -30.0,
       "z": 16.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -32.0,
+      "z": 22.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -30.0,
       "z": 20.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -28.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -26.0,
       "z": -16.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -26.0,
       "z": -12.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -26.0,
       "z": -8.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -28.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -30.0,
+      "z": 24.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -24.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -26.0,
+      "z": -20.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -24.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -20.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -20.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -16.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -14.0,
       "z": 12.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -14.0,
       "z": 16.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -14.0,
       "z": 20.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -16.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": -14.0,
       "z": 24.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -12.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -10.0,
+      "z": -20.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -10.0,
+      "z": -16.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -10.0,
+      "z": -12.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -10.0,
+      "z": -8.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -12.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -14.0,
+      "z": 28.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
@@ -4217,7 +4757,19 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -8.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
@@ -4227,231 +4779,670 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -4.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 0.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -2.0,
+      "z": -16.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -2.0,
+      "z": -12.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": -2.0,
+      "z": -8.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 0.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 4.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 4.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 8.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 10.0,
       "z": 12.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 10.0,
       "z": 16.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 10.0,
       "z": 20.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 10.0,
+      "z": 24.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 8.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 10.0,
+      "z": 28.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 12.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 14.0,
       "z": -16.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 14.0,
       "z": -12.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 14.0,
       "z": -8.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 12.0,
+      "z": 22.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 16.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 14.0,
+      "z": -20.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 16.0,
+      "z": 22.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 20.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 20.0,
+      "z": 22.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 24.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 26.0,
       "z": 12.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 26.0,
       "z": 16.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 24.0,
+      "z": 22.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 26.0,
       "z": 20.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 28.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 28.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 26.0,
+      "z": 24.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 32.0,
+      "z": -22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 34.0,
+      "z": -20.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 34.0,
       "z": -16.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 34.0,
       "z": -12.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 34.0,
       "z": -8.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 32.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 36.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 36.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 40.0,
+      "z": -18.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 42.0,
+      "z": -16.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 42.0,
+      "z": -12.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 42.0,
+      "z": -8.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 42.0,
       "z": -4.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 42.0,
       "z": 0.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 42.0,
       "z": 4.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "wall",
       "x": 42.0,
       "z": 8.0,
-      "yaw": 1.5707964,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "y": 1.2
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 42.0,
+      "z": 12.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 42.0,
+      "z": 16.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 42.0,
+      "z": 20.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 40.0,
+      "z": 26.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
+    },
+    {
+      "stem": "wall",
+      "x": 42.0,
+      "z": 24.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "wall"
     },
     {
       "stem": "computer-wide",
-      "x": -36.0,
-      "z": 11.5464,
-      "yaw": 0.0,
+      "x": -40.4536,
+      "z": 16.0,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_0"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
-      "x": -36.0,
-      "z": 14.2328,
-      "yaw": 3.1415927,
+      "x": -37.7672,
+      "z": 16.0,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_0"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "table",
       "x": -16.6,
       "z": 18.0,
-      "yaw": 4.712389,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_1"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair-cushion",
       "x": -16.6,
       "z": 21.7,
-      "yaw": 3.1415927,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_1"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair-cushion",
@@ -4461,45 +5452,48 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_1"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "table",
       "x": 7.4,
       "z": 20.0,
-      "yaw": 4.712389,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "command",
         "room_2"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
       "x": 7.4,
       "z": 23.7,
-      "yaw": 3.1415927,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "command",
         "room_2"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
@@ -4509,77 +5503,82 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "command",
         "room_2"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "computer-wide",
-      "x": 20.0,
-      "z": 11.5464,
-      "yaw": 0.0,
+      "x": 11.5464,
+      "z": 16.0,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_3"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair-armrest-headrest",
-      "x": 20.0,
-      "z": 14.2328,
-      "yaw": 3.1415927,
+      "x": 14.2328,
+      "z": 16.0,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_3"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "table",
       "x": 39.4,
       "z": 18.0,
-      "yaw": 4.712389,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_4"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
       "x": 39.4,
       "z": 21.7,
-      "yaw": 3.1415927,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_4"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
@@ -4589,13 +5588,14 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_4"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "computer-system",
@@ -4605,61 +5605,65 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_5"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
       "x": -32.0,
       "z": -13.1208,
-      "yaw": 3.1415927,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_5"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "table",
       "x": -12.6,
       "z": -14.0,
-      "yaw": 4.712389,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_6"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
       "x": -12.6,
       "z": -10.3,
-      "yaw": 3.1415927,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_6"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair",
@@ -4669,13 +5673,14 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_6"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "computer-wide",
@@ -4685,61 +5690,65 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_7"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair-armrest-headrest",
       "x": 8.0,
       "z": -13.7672,
-      "yaw": 3.1415927,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "lab",
         "room_7"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "table",
       "x": 31.4,
       "z": -14.0,
-      "yaw": 4.712389,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_8"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair-cushion",
       "x": 31.4,
       "z": -10.3,
-      "yaw": 3.1415927,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_8"
-      ],
-      "y": 1.2
+      ]
     },
     {
       "stem": "chair-cushion",
@@ -4749,2423 +5758,600 @@
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
         "mess",
         "room_8"
-      ],
-      "y": 1.2
+      ]
     },
     {
-      "stem": "bed-single",
-      "x": 36.0,
-      "z": -16.0,
-      "yaw": 0.0,
+      "stem": "computer-system",
+      "x": 36.0896,
+      "z": -12.0,
+      "yaw": 1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
         "synth_prop",
         "synth_interior",
-        "quarters",
+        "lab",
         "room_9"
-      ],
-      "y": 1.2
+      ]
     },
     {
-      "stem": "balcony-floor-corner",
-      "x": -43.4,
-      "z": -19.4,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -43.4,
-      "z": -16.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -43.4,
+      "stem": "chair-armrest-headrest",
+      "x": 38.8792,
       "z": -12.0,
-      "yaw": 4.712389,
+      "yaw": -1.5707963267948966,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "prop",
       "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
+        "synth_prop",
+        "synth_interior",
+        "lab",
+        "room_9"
+      ]
     },
     {
-      "stem": "balcony-floor-center",
-      "x": -43.4,
-      "z": -8.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -43.4,
-      "z": 12.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -43.4,
-      "z": 16.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -43.4,
-      "z": 20.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": -43.4,
-      "z": 23.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -40.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -40.0,
-      "z": 23.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -36.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -36.0,
-      "z": 23.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -32.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -32.0,
-      "z": 23.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -31.4,
+      "stem": "floor",
+      "x": -12.0,
       "z": 24.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": -31.4,
-      "z": 27.4,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 49238,
       "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
+        "synth_mezz",
+        "mezz_floor"
+      ]
     },
     {
-      "stem": "balcony-floor-center",
-      "x": -28.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -28.0,
-      "z": 27.4,
+      "stem": "floor",
+      "x": 4.0,
+      "z": 24.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 50262,
       "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
+        "synth_mezz",
+        "mezz_floor"
+      ]
     },
     {
-      "stem": "balcony-floor-corner",
-      "x": -27.4,
-      "z": -23.4,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -27.4,
-      "z": -20.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -24.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -24.0,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -20.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -20.0,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -16.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -16.0,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -15.4,
-      "z": 28.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": -15.4,
-      "z": 31.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -12.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -12.0,
-      "z": 31.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": -8.6,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -8.6,
-      "z": -20.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -8.6,
-      "z": -16.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -8.6,
-      "z": -12.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -8.6,
-      "z": -8.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
+      "stem": "floor",
       "x": -8.0,
-      "z": 31.4,
+      "z": 28.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 49495,
       "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
+        "synth_mezz",
+        "mezz_floor"
+      ]
     },
     {
-      "stem": "balcony-floor-center",
+      "stem": "floor",
       "x": -4.0,
-      "z": 31.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": -3.4,
-      "z": -19.4,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -3.4,
-      "z": -16.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -3.4,
-      "z": -12.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": -3.4,
-      "z": -8.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 0.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 0.0,
-      "z": 31.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 4.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 4.0,
-      "z": 31.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 8.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 8.0,
-      "z": 31.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 11.4,
-      "z": 24.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 11.4,
       "z": 28.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": 11.4,
-      "z": 31.4,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 12.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 12.0,
-      "z": 23.4,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": 12.6,
-      "z": -23.4,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 12.6,
-      "z": -20.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 16.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 16.0,
-      "z": 23.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 20.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 20.0,
-      "z": 23.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 24.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 24.0,
-      "z": 23.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 24.6,
-      "z": 24.0,
-      "yaw": 4.712389,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": 24.6,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 28.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 28.0,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 32.0,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 32.0,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": 35.4,
-      "z": -23.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 35.4,
-      "z": -20.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 36.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 36.0,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 40.0,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 40.0,
-      "z": 27.4,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": 43.4,
-      "z": -19.4,
-      "yaw": 3.1415927,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 43.4,
-      "z": -16.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 43.4,
-      "z": -12.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 43.4,
-      "z": -8.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 43.4,
-      "z": 12.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 43.4,
-      "z": 16.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 43.4,
-      "z": 20.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-center",
-      "x": 43.4,
-      "z": 24.0,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "balcony-floor-corner",
-      "x": 43.4,
-      "z": 27.4,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_floor"
-      ],
-      "y": 0.6
-    },
-    {
-      "stem": "rail",
-      "x": -14.6857,
-      "z": 32.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -10.4571,
-      "z": 32.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -6.2286,
-      "z": 32.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -2.0,
-      "z": 32.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 2.2286,
-      "z": 32.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 6.4571,
-      "z": 32.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 10.6857,
-      "z": 32.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -42.8,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -38.8,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -34.8,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -30.8,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -2.8,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 1.2,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 5.2,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 9.2,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 38.8,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 42.8,
-      "z": -20.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -42.8,
-      "z": 24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -38.8,
-      "z": 24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -34.8,
-      "z": 24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 14.5333,
-      "z": 24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 18.0,
-      "z": 24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 21.4667,
-      "z": 24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -26.64,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -22.32,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -18.0,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -13.68,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -9.36,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 13.3333,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 17.6,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 21.8667,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 26.1333,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 30.4,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 34.6667,
-      "z": -24.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -30.8,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -26.8,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -22.8,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -18.8,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 25.36,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 29.68,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 34.0,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 38.32,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 42.64,
-      "z": 28.6,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail-narrow",
-      "x": -43.4,
-      "z": 10.2,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail-narrow",
-      "x": 43.4,
-      "z": 10.2,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail-narrow",
-      "x": -43.4,
-      "z": -6.2,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail-narrow",
-      "x": 43.4,
-      "z": -6.2,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": -18.95,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": -15.25,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": -11.55,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": -7.85,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": 11.85,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": 15.55,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": 19.25,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -44.6,
-      "z": 22.95,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": -18.95,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": -15.25,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": -11.55,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": -7.85,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": 11.88,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": 15.64,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": 19.4,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": 23.16,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 44.6,
-      "z": 26.92,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -7.4,
-      "z": -22.92,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -7.4,
-      "z": -19.16,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -7.4,
-      "z": -15.4,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -7.4,
-      "z": -11.64,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -7.4,
-      "z": -7.88,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 12.6,
-      "z": 26.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 12.6,
-      "z": 30.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 23.4,
-      "z": 26.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 36.6,
-      "z": -22.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -16.6,
-      "z": 30.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -4.6,
-      "z": -18.95,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -4.6,
-      "z": -15.25,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -4.6,
-      "z": -11.55,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -4.6,
-      "z": -7.85,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -32.6,
-      "z": 26.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": 11.4,
-      "z": -22.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "rail",
-      "x": -28.6,
-      "z": -22.8,
-      "yaw": 1.5707964,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
-      "tags": [
-        "synth_balcony",
-        "balcony_rail"
-      ],
-      "y": 1.2
-    },
-    {
-      "stem": "stairs",
-      "x": -8.0,
-      "z": 20.0,
-      "yaw": 0.0,
-      "floor_level": 0,
-      "scale": 4.0,
-      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 49751,
       "tags": [
         "synth_mezz",
-        "indoor_stairs"
-      ],
-      "y": 2.4
+        "mezz_floor"
+      ]
     },
     {
-      "stem": "stairs",
+      "stem": "floor",
+      "x": 0.0,
+      "z": 28.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 50007,
+      "tags": [
+        "synth_mezz",
+        "mezz_floor"
+      ]
+    },
+    {
+      "stem": "floor",
+      "x": 8.0,
+      "z": 28.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 50519,
+      "tags": [
+        "synth_mezz",
+        "mezz_floor"
+      ]
+    },
+    {
+      "stem": "floor",
+      "x": -4.0,
+      "z": 24.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 49750,
+      "tags": [
+        "synth_mezz",
+        "mezz_floor"
+      ]
+    },
+    {
+      "stem": "floor",
       "x": -8.0,
       "z": 24.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 49494,
       "tags": [
         "synth_mezz",
-        "indoor_stairs"
-      ],
-      "y": 1.2
+        "mezz_floor"
+      ]
     },
     {
-      "stem": "rail",
+      "stem": "floor",
       "x": -12.0,
-      "z": 18.0,
+      "z": 28.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 49239,
+      "tags": [
+        "synth_mezz",
+        "mezz_floor"
+      ]
+    },
+    {
+      "stem": "floor",
+      "x": 0.0,
+      "z": 24.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 50006,
+      "tags": [
+        "synth_mezz",
+        "mezz_floor"
+      ]
+    },
+    {
+      "stem": "floor",
+      "x": 4.0,
+      "z": 28.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 50263,
+      "tags": [
+        "synth_mezz",
+        "mezz_floor"
+      ]
+    },
+    {
+      "stem": "floor",
+      "x": 8.0,
+      "z": 24.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 1.2,
+      "role": "floor",
+      "group_id": 50518,
+      "tags": [
+        "synth_mezz",
+        "mezz_floor"
+      ]
+    },
+    {
+      "stem": "stairs-small-center",
+      "x": -12.0,
+      "z": 20.0,
+      "yaw": -3.141592653589793,
+      "y": 1.2,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "role": "stairs",
+      "tags": [
+        "synth_mezz",
+        "indoor_stairs"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -14.0,
+      "z": 12.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -14.0,
+      "z": 16.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -14.0,
+      "z": 20.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -14.0,
+      "z": 24.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -12.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -14.0,
+      "z": 28.0,
+      "yaw": 4.71238898038469,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -8.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": -4.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 0.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 4.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 10.0,
+      "z": 12.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 10.0,
+      "z": 16.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 10.0,
+      "z": 20.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 10.0,
+      "z": 24.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 8.0,
+      "z": 30.0,
+      "yaw": 3.141592653589793,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "wall",
+      "x": 10.0,
+      "z": 28.0,
+      "yaw": 1.5707963267948966,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "wall",
+      "tags": [
+        "synth_mezz",
+        "mezz_wall_upper"
+      ]
+    },
+    {
+      "stem": "rail",
+      "x": -8.0,
+      "z": 22.0,
+      "yaw": 0.0,
+      "floor_level": 0,
+      "scale": 4.0,
+      "kit": "factions/synth",
+      "y": 2.4,
+      "role": "prop",
       "tags": [
         "synth_mezz",
         "mezz_rail"
-      ],
-      "y": 3.6
+      ]
     },
     {
       "stem": "rail",
       "x": -4.0,
-      "z": 18.0,
+      "z": 22.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 2.4,
+      "role": "prop",
       "tags": [
         "synth_mezz",
         "mezz_rail"
-      ],
-      "y": 3.6
+      ]
     },
     {
       "stem": "rail",
       "x": 0.0,
-      "z": 18.0,
+      "z": 22.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 2.4,
+      "role": "prop",
       "tags": [
         "synth_mezz",
         "mezz_rail"
-      ],
-      "y": 3.6
+      ]
     },
     {
       "stem": "rail",
       "x": 4.0,
-      "z": 18.0,
+      "z": 22.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 2.4,
+      "role": "prop",
       "tags": [
         "synth_mezz",
         "mezz_rail"
-      ],
-      "y": 3.6
+      ]
     },
     {
       "stem": "rail",
       "x": 8.0,
-      "z": 18.0,
+      "z": 22.0,
       "yaw": 0.0,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 2.4,
+      "role": "prop",
       "tags": [
         "synth_mezz",
         "mezz_rail"
-      ],
-      "y": 3.6
+      ]
     },
     {
-      "stem": "container-tall",
+      "stem": "container",
       "x": 0.0,
-      "z": 12.0,
-      "yaw": 0.0,
+      "z": 27.45,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 2.4,
+      "role": "prop",
       "tags": [
         "synth_mezz",
         "loft_storage"
-      ],
-      "y": 3.6
+      ]
     },
     {
       "stem": "computer-screen",
       "x": -4.0,
-      "z": 12.0,
-      "yaw": 0.0,
+      "z": 27.6736,
+      "yaw": 3.141592653589793,
       "floor_level": 0,
       "scale": 4.0,
       "kit": "factions/synth",
+      "y": 2.4,
+      "role": "prop",
       "tags": [
         "synth_mezz",
         "loft_ops"
-      ],
-      "y": 3.6
+      ]
     }
   ],
   "spawn_xz": [

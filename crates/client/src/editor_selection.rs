@@ -27,6 +27,10 @@ pub struct EditorPlaced {
     pub underside: bool,
 }
 
+/// Semantic tags from map JSON (`mezz_floor`, …) — disambiguates stacked pieces sharing stem + (x, z).
+#[derive(Component, Clone, Default)]
+pub struct EditorPieceTags(pub Vec<String>);
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct PieceSnapshot {
     pub piece_id: u32,
@@ -35,6 +39,7 @@ pub struct PieceSnapshot {
     pub z: f32,
     pub yaw: f32,
     pub scale: f32,
+    pub scale_y: Option<f32>,
     pub floor_level: i32,
     pub owner: PieceOwner,
     pub group_id: Option<u32>,
@@ -173,7 +178,13 @@ pub fn pick_piece_at(
     hover: Vec2,
     floor_level: i32,
     owner: PieceOwner,
-    placed: &Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: &Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
 ) -> Option<u32> {
     pick_best_at(
         hover.x,
@@ -182,7 +193,7 @@ pub fn pick_piece_at(
         owner,
         placed
             .iter()
-            .map(|(_, tf, km, ep)| (ep.piece_id, tf, km.name, ep)),
+            .map(|(_, tf, km, ep, _)| (ep.piece_id, tf, km.name, ep)),
     )
 }
 

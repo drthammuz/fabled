@@ -159,6 +159,7 @@ fn drive_doors(
     cameras: Query<&GlobalTransform, With<Camera3d>>,
     players: Query<&GlobalTransform, With<OwnPlayer>>,
     transforms: Query<&GlobalTransform>,
+    seals: Query<(&shared::protocol::DoorState, &Transform)>,
     mut rigs: Query<(&mut DoorRig, &mut AnimationPlayer, &mut AnimationTransitions)>,
     assets: Res<DoorAnimAssets>,
 ) {
@@ -166,17 +167,37 @@ fn drive_doors(
         let Some(graph) = assets.kits.get(&rig.kit) else { continue };
         let Ok(door_t) = transforms.get(rig.door) else { continue };
         let door_pos = door_t.translation();
-        let dist = cameras
-            .iter()
-            .map(|c| c.translation().distance(door_pos))
-            .chain(players.iter().map(|p| p.translation().distance(door_pos)))
-            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-            .unwrap_or(f32::MAX);
 
-        if !rig.open && dist < OPEN_RADIUS {
+        // Server-authoritative: the seal collider entity at this door decides
+        // (it also opens for enemies/NPCs, and it is what actually blocks
+        // walking, vision and bullets — the visual must never disagree).
+        let seal_open = seals
+            .iter()
+            .filter(|(_, t)| {
+                let d = t.translation;
+                (d.x - door_pos.x).abs() < 1.0
+                    && (d.z - door_pos.z).abs() < 1.0
+                    && (d.y - door_pos.y).abs() < 4.0
+            })
+            .map(|(s, _)| s.open)
+            .next();
+
+        let open = seal_open.unwrap_or_else(|| {
+            // No seal on this door (standalone showcase): fall back to the
+            // old player/camera proximity behavior.
+            let dist = cameras
+                .iter()
+                .map(|c| c.translation().distance(door_pos))
+                .chain(players.iter().map(|p| p.translation().distance(door_pos)))
+                .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .unwrap_or(f32::MAX);
+            if rig.open { dist < CLOSE_RADIUS } else { dist < OPEN_RADIUS }
+        });
+
+        if !rig.open && open {
             rig.open = true;
             transitions.play(&mut player, graph.open, Duration::from_millis(250));
-        } else if rig.open && dist > CLOSE_RADIUS {
+        } else if rig.open && !open {
             rig.open = false;
             transitions.play(&mut player, graph.close, Duration::from_millis(250));
         }

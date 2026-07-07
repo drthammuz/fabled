@@ -26,3 +26,22 @@ tools/__pycache__/
 # Local agent preview renders and logs (regenerated; see docs/handover-synth §7)
 /tools/_*.png
 /tools/_*.log
+
+# Personal notes / secrets / stray files at repo root (never commit)
+/Claude api key*.txt
+/Jag menar*.txt
+/plan*.txt
+/fbxinfo.md
+/2.png
+/3.png
+/hole.png
+/market*.png
+
+# Raw asset kit downloads at root + oversized conversion staging
+/Cyberpunk Game Kit - Quaternius/
+/assets/quaternius_universal_conversion/
+
+# GLB working backups + sweep logs
+assets/**/*.glb.orig
+assets/**/*.glb.bak
+/userinput/sweeps_*.log

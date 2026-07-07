@@ -155,6 +155,7 @@ impl Default for FlashlightOn {
 
 fn drive_flashlight(
     keys: Res<ButtonInput<KeyCode>>,
+    capture: Res<crate::netplay::InputCapture>,
     test: Option<Res<TestMode>>,
     city: Option<Res<CityViewMode>>,
     mut on: ResMut<FlashlightOn>,
@@ -169,7 +170,7 @@ fn drive_flashlight(
     let has_light = test.is_some()
         || city.is_some()
         || inventory.slots.iter().any(|s| s.as_ref().is_some_and(items::is_flashlight));
-    if keys.just_pressed(KeyCode::KeyF) && has_light && test.is_none() && city.is_none() {
+    if !capture.0 && keys.just_pressed(KeyCode::KeyF) && has_light && test.is_none() && city.is_none() {
         on.on = !on.on;
     }
     let Ok(player) = player.single() else { return };

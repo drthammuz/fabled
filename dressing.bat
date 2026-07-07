@@ -19,6 +19,7 @@ echo.
 echo === Starting fabled dressing shell ===
 echo Window title: "fabled dressing [build ...]"
 echo File - New vignette / Save / Load  ^|  Actions - Add/Remove floor  ^|  Place props from sidebar
+echo Faction buttons (row): synth ^| priesthood ^| industrial_default ^| outlaw ^| necropolis  -- click to auto-gen preview + load
 echo.
 
 set RUST_BACKTRACE=1

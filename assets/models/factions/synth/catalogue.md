@@ -58,7 +58,13 @@ vignettes saved under `userinput/synth_dressing/`.
 | `wall-window-frame` | wall_swap |
 | `wall-window-shutters` | wall_swap |
 
-**Void-facing windows:** OK when paired with `wall-window-shutters` (and optionally a black backing plane outside the shutters so gaps do not show the skybox).
+**Window rules (critical — differentiated):**
+- Open frames (`wall-window`, `wall-window-frame`, `wall-window-banner`...): **NEVER against void/nothingness**. Must have a real walkable maptile on the far side (synth abutting industrial substrate or another valid tile). The player must not see "into the unbuilt world".
+- Closed shutters (`wall-window-shutters`): explicitly allowed to face nothingness (shutters hide the gap).
+- Past bug: logic excluded windows wholesale vs void (too strict) **and omitted frames** on the cases where open windows were legal. Code that emits perimeter wall swaps must test far-side walkable and select the correct stem (open+frame when allowed; shutters when void).
+- Balconies follow the open-window rule (real maptile required).
+
+**Re-export / color gotcha:** Kenney colormap is an atlas. After any Blender re-export or mirroring of windows, stairs, half-floors etc., run repair so UVs sample the right column (see repair_synth_glb.py + mirror_glb.py). Colors otherwise garble.
 
 **Structure walls:** on **4 m snap**, click the floor cell the wall belongs to and rotate (**R**) so it faces into the room — the editor shifts the piece **2 m** onto the cell edge (same rule as procgen). Use **2 m / 1 m / 0.5 m** snap to nudge manually.
 
@@ -72,7 +78,9 @@ Mount on the **room-facing** side of a wall cell: offset = half wall thickness (
 
 **Beds:** snap marks the **pillow / head edge** on the wall line; only `bed-single` / `bed-double` use the back anchor (+2 m into the room). **`bed-*-cover`** stacks on the same origin as its bed — place the mattress first, then the cover on top (same x/z/yaw).
 
-**Catalog:** stem bounds, snap rules, and front axis — `assets/models/factions/synth/placement_catalog.json` (regenerate: `python tools/probe_synth_catalog.py`).
+**Catalog:** stem bounds, snap rules, front axis, **and growing relational / support metadata** — `assets/models/factions/synth/placement_catalog.json` (regenerate: `python tools/probe_synth_catalog.py` after GLB changes).
+
+**Automation goal (2026-06 update):** The probe + placement engine must extract and use physical relations (e.g. computer + chair with space check), support pieces (floor-half for short-stair chaining to avoid levitation), void rules per variant, clearance for free walking, and room-role preferences. See `docs/synth-master-plan.md` "Critical Context" + "Automation-First Plan" sections. New factions should bootstrap via script with minimal human per-item feedback.
 
 **Balcony:** on **4 m snap**, click the **interior floor cell** at the edge; rotate so the **raised lip** (+z local) faces the drop — the editor shifts the tile **4 m outward** (replacing the wall line). Rails use deck height (1.2 m); floor tiles at 0.6 m origin (slab top flush with deck).
 
@@ -168,6 +176,8 @@ Procgen/dressing generator: `tools/synth_interior.py` (`expected_balcony_floors`
 | `stairs-small-edge-r` | skip |
 | `stairs-small-edges` | skip |
 | `stairs-small-edges-handrail` | skip |
+
+**Stairs note (short / half-tile):** `stairs-small-*` cover half a tile. Chained flights or tight support require `floor-half` (or equivalent) rotated/placed correctly underneath to give stable base and prevent levitation. When a raised section is created by two short stairs, emit a supporting 1.2 m floor level below. Always repair colors after Blender work. Catalog entries will carry `requires_support`, `half_tile` etc. (see probe + master plan).
 
 ---
 

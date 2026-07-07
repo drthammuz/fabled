@@ -8,8 +8,8 @@ use bevy_replicon::prelude::*;
 use shared::config;
 use shared::level;
 use shared::protocol::{
-    ClassPick, InventoryUpdate, NetTransform, Player, PlayerAlive, PlayerClass, PlayerInput,
-    PlayerName, YouAre,
+    ClassPick, InventoryUpdate, NetTransform, Player, PlayerAlive, PlayerClass, PlayerHealth,
+    PlayerInput, PlayerName, YouAre,
 };
 use bevy::ecs::schedule::common_conditions::not;
 use shared::EditorMode;
@@ -253,8 +253,19 @@ fn spawn_player(
             CrouchState::default(),
             GroundContact::default(),
             CoyoteTime(config::PLAYER_COYOTE_TIME),
-            super::items::Inventory::default(),
+            // Dev loadout so every spawn path (editor playtest included, which
+            // never goes through class pick) can fight: bat + scrap pistol.
+            // handle_class_pick rebuilds the inventory with the class loadout.
+            super::items::Inventory({
+                let mut slots = vec![None; config::INVENTORY_SLOTS];
+                slots[0] = Some(items::pipe_bat());
+                if slots.len() > 1 {
+                    slots[1] = Some(items::scrap_pistol());
+                }
+                slots
+            }),
             Health::default(),
+            PlayerHealth::default(),
         ))
         .id()
 }
@@ -301,6 +312,11 @@ fn handle_class_pick(
                     inv.0[0] = Some(item);
                 }
             }
+            // Every class carries a Scrap Pistol so ranged combat is testable
+            // (plan3 item 4). Goes in the first free slot after the class item.
+            if let Some(slot) = inv.0.iter_mut().find(|s| s.is_none()) {
+                *slot = Some(items::scrap_pistol());
+            }
             // Pad to config::INVENTORY_SLOTS so the client hotbar always
             // receives a full-length update.
             let mut padded = inv.0.clone();
@@ -328,17 +344,23 @@ fn sync_net_transforms(mut query: Query<(&Transform, &mut NetTransform)>) {
 /// Y below this → auto-respawn in developer test maps.
 const TEST_RESPAWN_Y: f32 = -12.0;
 
+/// Seconds a dead player waits before the dev auto-respawn kicks in.
+const DEV_RESPAWN_SECS: f32 = 3.0;
+
 fn test_respawn(
+    time: Res<Time>,
     keys: Option<Res<ButtonInput<KeyCode>>>,
     test: Option<Res<TestMode>>,
     city: Option<Res<CityViewMode>>,
     editor: Option<Res<EditorMode>>,
+    mut dead_for: Local<f32>,
     mut players: Query<
         (
             &mut Transform,
             &mut NetTransform,
             &mut LinearVelocity,
-            &PlayerAlive,
+            &mut PlayerAlive,
+            &mut Health,
         ),
         With<CharacterController>,
     >,
@@ -350,13 +372,24 @@ fn test_respawn(
         .as_ref()
         .is_some_and(|k| k.just_pressed(KeyCode::KeyR));
 
-    for (i, (mut transform, mut net, mut vel, alive)) in players.iter_mut().enumerate() {
+    let mut any_dead = false;
+    for (i, (mut transform, mut net, mut vel, mut alive, mut health)) in
+        players.iter_mut().enumerate()
+    {
+        // Dead players auto-respawn in dev maps (a silently dead player is
+        // invisible to enemy perception → "nothing ever aggros me again").
         if !alive.0 {
-            continue;
-        }
-        let fell = transform.translation.y < TEST_RESPAWN_Y;
-        if !r_pressed && !fell {
-            continue;
+            any_dead = true;
+            if !r_pressed && *dead_for < DEV_RESPAWN_SECS {
+                continue;
+            }
+            alive.0 = true;
+            health.current = health.max;
+        } else {
+            let fell = transform.translation.y < TEST_RESPAWN_Y;
+            if !r_pressed && !fell {
+                continue;
+            }
         }
         let pos = if city.is_some() {
             city_spawn_pos(i)
@@ -366,12 +399,13 @@ fn test_respawn(
         transform.translation = pos;
         net.translation = pos;
         vel.0 = Vec3::ZERO.adjust_precision();
-        if r_pressed {
-            info!("test respawn (R) → ({:.1}, {:.1}, {:.1})", pos.x, pos.y, pos.z);
-        } else {
-            info!("test respawn (fell) → ({:.1}, {:.1}, {:.1})", pos.x, pos.y, pos.z);
-        }
+        info!("test respawn → ({:.1}, {:.1}, {:.1})", pos.x, pos.y, pos.z);
     }
+    *dead_for = if any_dead {
+        *dead_for + time.delta_secs()
+    } else {
+        0.0
+    };
 }
 
 fn editor_playtest_player(
@@ -381,6 +415,7 @@ fn editor_playtest_player(
     mut last_gen: Local<u32>,
     mut commands: Commands,
     mut counter: ResMut<SpawnCounter>,
+    mut inv_writer: MessageWriter<ToClients<InventoryUpdate>>,
     playtest: Query<Entity, With<EditorPlaytestPlayer>>,
     mut transforms: Query<(&mut Transform, &mut NetTransform), With<EditorPlaytestPlayer>>,
 ) {
@@ -416,6 +451,18 @@ fn editor_playtest_player(
             commands.server_trigger(ToClients {
                 targets: SendTargets::Single(ClientId::Server),
                 message: YouAre { player },
+            });
+            // Playtest players never pass class pick — push the dev loadout
+            // to the hotbar directly so the weapons are visible/usable.
+            let mut slots: Vec<Option<shared::protocol::Item>> =
+                vec![None; config::INVENTORY_SLOTS];
+            slots[0] = Some(items::pipe_bat());
+            if slots.len() > 1 {
+                slots[1] = Some(items::scrap_pistol());
+            }
+            inv_writer.write(ToClients {
+                targets: SendTargets::Single(ClientId::Server),
+                message: InventoryUpdate { slots },
             });
             let pos = testmap_spawn_pos(0, test.as_deref(), true);
             info!(

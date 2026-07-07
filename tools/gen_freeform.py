@@ -32,6 +32,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
+import faction_interior as fi
+
+ROOT = Path(__file__).resolve().parent.parent
+
+try:
+    from pygltflib import GLTF2
+    _HAS_PYGLTFLIB = True
+except Exception:
+    _HAS_PYGLTFLIB = False
+
 CELL = 4.0
 PI = math.pi
 PI2 = math.pi / 2.0
@@ -44,6 +54,39 @@ OPP = {'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E'}
 # Wall on a cell's `side` face, finished face pointing inward (verified yaws,
 # mirrors gen_modules step-7 edge closing: N→PI, S→0, E→PI2, W→PI32).
 WALL_YAW = {'N': PI, 'S': 0.0, 'E': PI2, 'W': PI32}
+
+# Cache for model Y bounds (min_y, max_y) per (kit, stem) to support proper wall alignment
+_MODEL_Y_BOUNDS: Dict[Tuple[str, str], Tuple[float, float]] = {}
+
+def _get_model_y_bounds(kit: str, stem: str) -> Tuple[float, float]:
+    """Return (min_y, max_y) in model units for the given stem in the kit folder.
+    Falls back to (0, 1) if can't load.
+    """
+    key = (kit, stem)
+    if key in _MODEL_Y_BOUNDS:
+        return _MODEL_Y_BOUNDS[key]
+    if not _HAS_PYGLTFLIB:
+        _MODEL_Y_BOUNDS[key] = (0.0, 1.0)
+        return _MODEL_Y_BOUNDS[key]
+    try:
+        # kit like "factions/necropolis" -> folder necropolis
+        kit_id = kit.split('/')[-1] if '/' in kit else kit
+        path = ROOT / "assets" / "models" / "factions" / kit_id / f"{stem}.glb"
+        if not path.exists():
+            _MODEL_Y_BOUNDS[key] = (0.0, 1.0)
+            return _MODEL_Y_BOUNDS[key]
+        g = GLTF2().load(str(path))
+        if not g.meshes or not g.meshes[0].primitives:
+            _MODEL_Y_BOUNDS[key] = (0.0, 1.0)
+            return _MODEL_Y_BOUNDS[key]
+        pos_idx = g.meshes[0].primitives[0].attributes.POSITION
+        acc = g.accessors[pos_idx]
+        min_y, max_y = acc.min[1], acc.max[1]
+        _MODEL_Y_BOUNDS[key] = (min_y, max_y)
+        return min_y, max_y
+    except Exception:
+        _MODEL_Y_BOUNDS[key] = (0.0, 1.0)
+        return _MODEL_Y_BOUNDS[key]
 
 # Corridor piece yaws by open-face signature (mirrors gen_modules.strat_planned).
 CORRIDOR_END_YAW = {'N': PI2, 'S': PI32, 'E': 0.0, 'W': PI}
@@ -135,6 +178,10 @@ class FreeformMap:
     # Faction profile used when mix_mode=single; composition when transition.
     faction_profile_id: str = "industrial_default"
     composition: Optional["LevelComposition"] = None
+    enemy_spawns: List[Tuple[float, float, float]] = field(default_factory=list)
+    npc_spawns: List[Tuple[float, float, float]] = field(default_factory=list)
+    # Per-enemy patrol waypoint loops, parallel to enemy_spawns ([] = wander).
+    enemy_patrols: List[List[Tuple[float, float, float]]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -186,8 +233,33 @@ def _jitter_room(rng: random.Random, room: Room, strength: float, rmin: int) -> 
 def place_rooms(
     rng: random.Random, gx: int, gz: int, max_rooms: int,
     rmin: int, rmax: int, tries: int, organicness: float = 0.0,
+    halls: int = 0,
 ) -> List[Room]:
     rooms: List[Room] = []
+    # Factory-hall seeding: a few guaranteed-LARGE rooms placed first (before the
+    # general fill claims the space), biased toward the middle of the grid so they
+    # tend to land in the default (industrial) zone band. Halls stay rectangular
+    # (no organicness jitter) — the double-height/catwalk treatment needs clean
+    # perimeter walls.
+    hall_min = max(rmin + 2, 5)
+    hall_max = max(hall_min, rmax + 1)
+    for _ in range(halls):
+        for _try in range(80):
+            w = rng.randint(hall_min, hall_max)
+            h = rng.randint(hall_min, hall_max)
+            if w + 2 >= gx or h + 2 >= gz:
+                continue
+            x_lo = max(1, int(gx * 0.2) - w // 2)
+            x_hi = min(gx - w - 1, int(gx * 0.8) - w // 2)
+            z_lo = max(1, int(gz * 0.2) - h // 2)
+            z_hi = min(gz - h - 1, int(gz * 0.8) - h // 2)
+            if x_lo > x_hi or z_lo > z_hi:
+                continue
+            cand = Room(rng.randint(x_lo, x_hi), rng.randint(z_lo, z_hi), w, h)
+            if any(cand.overlaps(r) for r in rooms):
+                continue
+            rooms.append(cand)
+            break
     for _ in range(tries):
         if len(rooms) >= max_rooms:
             break
@@ -550,13 +622,17 @@ def generate_map(
     faction_profile_id: str = "industrial_default",
     composition: Optional["LevelComposition"] = None,
     room_tries: int = 400,
+    num_enemies: int = 5,
+    num_npcs: int = 3,
+    hall_rooms: int = 2,
 ) -> Optional[FreeformMap]:
     import level_composition as lc
 
     comp = (composition or lc.LevelComposition(mix_mode="single")).normalized()
     rng = random.Random(seed)
     gx = gz = cells
-    rooms = place_rooms(rng, gx, gz, max_rooms, room_min, room_max, room_tries, organicness)
+    rooms = place_rooms(rng, gx, gz, max_rooms, room_min, room_max, room_tries, organicness,
+                        halls=hall_rooms)
     if len(rooms) < 2:
         return None
 
@@ -617,6 +693,9 @@ def generate_map(
             fm.hub = hub
             break
         hub_rng = random.Random(hub_rng.randint(0, 2**31 - 1))
+    # Place agent spawns AFTER the hub is built: NPCs go to the hub + hidden
+    # rooms only; enemies roam the walkable floor.
+    _place_agent_spawns(fm, rng, num_enemies, num_npcs)
     if fm.hub is None:
         return None
     return fm
@@ -856,6 +935,17 @@ def emit_roofs(
         ))
 
 
+def _arrival_shaft_cell(fm: FreeformMap) -> Optional[Cell]:
+    """The spawn-room centre cell whose floor-1 roof is left OPEN so a streamed
+    child map can be dropped into from the hub exit directly above it. Returns
+    None if there is no spawn room. Shared by the roof emitter and the audit so
+    the intentionally-missing roof isn't flagged as an error."""
+    if fm.spawn_room < len(fm.rooms):
+        spawn = fm.rooms[fm.spawn_room]
+        return (spawn.cx, spawn.cz)
+    return None
+
+
 def emit_all_roofs(
     pieces: List[dict],
     fm: FreeformMap,
@@ -895,6 +985,12 @@ def emit_all_roofs(
         spine, _, _, _ = lc.plan_zones_for_map(fm)
         elev_fn = lc.make_elevation_lookup(fm.walkable, spine, comp)
         skip_roof = {c for c in fm.walkable if elev_fn(c) > 0}
+    # Arrival shaft: NO roof over the spawn cell. Streamed child maps mount with
+    # their spawn directly under the parent's hub exit hole — a colliding roof
+    # there sits flush inside the parent's floor and plugs the drop.
+    shaft = _arrival_shaft_cell(fm)
+    if shaft is not None:
+        skip_roof = skip_roof | {shaft}
     emit_roofs(
         pieces, gx, gz, 0, fm.walkable,
         skip_roof=skip_roof,
@@ -995,13 +1091,37 @@ def emit_pieces(
         # inset pushes the wall out along the side normal to correct an off-centre
         # depth anchor (faction kits with non-zero roles.wall.inset).
         edge = CELL * 0.5 + _slot_inset(ix, iz, "wall")
-        pieces.append(_piece(
-            None, stem=_slot_stem(ix, iz, "wall", "template-wall"),
+        wall_stem = _slot_stem(ix, iz, "wall", "template-wall")
+        wall_scale = _slot_scale(ix, iz, "wall")
+        wall_yaw = WALL_YAW[side] + _slot_yaw(ix, iz, "wall")
+        w = _piece(
+            None, stem=wall_stem,
             x=world_x(fm.gx, ix) + dx * edge,
             z=world_z(fm.gz, iz) + dz * edge,
-            yaw=WALL_YAW[side] + _slot_yaw(ix, iz, "wall"),
-            scale=_slot_scale(ix, iz, "wall"), zone=z(ix, iz), role="wall",
-        ))
+            yaw=wall_yaw,
+            scale=wall_scale, zone=z(ix, iz), role="wall",
+        )
+        # Only for necropolis brick walls (user's edited taller stem or original short ones).
+        # Align bottom to floor and force effective height to room height (4m) using scale_y.
+        # Other factions use their models as-designed (full height at their scale).
+        kit = w.get("kit") or ""
+        stem = w.get("stem", "")
+        if w.get("role") == "wall" and "necropolis" in kit.lower() and "brick" in stem.lower():
+            if stem == "brick-wall2":
+                # user's Blender-edited version with height doubled (approx 1.45 model units)
+                model_h = 1.45
+                miny = 0.0
+            else:
+                miny, maxy = _get_model_y_bounds(kit, stem)
+                model_h = maxy - miny
+            if model_h > 0:
+                target_h = 4.0  # standard room height for one level
+                # scale_y makes the Y dimension give exactly target_h (overrides xz scale for height only)
+                scale_y = target_h / model_h
+                w["scale_y"] = scale_y
+                # shift y so that the model's min Y lands at floor level 0 after scaling
+                w["y"] = - miny * scale_y
+        pieces.append(w)
 
     for (ix, iz) in sorted(fm.walkable):
         if (ix, iz) in holes0:
@@ -1062,11 +1182,13 @@ def _apply_synth_exterior_floors(
     deck_cells: Set[Cell],
 ) -> None:
     """Ground-level synth ``floor`` on exterior corridors (no 1.2 m zone uplift)."""
-    import level_composition as lc
+    import synth_transition as st
 
     if comp.mix_mode != "transition":
         return
-    synth_zones = {"prev", "next"}
+    synth_zones = st.synth_zone_ids(comp)
+    if not synth_zones:
+        return
     skip = interior_cells | deck_cells
     for p in pieces:
         if p.get("role") != "floor" or p.get("stem") != "template-floor":
@@ -1160,7 +1282,7 @@ def _ensure_synth_accessibility(
                 stack.append(nb)
         return seen
 
-    synth = {"prev", "next"}
+    synth = st.synth_zone_ids(comp)
     opened = 0
     for _ in range(400):  # bounded; each iteration opens >=1 entrance
         wall, door, stair = rebuild_lookups()
@@ -1215,6 +1337,7 @@ def _attach_walls_to_doors(
     comp: "LevelComposition",
     gx: int,
     gz: int,
+    zone_lookup=None,
 ) -> int:
     """Give every floor-0 door a wall on each open flank so it reads as a real doorway,
     not a freestanding frame in open floor ("doorway with no connected walls").
@@ -1222,8 +1345,14 @@ def _attach_walls_to_doors(
     A door's flanks are the two face positions along its own wall line. If a flank is
     open (no wall, between two walkable cells) we add a jamb wall there — UNLESS doing
     so would cut the only connection between those two cells (reachability-safe). Walls
-    inherit the door's yaw/Y so they sit flush."""
+    inherit the door's yaw/Y so they sit flush.
+
+    Jambs use the DOOR'S ZONE faction wall (a priesthood gate gets priesthood jambs);
+    the synth kit wall is only the fallback for synth zones / unzoned doors."""
     import level_composition as lc
+    import synth_transition as st
+
+    synth_zones = st.synth_zone_ids(comp)
 
     DELTA = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
     elev = lc.make_elevation_lookup(fm.walkable, spine, comp)
@@ -1292,38 +1421,469 @@ def _attach_walls_to_doors(
             if not connected(a, b, key):
                 continue  # this flank is the only path between a,b — leave it open
             y = max(elev(a), elev(b))
-            w = {
-                "stem": "wall", "x": fx, "z": fz, "yaw": p.get("yaw", 0.0),
-                "floor_level": 0, "scale": 4.0, "kit": "factions/synth",
-                "zone": p.get("zone"), "role": "wall",
-                "tags": ["synth_transition", "door_jamb"],
-            }
-            if y > 0:
-                w["y"] = y
-            new.append(w)
+            zone_id = p.get("zone")
+            ground_zone = (
+                zone_lookup is not None
+                and zone_id in ("prev", "default", "next")
+                and zone_id not in synth_zones
+            )
+            if ground_zone:
+                # Ground-faction door: jamb with that faction's own wall.
+                anchor = a if zone_lookup(a) == zone_id else b
+                other = b if anchor == a else a
+                dxc, dzc = other[0] - anchor[0], other[1] - anchor[1]
+                side = {(0, -1): "N", (0, 1): "S", (1, 0): "E", (-1, 0): "W"}[(dxc, dzc)]
+                jambs = _zone_wall_pieces_two_sided(
+                    gx, gz, anchor, side, zone_id, ["zone_seam_wall", "door_jamb"],
+                )
+            else:
+                jambs = [{
+                    "stem": "wall", "x": fx, "z": fz, "yaw": p.get("yaw", 0.0),
+                    "floor_level": 0, "scale": 4.0, "kit": "factions/synth",
+                    "zone": zone_id, "role": "wall",
+                    "tags": ["synth_transition", "door_jamb"],
+                }]
+            for w in jambs:
+                if y > 0:
+                    w["y"] = y
+                new.append(w)
             wall_faces.add(key)
             added += 1
     pieces.extend(new)
     return added
 
 
-def _strip_walls_under_doors(pieces: List[dict]) -> int:
+def _apply_necropolis_wall_height(w: dict) -> None:
+    """Necropolis brick walls: stretch Y so the wall spans floor-to-roof (4 m)."""
+    kit = w.get("kit") or ""
+    stem = w.get("stem", "")
+    if w.get("role") != "wall" or "necropolis" not in kit.lower() or "brick" not in stem.lower():
+        return
+    if stem == "brick-wall2":
+        # user's Blender-edited version with height doubled (approx 1.45 model units)
+        model_h = 1.45
+        miny = 0.0
+    else:
+        miny, maxy = _get_model_y_bounds(kit, stem)
+        model_h = maxy - miny
+    if model_h > 0:
+        target_h = 4.0
+        scale_y = target_h / model_h
+        w["scale_y"] = scale_y
+        w["y"] = -miny * scale_y
+
+
+def _zone_wall_pieces_two_sided(
+    gx: int, gz: int, cell: Cell, side: str, zone_id: Optional[str], tags: List[str],
+) -> List[dict]:
+    """Zone-faction wall seen from BOTH sides; urban wall-a-flat is a one-sided
+    facade panel, so it gets a mirrored back-to-back copy."""
+    w = _zone_wall_piece(gx, gz, cell[0], cell[1], side, zone_id)
+    w["tags"] = list(tags)
+    out = [w]
+    if "urban" in (w.get("kit") or ""):
+        back = dict(w)
+        back["yaw"] = (w["yaw"] + math.pi) % (2 * math.pi)
+        back["tags"] = list(tags) + ["seam_backside"]
+        out.append(back)
+    return out
+
+
+def _zone_wall_piece(gx: int, gz: int, ix: int, iz: int, side: str, zone: Optional[str]) -> dict:
+    """Wall at a cell face using the zone faction's wall stem/kit/scale/yaw/inset —
+    the same construction as emit_pieces.add_wall, callable outside base emission."""
+    dx, dz = DELTA[side]
+    zkey = zone or ""
+    edge = CELL * 0.5 + _ACTIVE_ZONE_INSET.get(zkey, {}).get("wall", 0.0)
+    stem = _ACTIVE_ZONE_STEMS.get(zkey, {}).get("wall", "template-wall")
+    scale = _ACTIVE_ZONE_SCALE.get(zkey, {}).get("wall", 1.0)
+    yaw = WALL_YAW[side] + _ACTIVE_ZONE_YAW.get(zkey, {}).get("wall", 0.0)
+    w = _piece(
+        None, stem=stem,
+        x=world_x(gx, ix) + dx * edge,
+        z=world_z(gz, iz) + dz * edge,
+        yaw=yaw, scale=scale, zone=zone, role="wall",
+    )
+    _apply_necropolis_wall_height(w)
+    return w
+
+
+# ─── industrial factory halls (double-height rooms with catwalk tiers) ───────
+
+WALL_TIER_H = 4.25        # template-wall model height (probed, scale 1) — one wall tier
+HALL_ROOF_LIFT = WALL_TIER_H  # hall roof sits exactly one extra wall tier higher
+HALL_MIN_DIM = 4          # cells; anything smaller keeps the normal 1-tier shell
+HALL_MAX_COUNT = 2
+
+
+def _select_industrial_halls(fm: FreeformMap, zone_lookup, comp) -> Set[Cell]:
+    """Cells of up to HALL_MAX_COUNT big fully-industrial rooms that get the
+    double-height factory-hall treatment (tier-2 walls, raised roof, catwalk).
+
+    Only rooms entirely inside the industrial zone qualify — the raised shell
+    and the interior catwalk planner must agree on the same footprint, and the
+    spawn/extraction/hidden rooms keep their special roof handling."""
+    if comp.mix_mode == "transition":
+        if "industrial" not in (comp.default_faction or ""):
+            return set()
+        def zone_ok(c: Cell) -> bool:
+            return zone_lookup(c) == "default"
+    else:
+        if "industrial" not in (fm.faction_profile_id or ""):
+            return set()
+        def zone_ok(c: Cell) -> bool:
+            return True
+    hidden = set(fm.hidden_rooms)
+    cands: List[Tuple[int, int, Set[Cell]]] = []
+    for i, r in enumerate(fm.rooms):
+        if i in (fm.spawn_room, fm.end_room) or i in hidden:
+            continue
+        if r.w < HALL_MIN_DIM or r.h < HALL_MIN_DIM:
+            continue
+        cells = set(r.cells())
+        if fm.hub and fm.hub.trap0 in cells:
+            continue
+        if not all(zone_ok(c) for c in cells):
+            continue
+        cands.append((len(cells), i, cells))
+    cands.sort(key=lambda t: (-t[0], t[1]))
+    halls: Set[Cell] = set()
+    for _, _, cells in cands[:HALL_MAX_COUNT]:
+        halls |= cells
+    return halls
+
+
+def _emit_hall_upper_tier(
+    pieces: List[dict], gx: int, gz: int, hall_cells: Set[Cell], zone_lookup,
+) -> int:
+    """Second FULL-height wall tier around double-height halls, stacked flush on
+    top of the base tier (user rule: double walls never overlap — full height
+    per tier). Open faces (corridor mouths) get the upper tier too: above the
+    base wall line the neighbouring corridor roof is lower, so the face must be
+    closed all the way up to the raised hall roof."""
+    n = 0
+    for (ix, iz) in sorted(hall_cells):
+        for side, (dx, dz) in DELTA.items():
+            if (ix + dx, iz + dz) in hall_cells:
+                continue
+            w = _zone_wall_piece(gx, gz, ix, iz, side, _cell_zone(zone_lookup, (ix, iz)))
+            w["y"] = WALL_TIER_H
+            w["tags"] = ["industrial_hall", "hall_upper_wall"]
+            pieces.append(w)
+            n += 1
+    return n
+
+
+def _raise_hall_roofs(pieces: List[dict], gx: int, gz: int, hall_cells: Set[Cell]) -> int:
+    """Lift the floor-1 ceiling slabs over hall cells by one wall tier. The slab
+    keeps floor_level 1 (validate() and the streaming shaft logic key on that);
+    only its world y moves up."""
+    base = 4.5 - 0.005  # default floor-1 slab y (MOD_H × 1 − ε, kenney_layout.rs)
+    n = 0
+    for p in pieces:
+        if not p.get("ceiling") or int(p.get("floor_level", 0)) != 1:
+            continue
+        if _world_to_cell(gx, gz, float(p["x"]), float(p["z"])) in hall_cells:
+            p["y"] = round(base + HALL_ROOF_LIFT, 4)
+            n += 1
+    return n
+
+
+def _emit_zone_seam_walls(
+    pieces: List[dict],
+    fm: "FreeformMap",
+    spine: List[Cell],
+    comp: "LevelComposition",
+    gx: int,
+    gz: int,
+    zone_lookup,
+) -> int:
+    """Close ground-faction zone seams with the faction's own walls.
+
+    Non-elevated factions previously got ONE free-standing transition door at
+    the prev/default (default/next) boundary and nothing else — 'a random door
+    in the middle of a room'. Mirror the synth envelope rule: wall every seam
+    face with the zone faction's wall stem, keep the transition door as the
+    entrance, then BFS-repair reachability by converting a seam wall into an
+    extra faction door wherever sealing isolated a region."""
+    import faction_profiles as fp
+    import level_composition as lc
+    import transition_entrances as te
+
+    if comp.mix_mode != "transition":
+        return 0
+
+    def facekey(c: Cell, side: str) -> Tuple[float, float]:
+        dx, dz = DELTA[side]
+        return (round(world_x(gx, c[0]) + dx * CELL * 0.5, 1),
+                round(world_z(gz, c[1]) + dz * CELL * 0.5, 1))
+
+    def snap_face(v: float, half: float) -> float:
+        """Snap a coordinate to the nearest cell-face line (faces sit at
+        (k - g/2) * CELL). Needed because some faction walls carry a placement
+        inset (necropolis brick: 1.4) so the piece anchor is off the face."""
+        return (round(v / CELL + half) - half) * CELL
+
+    def wall_face_key(p: dict) -> Tuple[float, float]:
+        x, z = float(p["x"]), float(p["z"])
+        yaw = float(p.get("yaw", 0.0)) % math.pi
+        if abs(yaw - math.pi / 2.0) < 0.3:  # wall spans z, normal along x
+            x = snap_face(x, gx / 2.0)
+        else:
+            z = snap_face(z, gz / 2.0)
+        return (round(x, 1), round(z, 1))
+
+    # Ground zones only — synth seams are closed by emit_synth_envelope_walls.
+    zones = []
+    for zone_id, fac in (("prev", comp.prev_faction), ("next", comp.next_faction)):
+        prof = fp.load_profile(fac)
+        if fac != "synth" and lc.elevation_for_faction_profile(prof) <= 0:
+            zones.append((zone_id, fac, prof))
+    if not zones:
+        return 0
+
+    wall_keys = {wall_face_key(p) for p in pieces
+                 if p.get("role") == "wall" and int(p.get("floor_level", 0)) == 0}
+    door_keys = {(round(p["x"], 1), round(p["z"], 1)) for p in pieces
+                 if p.get("role") == "door" and int(p.get("floor_level", 0)) == 0}
+
+    def seam_wall_pieces(cell: Cell, side: str, zone_id: str, tags: List[str]) -> List[dict]:
+        return _zone_wall_pieces_two_sided(gx, gz, cell, side, zone_id, tags)
+
+    added = 0
+    mine: Dict[Tuple[float, float], List[dict]] = {}
+    zone_of_face: Dict[Tuple[float, float], Tuple[str, "fp.FactionProcgenProfile"]] = {}
+    for zone_id, fac, prof in zones:
+        for c in sorted(fm.walkable):
+            if zone_lookup(c) != zone_id:
+                continue
+            for side, (dx, dz) in DELTA.items():
+                nb = (c[0] + dx, c[1] + dz)
+                if nb not in fm.walkable:
+                    continue
+                if zone_lookup(nb) != "default":
+                    continue
+                k = facekey(c, side)
+                if k in wall_keys or k in door_keys:
+                    continue
+                # A corridor crossing the seam must never dead-end into a
+                # blank wall: when the straight path continues on both sides
+                # of the face through a corridor cell, gate it with a door.
+                behind_nb = (nb[0] + dx, nb[1] + dz)
+                behind_c = (c[0] - dx, c[1] - dz)
+                corridor_crossing = (
+                    (nb in fm.corridor_cells and behind_nb in fm.walkable)
+                    or (c in fm.corridor_cells and behind_c in fm.walkable)
+                )
+                if corridor_crossing:
+                    d_spec = te._resolve_door(prof)
+                    dxw, dzw, dyaw = te._cell_face_pose(gx, gz, c, side)
+                    pieces.append({
+                        "stem": d_spec.stem, "x": dxw, "z": dzw, "yaw": dyaw,
+                        "floor_level": 0, "scale": d_spec.scale,
+                        "kit": d_spec.kit, "zone": zone_id, "role": "door",
+                        "tags": ["transition_entrance", "zone_seam_wall",
+                                 "corridor_seam_door"],
+                    })
+                    door_keys.add(k)
+                    added += 1
+                    continue
+                ws = seam_wall_pieces(c, side, zone_id, ["zone_seam_wall"])
+                pieces.extend(ws)
+                wall_keys.add(k)
+                mine[k] = ws
+                zone_of_face[k] = (zone_id, prof)
+                added += 1
+    if not added:
+        return added
+
+    # --- Reachability repair -------------------------------------------------
+    elev = lc.make_elevation_lookup(fm.walkable, spine, comp)
+
+    def lookups():
+        wall = set()
+        door = set()
+        stair = set()
+        for p in pieces:
+            if p.get("ceiling") or int(p.get("floor_level", 0)) != 0:
+                continue
+            r = p.get("role")
+            if r == "wall":
+                wall.add(wall_face_key(p))
+            elif r == "door":
+                door.add((round(p["x"], 1), round(p["z"], 1)))
+            elif r == "stairs":
+                stair.add((int(round(p["x"] / CELL + gx / 2 - 0.5)),
+                           int(round(p["z"] / CELL + gz / 2 - 0.5))))
+        return wall, door, stair
+
+    spawn = fm.rooms[fm.spawn_room]
+    start = (spawn.cx, spawn.cz)
+    for _ in range(64):  # bounded; each iteration opens one seam door
+        wall, door, stair = lookups()
+        seen = {start}
+        stack = [start]
+        while stack:
+            c = stack.pop()
+            for side, (dx, dz) in DELTA.items():
+                nb = (c[0] + dx, c[1] + dz)
+                if nb not in fm.walkable or nb in seen:
+                    continue
+                k = facekey(c, side)
+                if k in wall and k not in door:
+                    continue
+                if abs(elev(c) - elev(nb)) > 0.5 and not (c in stair or nb in stair):
+                    continue
+                seen.add(nb)
+                stack.append(nb)
+        # Find an unreached cell whose frontier face is one of OUR seam walls.
+        frontier = None
+        for c in sorted(fm.walkable):
+            if c in seen:
+                continue
+            for side, (dx, dz) in DELTA.items():
+                nb = (c[0] + dx, c[1] + dz)
+                if nb not in seen or nb not in fm.walkable:
+                    continue
+                k = facekey(c, side)
+                if k in mine:
+                    frontier = (c, side, k)
+                    break
+            if frontier:
+                break
+        if frontier is None:
+            break  # everything reachable, or blockage predates this pass
+        c, side, k = frontier
+        for w in mine.pop(k):
+            if w in pieces:
+                pieces.remove(w)
+        zone_id, prof = zone_of_face[k]
+        d_spec = te._resolve_door(prof)
+        dx_w, dz_w, dyaw = te._cell_face_pose(gx, gz, c, side)
+        pieces.append({
+            "stem": d_spec.stem, "x": dx_w, "z": dz_w, "yaw": dyaw,
+            "floor_level": 0, "scale": d_spec.scale, "kit": d_spec.kit,
+            "zone": zone_id, "role": "door",
+            "tags": ["transition_entrance", "zone_seam_wall", "access_repair"],
+        })
+
+    # --- Door jambs ----------------------------------------------------------
+    # When the seam turns a corner AT the door cell, the flank position along
+    # the door's own wall line is open floor and the door reads free-standing.
+    # Add a faction wall on each open flank, reachability-safe.
+    wall, door, stair = lookups()
+
+    def connected(a: Cell, b: Cell, blocked: Tuple[float, float]) -> bool:
+        seen = {a}
+        stack = [a]
+        while stack:
+            c = stack.pop()
+            if c == b:
+                return True
+            for side, (dx, dz) in DELTA.items():
+                nb = (c[0] + dx, c[1] + dz)
+                if nb not in fm.walkable or nb in seen:
+                    continue
+                k = facekey(c, side)
+                if k == blocked:
+                    continue
+                if k in wall and k not in door:
+                    continue
+                if abs(elev(c) - elev(nb)) > 0.5 and not (c in stair or nb in stair):
+                    continue
+                seen.add(nb)
+                stack.append(nb)
+        return False
+
+    zone_prof = {z: pr for z, _f, pr in zones}
+    for p in list(pieces):
+        if p.get("role") != "door" or int(p.get("floor_level", 0)) != 0:
+            continue
+        tags = p.get("tags") or []
+        if "transition_entrance" not in tags or "elevated_door" in tags:
+            continue
+        zone_id = p.get("zone")
+        if zone_id not in zone_prof:
+            continue
+        x, z = float(p["x"]), float(p["z"])
+        gxf = x / CELL + gx / 2 - 0.5
+        gzf = z / CELL + gz / 2 - 0.5
+        vertical = abs(gxf - round(gxf)) > 0.25  # face between E/W neighbours
+        if vertical:
+            flanks = [((int(round(gxf - 0.5)), int(round(gzf)) + dzz), "E")
+                      for dzz in (-1, 1)]
+        else:
+            flanks = [((int(round(gxf)) + dxx, int(round(gzf - 0.5))), "S")
+                      for dxx in (-1, 1)]
+        for cell_a, side in flanks:
+            dxs, dzs = DELTA[side]
+            cell_b = (cell_a[0] + dxs, cell_a[1] + dzs)
+            k = facekey(cell_a, side)
+            if k in wall or k in door:
+                continue
+            if cell_a not in fm.walkable or cell_b not in fm.walkable:
+                continue  # void flank — base-gen wall already jambs it
+            if connected(cell_a, cell_b, k):
+                anchor = cell_a if zone_lookup(cell_a) == zone_id else \
+                    (cell_b if zone_lookup(cell_b) == zone_id else cell_a)
+                a_side = side if anchor == cell_a else OPP[side]
+                y = max(elev(cell_a), elev(cell_b))
+                for w in seam_wall_pieces(anchor, a_side, zone_id,
+                                          ["zone_seam_wall", "door_jamb"]):
+                    if y > 0:
+                        w["y"] = y
+                    pieces.append(w)
+                wall.add(k)
+            else:
+                # Sole path — a wall would break reachability. Extend the gate
+                # line with another faction door instead (passable, reads as a
+                # wide gated threshold rather than a free-standing frame).
+                d_spec = te._resolve_door(zone_prof[zone_id])
+                dxw, dzw, dyaw = te._cell_face_pose(gx, gz, cell_a, side)
+                pieces.append({
+                    "stem": d_spec.stem, "x": dxw, "z": dzw, "yaw": dyaw,
+                    "floor_level": 0, "scale": d_spec.scale, "kit": d_spec.kit,
+                    "zone": zone_id, "role": "door",
+                    "tags": ["transition_entrance", "zone_seam_wall", "door_jamb"],
+                })
+                door.add(k)
+            added += 1
+    return added
+
+
+def _strip_walls_under_doors(pieces: List[dict], gx: int = 0, gz: int = 0) -> int:
     """Remove any floor-0 wall sharing a door's face (a door must be an OPENING, not
-    lodged inside a wall — D2).  Doors win over walls."""
+    lodged inside a wall — D2).  Doors win over walls.  Includes hidden doors, and
+    matches walls by their face-snapped position too (inset walls, e.g. necropolis
+    brick 1.4 m, sit off the face line)."""
     door_keys = {
         (round(p["x"], 1), round(p["z"], 1))
         for p in pieces
-        if p.get("role") == "door" and int(p.get("floor_level", 0)) == 0
+        if int(p.get("floor_level", 0)) == 0
+        and (p.get("role") == "door" or "hidden_entrance" in (p.get("tags") or []))
     }
     if not door_keys:
         return 0
+
+    def snapped(p: dict) -> Tuple[float, float]:
+        x, z = float(p["x"]), float(p["z"])
+        if not gx:
+            return (round(x, 1), round(z, 1))
+        yaw = float(p.get("yaw", 0.0)) % math.pi
+        if abs(yaw - math.pi / 2.0) < 0.3:
+            x = (round(x / CELL + gx / 2.0) - gx / 2.0) * CELL
+        else:
+            z = (round(z / CELL + gz / 2.0) - gz / 2.0) * CELL
+        return (round(x, 1), round(z, 1))
+
     kept: List[dict] = []
     removed = 0
     for p in pieces:
         if (
             p.get("role") == "wall"
             and int(p.get("floor_level", 0)) == 0
-            and (round(p["x"], 1), round(p["z"], 1)) in door_keys
+            and ((round(p["x"], 1), round(p["z"], 1)) in door_keys
+                 or snapped(p) in door_keys)
         ):
             removed += 1
             continue
@@ -1353,6 +1913,8 @@ def _apply_zone_elevation(
         fm.walkable, spine, comp, interior_cells=interior_cells,
     )
     for p in pieces:
+        if "synth_mezz" in (p.get("tags") or []):
+            continue
         if "y" in p or p.get("ceiling"):
             continue
         # Deck uplift is a floor-0 concept only — never raise the underground hub
@@ -1370,6 +1932,225 @@ def _apply_zone_elevation(
             p["y"] = e
 
 
+def build_nav_grid(
+    pieces: List[dict],
+    fm: "FreeformMap",
+    spine: List[Cell],
+    comp: "LevelComposition",
+    gx: int,
+    gz: int,
+) -> dict:
+    """Bake the walkable-cell nav graph for server-side enemy pathfinding.
+
+    Mirrors the generator's own reachability rules (walls block, doors pass,
+    elevation steps need a stair cell) — the exact rules that guarantee PLAYER
+    reachability, so an A* over this graph never routes through a wall or up a
+    sheer 1.2 m ledge. ``open`` lists the passable faces (N/S/E/W) per cell."""
+    import level_composition as lc
+
+    DELTA = {"N": (0, -1), "S": (0, 1), "E": (1, 0), "W": (-1, 0)}
+    elev = lc.make_elevation_lookup(fm.walkable, spine, comp)
+
+    def snap_face(v: float, half: float) -> float:
+        return (round(v / CELL + half) - half) * CELL
+
+    wall_keys: Set[Tuple[float, float]] = set()
+    door_keys: Set[Tuple[float, float]] = set()
+    stair_cells: Set[Cell] = set()
+    for p in pieces:
+        if p.get("ceiling") or int(p.get("floor_level", 0)) != 0:
+            continue
+        r = p.get("role")
+        tags = p.get("tags") or []
+        if r == "door" or "hidden_entrance" in tags:
+            door_keys.add((round(p["x"], 1), round(p["z"], 1)))
+        elif r == "wall":
+            # Hall tier-2 walls float a full wall height up — ground nav ignores
+            # them (they'd otherwise wall off the hall's own corridor mouths).
+            if float(p.get("y") or 0.0) >= 2.0:
+                continue
+            # Snap inset walls (necropolis brick 1.4) back to their face line.
+            x, z = float(p["x"]), float(p["z"])
+            yaw = float(p.get("yaw", 0.0)) % math.pi
+            if abs(yaw - math.pi / 2.0) < 0.3:
+                x = snap_face(x, gx / 2.0)
+            else:
+                z = snap_face(z, gz / 2.0)
+            wall_keys.add((round(x, 1), round(z, 1)))
+        elif r == "stairs":
+            stair_cells.add((int(round(p["x"] / CELL + gx / 2 - 0.5)),
+                             int(round(p["z"] / CELL + gz / 2 - 0.5))))
+
+    def facekey(c: Cell, s: str) -> Tuple[float, float]:
+        dx, dz = DELTA[s]
+        return (round(world_x(gx, c[0]) + dx * CELL * 0.5, 1),
+                round(world_z(gz, c[1]) + dz * CELL * 0.5, 1))
+
+    cells = []
+    for c in sorted(fm.walkable):
+        open_sides = ""
+        for s, (dx, dz) in DELTA.items():
+            nb = (c[0] + dx, c[1] + dz)
+            if nb not in fm.walkable:
+                continue
+            k = facekey(c, s)
+            if k in wall_keys and k not in door_keys:
+                continue
+            if abs(elev(c) - elev(nb)) > 0.5 and not (c in stair_cells or nb in stair_cells):
+                continue
+            open_sides += s
+        cells.append({
+            "c": [c[0], c[1]],
+            "y": round(float(elev(c)), 3),
+            "open": open_sides,
+            "stair": c in stair_cells,
+        })
+    return {"cell_m": CELL, "cells_x": gx, "cells_z": gz, "cells": cells}
+
+
+_WALL_OFF_CACHE: Dict[str, float] = {}
+
+
+def _faction_wall_inner_offset(faction_id: str) -> float:
+    """``wall_inner_offset_m`` from the faction's placement catalog: how far
+    the wall's inner surface protrudes INTO the room past the cell-face line
+    (0.0 = wall plane sits on the face; necropolis/priesthood are 0.6)."""
+    if faction_id in _WALL_OFF_CACHE:
+        return _WALL_OFF_CACHE[faction_id]
+    off = 0.0
+    try:
+        import faction_assets as fa
+        asset = fa.asset_for_profile(faction_id)
+        if asset is not None and "wall" in asset.provides:
+            cat = ROOT / "assets" / "models" / asset.kit / "placement_catalog.json"
+            if cat.is_file():
+                off = float(json.loads(cat.read_text(encoding="utf-8"))
+                            .get("wall_inner_offset_m") or 0.0)
+    except Exception:
+        off = 0.0
+    _WALL_OFF_CACHE[faction_id] = off
+    return off
+
+
+# Mini-market GLB extents along local z (model units, probed 2026-07-07).
+# Local +z faces the room centre (yaw_in), so the wall-side extent is the
+# NEGATIVE z bound. Used to place each piece's back face flush against the
+# faction wall's inner surface instead of a hardcoded offset (which buried
+# the shelf inside 0.6 m-thick walls and left displays clipping them).
+_MM_BACK = {"shelf-end": 0.40, "display-fruit": 0.30, "display-bread": 0.30,
+            "cash-register": 0.40, "detail-awning-wide": 0.15,
+            "detail-awning-small": 0.15}
+
+
+def _dress_hub_and_hidden(pieces: List[dict], fm: "FreeformMap", gx: int, gz: int, rng,
+                          hub_wall_off: float = 0.0,
+                          wall_off_for_cell=None) -> None:
+    """Market dressing: a stall cluster in the hub (the between-level shop room,
+    cf. the r.e.p.o. re-stock shop) and a small shack in every hidden room
+    (whose keeper NPC spawns at the room centre). Stalls use the Kenney
+    mini-market kit; the retro-urban awning is the canopy, wall-mounted at
+    2.3 m. Mini-market is a 1-unit kit but its props are chunky — x2.5 puts
+    shelves/displays at human scale, the cash-register counter x2.2 (counter
+    top ~1.3 m). All bases sit ON the floor (y = floor*4 + 0.01 — the old
+    +0.05 read as hovering) and all backs sit flush against the wall's inner
+    surface (W below), which varies per faction (wall_inner_offset_m)."""
+    KIT = "retro_urban"
+    MARKET = "mini_market"
+    S = 4.0
+    MS = 2.5
+    REG = 2.2
+    GAP = 0.04           # clearance so backs never z-fight the wall face
+    HALF = CELL / 2.0    # cell centre → cell-face line
+    DELTA = ((0, -1), (0, 1), (1, 0), (-1, 0))
+
+    def prop(stem: str, x: float, z: float, yaw: float, floor: int, tag: str,
+             kit: str = KIT, scale: float = S, y_lift: float = 0.0) -> dict:
+        # ``y`` is an ABSOLUTE world height (PieceRecord.world_y override), so
+        # sub-ground floors must bake in the 4 m module height: hub floor -1
+        # surface sits at -4.0 (same convention as the keeper NPC spawns).
+        return {"stem": stem, "x": round(x, 4), "z": round(z, 4), "yaw": round(yaw, 4),
+                "floor_level": floor, "scale": scale, "kit": kit,
+                "y": round(floor * 4.0 + 0.01 + y_lift, 3),
+                "role": "prop", "tags": [tag]}
+
+    hub = fm.hub
+    if hub:
+        wall_face = HALF - float(hub_wall_off)   # inner wall surface distance
+        avoid: Set[Cell] = set(hub.holes1) | {hub.trap0} | {e.trap for e in hub.exits}
+        floor1 = set(hub.floor1)
+        cands = []
+        for c in sorted(floor1):
+            if any((c[0] + ax, c[1] + az) in avoid for ax in (-1, 0, 1) for az in (-1, 0, 1)):
+                continue
+            for dx, dz in DELTA:
+                if (c[0] + dx, c[1] + dz) not in floor1:
+                    # displays flank 1.8 m to each side: both perpendicular
+                    # neighbours must be open floor so they never sit in a wall
+                    if (c[0] + dz, c[1] - dx) in floor1 and (c[0] - dz, c[1] + dx) in floor1:
+                        cands.append((c, dx, dz))
+                    break
+        # THREE trade stalls (plan4 rule: 3 station-tied NPCs per hub), spread
+        # at least 3 cells apart; each stall's keeper NPC spawns behind the
+        # counter (between counter and shelf).
+        rng.shuffle(cands)
+        placed: List[Tuple[Cell, int, int]] = []
+        for c, dx, dz in cands:
+            if len(placed) >= 3:
+                break
+            if any(abs(c[0] - p[0][0]) + abs(c[1] - p[0][1]) < 3 for p in placed):
+                continue
+            placed.append((c, dx, dz))
+        keeper_spawns: List[Tuple[float, float, float]] = []
+        # Outward distances (from cell centre toward the wall), back-flush:
+        shelf_out = wall_face - _MM_BACK["shelf-end"] * MS - GAP
+        disp_out = wall_face - _MM_BACK["display-fruit"] * MS - GAP
+        awn_out = wall_face - _MM_BACK["detail-awning-wide"] * S - GAP
+        reg_out = -1.35                                   # counter toward room
+        keeper_out = (shelf_out + (reg_out + 0.40 * REG)) / 2.0
+        for c, dx, dz in placed:
+            wx, wz = world_x(gx, c[0]), world_z(gz, c[1])
+            yaw_in = math.atan2(-dx, -dz)   # local +z toward room centre
+            # Shop layout: counter between keeper and room, shelf behind the
+            # keeper against the wall, displays flanking (perp = (dz,-dx)),
+            # awning canopy wall-mounted overhead.
+            pieces.append(prop("detail-awning-wide", wx + dx * awn_out, wz + dz * awn_out,
+                               yaw_in, -1, "hub_market", y_lift=2.3))
+            pieces.append(prop("cash-register", wx + dx * reg_out, wz + dz * reg_out,
+                               yaw_in, -1, "hub_market", MARKET, REG))
+            pieces.append(prop("shelf-end", wx + dx * shelf_out, wz + dz * shelf_out,
+                               yaw_in, -1, "hub_market", MARKET, MS))
+            pieces.append(prop("display-fruit", wx + dz * 1.8 + dx * disp_out,
+                               wz - dx * 1.8 + dz * disp_out,
+                               yaw_in, -1, "hub_market", MARKET, MS))
+            pieces.append(prop("display-bread", wx - dz * 1.8 + dx * disp_out,
+                               wz + dx * 1.8 + dz * disp_out,
+                               yaw_in, -1, "hub_market", MARKET, MS))
+            keeper_spawns.append((wx + dx * keeper_out, -4.0 + 0.15,
+                                  wz + dz * keeper_out))  # hub floor -1 surface
+        if keeper_spawns:
+            fm.npc_spawns = list(getattr(fm, "npc_spawns", [])) + keeper_spawns  # type: ignore[attr-defined]
+
+    for i in getattr(fm, "hidden_rooms", []):
+        r = fm.rooms[i]
+        cx, cz = r.cx, r.cz
+        side = next(((dx, dz) for dx, dz in DELTA
+                     if (cx + dx, cz + dz) not in fm.walkable), (0, -1))
+        dx, dz = side
+        wx, wz = world_x(gx, cx), world_z(gz, cz)
+        yaw_in = math.atan2(-dx, -dz)
+        off = (wall_off_for_cell((cx, cz)) if wall_off_for_cell else 0.0)
+        w_face = HALF - float(off)
+        awn_out = w_face - _MM_BACK["detail-awning-small"] * S - GAP
+        disp_out = w_face - _MM_BACK["display-fruit"] * MS - GAP
+        pieces.append(prop("detail-awning-small", wx + dx * awn_out, wz + dz * awn_out,
+                           yaw_in, 0, "hidden_shack", y_lift=2.3))
+        pieces.append(prop("display-fruit", wx + dx * disp_out + dz * 1.2,
+                           wz + dz * disp_out - dx * 1.2, yaw_in, 0, "hidden_shack",
+                           MARKET, MS))
+        pieces.append(prop("shopping-cart", wx - dz * 1.4, wz + dx * 1.4,
+                           yaw_in, 0, "hidden_shack", MARKET, MS))
+
+
 def to_doc(fm: FreeformMap, name: str) -> dict:
     import faction_profiles as fp
     import level_composition as lc
@@ -1380,6 +2161,9 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
     build_zone_kits(comp)
     spine, _, kit_lookup, zone_lookup = lc.plan_zones_for_map(fm)
     hub_kit = fp.architecture_kit(fp.load_profile(comp.default_faction))
+    # Double-height industrial factory halls: chosen ONCE here so the shell
+    # (upper wall tier + raised roof) and the interior catwalk planner agree.
+    hall_cells = _select_industrial_halls(fm, zone_lookup, comp)
 
     hub = fm.hub
     gx, gz = fm.gx, fm.gz
@@ -1406,11 +2190,12 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
     deck_cells: Set[Cell] = set()
     for plan in transition_plans:
         deck_cells |= plan.deck_cells
+    synth_zones = st.synth_zone_ids(comp)
     if transition_plans:
         # The synth zone is one elevated building: EVERY synth cell sits on the 1.2 m
         # deck (so every synth wall is at 1.2 m).  Earlier this was a 1-D BFS line, which
         # left branch cells — and their walls — at y=0.  Whole footprint now elevates.
-        synth_zones = {"prev", "next"}
+        # Only zones whose faction IS synth — never a ground faction's prev/next zone.
         interior_cells = {c for c in fm.walkable if zone_lookup(c) in synth_zones}
         _apply_synth_exterior_floors(
             pieces, gx, gz, fm.walkable, zone_lookup, comp, set(), deck_cells,
@@ -1423,6 +2208,7 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
         pieces.extend(st.emit_synth_envelope_walls(
             gx, gz, fm.walkable, zone_lookup, deck_cells, pieces,
             corridor_cells=fm.corridor_cells, door_spec=synth_door,
+            synth_zones=synth_zones,
         ))
         # Guarantee every synth region is reachable from spawn (open a stair+door
         # entrance into any area the envelope walls sealed off).
@@ -1431,20 +2217,36 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
         )
         # Give every door a wall jamb on open flanks (no freestanding doorframes).
         # Reachability-safe: never jambs the sole path between two cells.
-        _attach_walls_to_doors(pieces, fm, spine, comp, gx, gz)
+        _attach_walls_to_doors(pieces, fm, spine, comp, gx, gz, zone_lookup)
     floors = {"0": {"cells_x": gx, "cells_z": gz, "cells": mask0}}
     hub_exits: Dict[str, dict] = {}
 
     if hub:
+        # Exit trap cells are OPEN shafts: the drop continues from the exit
+        # room straight into the next level's map, mounted 4 m below by the
+        # runtime streamer (the server seals them until the child is ready).
+        exit_traps = {ex.trap for ex in hub.exits}
         emit_floor_tiles(pieces, gx, gz, -1, hub.floor1, hub.holes1, kit=hub_kit)
-        emit_floor_tiles(pieces, gx, gz, -2, hub.floor2, set(), kit=hub_kit)
+        emit_floor_tiles(pieces, gx, gz, -2, hub.floor2, exit_traps, kit=hub_kit)
         floors["-1"] = _mask(gx, gz, hub.floor1, hub.holes1)
-        floors["-2"] = _mask(gx, gz, hub.floor2, set())
+        floors["-2"] = _mask(gx, gz, hub.floor2, exit_traps)
         for i, ex in enumerate(hub.exits):
             hub_exits[str(i)] = {
                 "x": world_x(gx, ex.trap[0]), "z": world_z(gz, ex.trap[1]),
                 "floor": -2, "kind": ex.kind, "label": f"Next level {i + 1}",
             }
+
+    def _cell_wall_off(cell: Cell) -> float:
+        zone = lc.zone_for_cell(cell, spine, comp)
+        fac = {"prev": comp.prev_faction, "next": comp.next_faction}.get(
+            zone, comp.default_faction)
+        return _faction_wall_inner_offset(fac)
+
+    _dress_hub_and_hidden(
+        pieces, fm, gx, gz, transition_rng,
+        hub_wall_off=_faction_wall_inner_offset(comp.default_faction),
+        wall_off_for_cell=_cell_wall_off,
+    )
 
     for (wx, wz, yaw), meta in zip(fm.secret_doors, fm.secret_door_meta):
         door_cell = meta.corridor_cell
@@ -1459,23 +2261,115 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
             **hd.to_piece_extras(),
         })
 
-    _strip_walls_under_doors(pieces)
+    # Close ground-faction zone seams: faction walls flanking the transition
+    # door (else the door free-stands in open floor). Synth zones handled above.
+    _emit_zone_seam_walls(pieces, fm, spine, comp, gx, gz, zone_lookup)
+
+    _strip_walls_under_doors(pieces, gx, gz)
 
     # Interior dressing: windows on the synth perimeter, banners inside (drop-in stem
     # swaps — still solid walls, integrity/reachability unchanged).
     if transition_plans:
-        st.decorate_synth_walls(pieces, gx, gz, fm.walkable, zone_lookup, fm.seed)
-        st.furnish_synth_interior(pieces, gx, gz, fm.walkable, zone_lookup, deck_cells, fm.seed)
+        st.decorate_synth_walls(pieces, gx, gz, fm.walkable, zone_lookup, fm.seed,
+                                synth_zones=synth_zones)
+        st.furnish_synth_interior(
+            pieces, gx, gz, fm.walkable, zone_lookup, deck_cells, fm.seed, fm.corridor_cells,
+            synth_zones=synth_zones,
+        )
+
+    # Unified rich interior for ALL factions (synth + non-synth).
+    # Uses the new faction_interior framework for data-driven room roles + clusters.
+    # Synth still gets its special elevation/balcony/mezz logic via delegation if needed.
+    import faction_interior as fi
+    prev_f = comp.prev_faction
+    next_f = comp.next_faction
+
+    def _world_at(c):
+        return world_x(gx, c[0]), world_z(gz, c[1])
+
+    # Door positions (transition + hidden doors) so furnish keeps their bands clear.
+    door_xz = [(float(p["x"]), float(p["z"])) for p in pieces
+               if p.get("role") == "door"
+               or "hidden_entrance" in (p.get("tags") or [])]
+    # Spawn and extraction trap get the same keep-clear treatment.
+    _spawn_room = fm.rooms[fm.spawn_room]
+    door_xz.append((world_x(gx, _spawn_room.cx), world_z(gz, _spawn_room.cz)))
+    if hub:
+        door_xz.append((world_x(gx, hub.trap0[0]), world_z(gz, hub.trap0[1])))
+
+    def _furnish_zone(zone_id: str, faction_id: str) -> None:
+        """Furnish one composition zone with its faction's interior logic."""
+        if faction_id == "synth":
+            return  # handled by the dedicated synth path above
+        zone_walkable = {c for c in fm.walkable if zone_lookup(c) == zone_id}
+        zone_walkable -= deck_cells or set()
+        if not zone_walkable:
+            return
+        try:
+            fi.furnish_faction_interior(
+                pieces, gx, gz, zone_walkable, zone_lookup, deck_cells or set(), fm.seed,
+                corridor_cells=fm.corridor_cells or set(),
+                faction=faction_id,
+                sweep_params=fi.load_sweep_params(faction_id),
+                world_at=_world_at,
+                global_walkable=fm.walkable,
+                door_positions=door_xz,
+                tall_cells=hall_cells,
+            )
+        except Exception:
+            pass  # grace for any missing stems
+
+    _furnish_zone("prev", prev_f)
+    _furnish_zone("next", next_f)  # zones are disjoint even when prev == next faction
+    # The middle (default) zone is a faction too — usually industrial. It was
+    # previously never furnished, so industrial only got props when it happened
+    # to be first/last. Furnish it like any other zone.
+    if comp.mix_mode == "transition":
+        _furnish_zone("default", comp.default_faction)
+
+    # Post-adjust: nudge any interior room props that landed too close to spawn (prevents spawn clip/fall)
+    spawn_c = (fm.rooms[fm.spawn_room].cx, fm.rooms[fm.spawn_room].cz)
+    spawn_wx = world_x(gx, spawn_c[0])
+    spawn_wz = world_z(gz, spawn_c[1])
+    for pp in pieces:
+        if 'room_' not in str(pp.get('tags', [])):
+            continue
+        if abs(pp.get('x', 0) - spawn_wx) < 1.5 and abs(pp.get('z', 0) - spawn_wz) < 1.5:
+            pp['x'] = round(pp['x'] + 2.5, 4)
+            pp['z'] = round(pp['z'] + transition_rng.uniform(-1,1), 4)
 
     emit_all_roofs(pieces, fm, hub, gx, gz, holes0, kit_lookup=kit_lookup, zone_lookup=zone_lookup)
+
+    if hall_cells:
+        _emit_hall_upper_tier(pieces, gx, gz, hall_cells, zone_lookup)
+        _raise_hall_roofs(pieces, gx, gz, hall_cells)
 
     _apply_zone_elevation(
         pieces, gx, gz, fm, spine, comp, interior_cells=interior_cells,
     )
 
+    # Explicitly pin y=0 for ground-level faction floors and walls (outlaw/urban etc.)
+    # to prevent any synth-style 1.2m lift or transition bugs.
+    for p in pieces:
+        if p.get("zone") in ("prev", "next"):
+            kit = p.get("kit", "")
+            is_ground_faction = any(k in kit for k in ("urban", "outlaw", "industrial", "priesthood"))
+            if is_ground_faction and p.get("role") in ("floor", "wall"):
+                p["y"] = 0.0
+
     spawn = fm.rooms[fm.spawn_room]
     spawn_cell = (spawn.cx, spawn.cz)
-    spawn_y = lc.make_elevation_lookup(fm.walkable, spine, comp)(spawn_cell)
+    elev_fn = lc.make_elevation_lookup(fm.walkable, spine, comp)
+    spawn_y = elev_fn(spawn_cell)
+
+    def _agent_spawn(x: float, y: float, z: float) -> List[float]:
+        # Agents spawn ON their cell's floor (synth deck 1.2 m), not inside it.
+        # Explicit non-surface y (hub NPCs at -3.85) is deliberate — keep it.
+        if abs(y - 0.15) > 1e-6:
+            return [float(x), float(y), float(z)]
+        c = (int(round(x / CELL + gx / 2 - 0.5)), int(round(z / CELL + gz / 2 - 0.5)))
+        return [float(x), float(elev_fn(c)) + 0.15, float(z)]
+
     building = comp.next_faction if comp.mix_mode == "transition" else fm.faction_profile_id
     return {
         "version": 1,
@@ -1497,6 +2391,11 @@ def to_doc(fm: FreeformMap, name: str) -> dict:
         "transition_entrances": len([
             p for p in pieces if "transition_entrance" in (p.get("tags") or [])
         ]),
+        "enemy_spawns": [_agent_spawn(x, y, z) for (x, y, z) in getattr(fm, 'enemy_spawns', [])],
+        "npc_spawns": [_agent_spawn(x, y, z) for (x, y, z) in getattr(fm, 'npc_spawns', [])],
+        "enemy_patrols": [[_agent_spawn(x, y, z) for (x, y, z) in route]
+                          for route in getattr(fm, 'enemy_patrols', [])],
+        "nav": build_nav_grid(pieces, fm, spine, comp, gx, gz),
     }
 
 
@@ -1552,7 +2451,8 @@ def audit_floor_overlaps(pieces: List[dict], *, eps: float = 0.01) -> List[str]:
             continue
         fl = int(p.get("floor_level", 0))
         wx, wz = float(p["x"]), float(p["z"])
-        key = (fl, round(wx / eps) * eps, round(wz / eps) * eps)
+        wy = round(float(p.get("y", 0.0)), 2)
+        key = (fl, round(wx / eps) * eps, round(wz / eps) * eps, wy)
         if key in seen:
             errs.append(
                 f"duplicate floor at level {fl} ({wx:.1f},{wz:.1f}): "
@@ -1598,10 +2498,13 @@ def validate(fm: FreeformMap, doc: Optional[dict] = None) -> List[str]:
             if comp.mix_mode == "transition"
             else (lambda _c: 0.0)
         )
-        # Every walkable floor-0 tile needs a ceiling at floor 1 except open elevated decks.
+        # Every walkable floor-0 tile needs a ceiling at floor 1 except open
+        # elevated decks and the arrival shaft (spawn cell, roof left open on
+        # purpose so a streamed child map drops in from the hub above).
+        shaft = _arrival_shaft_cell(fm)
         for c in fm.walkable:
             wx, wz = world_x(gx, c[0]), world_z(gz, c[1])
-            if elev_fn(c) > 0:
+            if elev_fn(c) > 0 or c == shaft:
                 continue
             has_ceil = any(
                 p.get("ceiling")
@@ -1682,6 +2585,163 @@ def validate(fm: FreeformMap, doc: Optional[dict] = None) -> List[str]:
     return errs
 
 
+def _place_agent_spawns(fm: FreeformMap, rng: random.Random, num_enemies: int, num_npcs: int) -> None:
+    """Pick walkable positions for agents + bake per-enemy patrol routes.
+
+    Enemies never spawn in the STARTING faction zone (transition maps: the
+    ``prev`` zone around the spawn room; single maps: the spawn room itself) —
+    the entry area is safe ground, which also evens out difficulty between
+    maps for balancing. Each enemy gets a 2-4 waypoint patrol loop of nearby
+    same-zone cells (``fm.enemy_patrols``, parallel to ``fm.enemy_spawns``).
+    """
+    if not fm.walkable:
+        return
+    import level_composition as lc
+
+    walk_list = list(fm.walkable)
+    spawn_c = (fm.rooms[fm.spawn_room].cx, fm.rooms[fm.spawn_room].cz) if fm.spawn_room < len(fm.rooms) else walk_list[0]
+    end_c = (fm.rooms[fm.end_room].cx, fm.rooms[fm.end_room].cz) if fm.end_room < len(fm.rooms) else walk_list[-1]
+
+    try:
+        _, _, _, zone_lookup = lc.plan_zones_for_map(fm)
+    except Exception:
+        zone_lookup = lambda _c: None  # noqa: E731
+    start_zone = zone_lookup(spawn_c)
+    spawn_room_cells: Set[Cell] = (
+        set(fm.rooms[fm.spawn_room].cells()) if fm.spawn_room < len(fm.rooms) else set()
+    )
+    hidden_cells: Set[Cell] = set()
+    for i in getattr(fm, "hidden_rooms", []):
+        hidden_cells |= set(fm.rooms[i].cells())
+
+    def in_start_faction(c: Cell) -> bool:
+        if start_zone is not None:
+            return zone_lookup(c) == start_zone
+        return c in spawn_room_cells
+
+    # Enemy candidates: outside the starting faction, never in hidden rooms
+    # (those belong to friendly keepers). Fall back gracefully on tiny maps.
+    enemy_cells = [c for c in walk_list
+                   if not in_start_faction(c) and c not in hidden_cells]
+    if len(enemy_cells) < max(1, num_enemies):
+        enemy_cells = [c for c in walk_list
+                       if c not in spawn_room_cells and c not in hidden_cells]
+    if not enemy_cells:
+        enemy_cells = walk_list
+
+    # Use a small positive Y so they sit visibly on floor 0 even if map has no explicit spawn_y yet.
+    # Real elevation will be improved later; for editor sliders this makes them findable.
+    AGENT_Y = 0.15
+
+    def world_for(c: Cell) -> Tuple[float, float, float]:
+        ox = (rng.random() - 0.5) * 2.8
+        oz = (rng.random() - 0.5) * 2.8
+        return (world_x(fm.gx, c[0]) + ox, AGENT_Y, world_z(fm.gz, c[1]) + oz)
+
+    taken: List[Tuple[float, float]] = []
+    def too_close(wx: float, wz: float) -> bool:
+        for tx, tz in taken:
+            if (wx - tx) ** 2 + (wz - tz) ** 2 < 3.5 ** 2:  # tighter for testability
+                return True
+        # milder exclusion from spawn/extraction
+        if (wx - world_x(fm.gx, spawn_c[0]))**2 + (wz - world_z(fm.gz, spawn_c[1]))**2 < 3.5**2:
+            return True
+        if (wx - world_x(fm.gx, end_c[0]))**2 + (wz - world_z(fm.gz, end_c[1]))**2 < 3.5**2:
+            return True
+        return False
+
+    def pick(n: int, cells: List[Cell]) -> Tuple[List[Tuple[float, float, float]], List[Cell]]:
+        picks: List[Tuple[float, float, float]] = []
+        pick_cells: List[Cell] = []
+        attempts = max(n * 20, len(cells))
+        for _ in range(attempts):
+            if len(picks) >= n:
+                break
+            c = rng.choice(cells)
+            w = world_for(c)
+            if too_close(w[0], w[2]):
+                continue
+            picks.append(w)
+            pick_cells.append(c)
+            taken.append((w[0], w[2]))
+        # Fallback: if still short on tiny maps, force-place remaining at random walkables (may cluster)
+        while len(picks) < n and cells:
+            c = rng.choice(cells)
+            w = world_for(c)
+            picks.append(w)
+            pick_cells.append(c)
+            taken.append((w[0], w[2]))
+        return picks[:n], pick_cells[:n]
+
+    spawns, spawn_cells = pick(max(0, num_enemies), enemy_cells)
+    fm.enemy_spawns = spawns  # type: ignore[attr-defined]
+
+    def bake_patrol(cell: Cell) -> List[Tuple[float, float, float]]:
+        """2-4 waypoint loop: BFS ring cells 2..7 steps out, same zone,
+        never dipping into the starting faction or hidden rooms."""
+        zone = zone_lookup(cell)
+        seen: Dict[Cell, int] = {cell: 0}
+        frontier = [cell]
+        for depth in range(1, 8):
+            nxt: List[Cell] = []
+            for c in frontier:
+                for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nb = (c[0] + dx, c[1] + dz)
+                    if (nb in fm.walkable and nb not in seen
+                            and not in_start_faction(nb) and nb not in hidden_cells
+                            and zone_lookup(nb) == zone):
+                        seen[nb] = depth
+                        nxt.append(nb)
+            frontier = nxt
+            if not frontier:
+                break
+        ring = [c for c, d in seen.items() if 2 <= d <= 7]
+        rng.shuffle(ring)
+        # Waypoints spaced at least 2 cells apart so the loop reads as a route.
+        wps: List[Cell] = [cell]
+        for c in ring:
+            if len(wps) >= 2 + rng.randrange(3):
+                break
+            if all(abs(c[0] - w[0]) + abs(c[1] - w[1]) >= 2 for w in wps):
+                wps.append(c)
+        if len(wps) < 2:
+            return []  # no room to patrol — enemy will idle-wander instead
+        return [(world_x(fm.gx, c[0]), AGENT_Y, world_z(fm.gz, c[1])) for c in wps]
+
+    fm.enemy_patrols = [bake_patrol(c) for c in spawn_cells]  # type: ignore[attr-defined]
+
+    # NPCs live only in the HUB and in HIDDEN rooms (user rule) — never in the
+    # regular map areas the enemies roam. Counts are placement RULES (plan4
+    # 2026-07-07), not a knob (`num_npcs` is accepted but ignored): every
+    # hidden room gets 1-2 keepers; the hub gets 1-2 free wanderers here plus
+    # one keeper per market stall, appended by _dress_hub_and_hidden (which is
+    # the code that knows where the stalls end up).
+    npc_spawns: List[Tuple[float, float, float]] = []
+    for i in getattr(fm, "hidden_rooms", []):
+        r = fm.rooms[i]
+        npc_spawns.append((world_x(fm.gx, r.cx), AGENT_Y, world_z(fm.gz, r.cz)))
+        if rng.random() < 0.5:  # some hideouts keep a second pair of eyes
+            npc_spawns.append((world_x(fm.gx, r.cx) + 1.2, AGENT_Y,
+                               world_z(fm.gz, r.cz) - 0.9))
+    if fm.hub:
+        # Hub floor -1 surface sits at -MOD_H. Avoid every hole cell AND its
+        # neighbours (drop shafts to -2, extraction landing) so a wandering
+        # NPC can't stroll off an edge.
+        avoid: Set[Cell] = set(fm.hub.holes1) | {fm.hub.trap0}
+        avoid |= {e.trap for e in fm.hub.exits}
+        avoid |= {(c[0] + dx, c[1] + dz)
+                  for c in list(avoid) for dx in (-1, 0, 1) for dz in (-1, 0, 1)}
+        hub_cells = [c for c in fm.hub.floor1 if c not in avoid]
+        rng.shuffle(hub_cells)
+        n_hub = 1 + rng.randrange(2)  # 1-2 mobile hub NPCs
+        for c in hub_cells[:n_hub]:
+            ox = (rng.random() - 0.5) * 2.0
+            oz = (rng.random() - 0.5) * 2.0
+            npc_spawns.append((world_x(fm.gx, c[0]) + ox, -4.0 + 0.15,
+                               world_z(fm.gz, c[1]) + oz))
+    fm.npc_spawns = npc_spawns  # type: ignore[attr-defined]
+
+
 # ─── report / output ─────────────────────────────────────────────────────────
 
 def build_report(fm: FreeformMap, doc: dict, seed: Optional[int], elapsed: float, path: str) -> dict:
@@ -1726,6 +2786,9 @@ def run(
     prev_fraction: float = 0.15,
     default_fraction: float = 0.60,
     next_fraction: float = 0.35,
+    num_enemies: int = 5,
+    num_npcs: int = 3,
+    hall_rooms: int = 2,
 ) -> dict:
     """Generate one free-form map, write it, export the layout, return a report.
 
@@ -1756,6 +2819,9 @@ def run(
             hidden_area_prevalence=hidden_area_prevalence,
             faction_profile_id=faction_profile_id,
             composition=composition,
+            num_enemies=num_enemies,
+            num_npcs=num_npcs,
+            hall_rooms=hall_rooms,
         )
         if cand and not validate(cand):
             fm = cand
@@ -1796,6 +2862,8 @@ def main() -> None:
     ap.add_argument('--rooms', type=int, default=11, help='Max rooms')
     ap.add_argument('--room-min', type=int, default=3)
     ap.add_argument('--room-max', type=int, default=7)
+    ap.add_argument('--halls', type=int, default=2,
+                    help='guaranteed-large factory-hall rooms seeded mid-grid')
     ap.add_argument('--loops', type=int, default=3)
     ap.add_argument('--organicness', type=float, default=0.0,
                     help='0=clean L corridors, 1=winding jogged routes')
@@ -1813,6 +2881,10 @@ def main() -> None:
     ap.add_argument('--prev-fraction', type=float, default=0.15)
     ap.add_argument('--default-fraction', type=float, default=0.60)
     ap.add_argument('--next-fraction', type=float, default=0.35)
+    ap.add_argument('--num-enemies', type=int, default=5, help='Number of enemies')
+    ap.add_argument('--num-npcs', type=int, default=3,
+                    help='DEPRECATED, ignored: NPC counts are placement rules '
+                         '(1-2 per hidden room, 3 stall keepers + 1-2 wanderers in the hub)')
     ap.add_argument('--attempts', type=int, default=20, help='Generation retries')
     ap.add_argument('--out', default=None)
     ap.add_argument('--preview', action='store_true')
@@ -1838,6 +2910,9 @@ def main() -> None:
         prev_fraction=args.prev_fraction,
         default_fraction=args.default_fraction,
         next_fraction=args.next_fraction,
+        num_enemies=args.num_enemies,
+        num_npcs=args.num_npcs,
+        hall_rooms=args.halls,
     )
     if args.preview:
         print(json.dumps(report))

@@ -26,6 +26,9 @@ pub enum MenuBarBtn {
     Actions,
 }
 
+#[derive(Component, Clone)]
+pub struct FactionButton(pub String);
+
 #[derive(Component, Clone, Copy)]
 pub enum FileAction {
     New,
@@ -41,6 +44,7 @@ pub enum OptionsAction {
     MapSizeZ,
     EditorDisplay,
     TestDisplay,
+    PlaytestClassSelect,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -134,6 +138,34 @@ fn spawn_toolbar(commands: &mut Commands, ws: &EditorWorkspace, state: &EditorSt
                     format!("Snap: {}", ws.snap.label()),
                 ));
             });
+
+            // Faction buttons row (for dressing multi-faction preview gen + auto load)
+            if ws.dressing_only {
+                root.spawn((
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(3.0),
+                        padding: UiRect::all(Val::Px(3.0)),
+                        ..default()
+                    },
+                )).with_children(|fbar| {
+                    let facs = vec!["synth", "priesthood", "industrial_default", "outlaw", "necropolis"];
+                    for f in facs {
+                        fbar.spawn((
+                            FactionButton(f.to_string()),
+                            Button,
+                            Node {
+                                padding: UiRect::axes(Val::Px(4.0), Val::Px(2.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(0.15, 0.28, 0.38, 0.95)),
+                            Text::new(f),
+                            TextFont { font_size: 9.0, ..default() },
+                            TextColor(Color::srgb(0.85, 0.92, 1.0)),
+                        ));
+                    }
+                });
+            }
 
             root.spawn((
                 EditorMenuRoot,
@@ -239,12 +271,14 @@ pub fn status_line(ws: &EditorWorkspace, state: &EditorState) -> String {
         } else {
             format!(" · elev {:+} ({:+.1} m)", elev, elev as f32 * shared::editor_catalog::SYNTH_DECK_Y)
         };
+        let gen_label = if let Some(f) = &ws.generating_faction { format!(" · GEN:{}", f) } else { String::new() };
         return format!(
-            "Dressing · {} · {}×{} · mouse4/5 rotate · F face hover{}",
+            "Dressing · {} · {}×{} · mouse4/5 rotate · F face hover{}{}",
             ws.tool.label(),
             grid.cells_x,
             grid.cells_z,
             elev_label,
+            gen_label,
         );
     }
     format!(
@@ -349,6 +383,13 @@ pub fn sync_dropdown_menus(
                         format!("Playtest display: {}", prefs.test_display.label()),
                         OptionsAction::TestDisplay,
                     ));
+                    col.spawn(dropdown_btn(
+                        format!(
+                            "Playtest class select: {}",
+                            if prefs.playtest_class_select { "On" } else { "Off" }
+                        ),
+                        OptionsAction::PlaytestClassSelect,
+                    ));
                 });
         }
         if ws.actions_menu_open {
@@ -380,6 +421,7 @@ pub fn menu_button_input(
     file_btns: Query<(&Interaction, &FileAction), (Changed<Interaction>, Without<MenuBarBtn>)>,
     opt_btns: Query<(&Interaction, &OptionsAction), (Changed<Interaction>, Without<MenuBarBtn>)>,
     act_btns: Query<(&Interaction, &ActionsAction), (Changed<Interaction>, Without<MenuBarBtn>)>,
+    faction_btns: Query<(&Interaction, &FactionButton), (Changed<Interaction>, Without<MenuBarBtn>)>,
 ) {
     for (interaction, kind) in &headers {
         if *interaction != Interaction::Pressed {
@@ -460,6 +502,10 @@ pub fn menu_button_input(
                 prefs.test_display = prefs.test_display.next();
                 let _ = prefs.save();
             }
+            OptionsAction::PlaytestClassSelect => {
+                prefs.playtest_class_select = !prefs.playtest_class_select;
+                let _ = prefs.save();
+            }
         }
         ws.close_menus();
     }
@@ -478,6 +524,15 @@ pub fn menu_button_input(
                 ws.tool = EditorTool::FloorRemove;
             }
         }
+        ws.close_menus();
+    }
+
+    for (interaction, fbtn) in &faction_btns {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        ws.pending_faction_generate = Some(fbtn.0.clone());
+        ws.generating_faction = Some(fbtn.0.clone());
         ws.close_menus();
     }
 }

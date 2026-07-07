@@ -55,7 +55,7 @@ fn send_inventory(
     });
 }
 
-fn pickup_items(
+pub(crate) fn pickup_items(
     mut commands: Commands,
     spatial: SpatialQuery,
     colliders: Query<&ColliderOf>,

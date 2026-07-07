@@ -834,6 +834,16 @@ def _wall_face_cells(gx: int, gz: int, x: float, z: float) -> Tuple[Cell, Cell]:
     return (int(round(fxg)), int(round(fzg - 0.5))), (int(round(fxg)), int(round(fzg + 0.5)))
 
 
+def synth_zone_ids(comp) -> frozenset:
+    """Zone ids whose faction is actually synth. The synth pipeline must never
+    touch a prev/next zone that belongs to a ground faction — the old
+    {'prev','next'} hardcode erected synth walls/balconies/props inside other
+    factions' territory on mixed compositions (synth->outlaw etc.)."""
+    return frozenset(z for z, f in (("prev", comp.prev_faction),
+                                    ("default", comp.default_faction),
+                                    ("next", comp.next_faction)) if f == "synth")
+
+
 def decorate_synth_walls(
     pieces: List[dict],
     gx: int,
@@ -841,13 +851,14 @@ def decorate_synth_walls(
     walkable: Set[Cell],
     zone_lookup: Callable[[Cell], Optional[str]],
     seed: int,
+    synth_zones: Optional[frozenset] = None,
 ) -> int:
     """Drop-in dressing for synth walls — windows on the outward perimeter, the odd
     banner inside. ``wall-window``/``wall-banner`` share the exact ``wall`` footprint, so
     this is a pure stem swap: same x/z/yaw/y/scale, still a solid wall (integrity and
     reachability unchanged). Deterministic per seed; sparse on purpose.
     """
-    synth = {"prev", "next"}
+    synth = frozenset({"prev", "next"}) if synth_zones is None else synth_zones
     rng = random.Random((seed * 2654435761) & 0xFFFFFFFF)
     swapped = 0
     for p in pieces:
@@ -898,78 +909,80 @@ def furnish_synth_interior(
     zone_lookup: Callable[[Cell], Optional[str]],
     deck_cells: Set[Cell],
     seed: int,
+    corridor_cells: Optional[Set[Cell]] = None,
+    synth_zones: Optional[frozenset] = None,
 ) -> int:
-    """Sparse furniture on synth interior floor cells — props against a wall facing the
-    room, or a centre piece in open bays. Skips deck/entrance cells, door/stair cells and
-    their neighbours, and never places two props adjacent (no clutter). Deterministic per
-    seed; ``y`` omitted so the elevation pass lifts props onto the 1.2 m deck."""
-    synth = {"prev", "next"}
+    """Room-first interior furnish + walkable-facing balconies + command mezzanine.
+
+    Props omit ``y`` (except beds — pinned to deck) so ``_apply_zone_elevation`` lifts
+    them onto the 1.2 m deck. Balconies only where the outer face borders another
+    walkable map tile (never void). Beds never in corridors or transition-adjacent rooms.
+    """
+    import synth_interior as si
+
+    if synth_zones is None:
+        synth_zones = frozenset({"prev", "next"})
+    if not synth_zones:
+        return 0
+
+    def cell_of(p: dict) -> Cell:
+        return (
+            int(round(p["x"] / CELL + gx / 2 - 0.5)),
+            int(round(p["z"] / CELL + gz / 2 - 0.5)),
+        )
+
+    transition_cells: Set[Cell] = set(deck_cells)
+    for p in pieces:
+        if p.get("role") not in ("door", "stairs"):
+            continue
+        if int(p.get("floor_level", 0)) != 0:
+            continue
+        tags = p.get("tags") or []
+        # Command-hall mezz stairs are interior geometry, not faction transition entries.
+        if "indoor_stairs" in tags:
+            continue
+        c = cell_of(p)
+        if zone_lookup(c) in synth_zones:
+            transition_cells.add(c)
+
+    floor_ix, corridor_ix, rooms = si.analyze_synth_zone(
+        walkable,
+        zone_lookup,
+        deck_cells,
+        corridor_cells or set(),
+        transition_cells=transition_cells,
+        synth_zones=synth_zones,
+    )
+    if not rooms:
+        return 0
+
+    roles = si.assign_roles(rooms, corridor_ix, transition_cells)
+    room_infos = si.build_room_infos(rooms, corridor_ix, roles)
     rng = random.Random((seed * 40503 + 17) & 0xFFFFFFFF)
 
-    def cell_of(p) -> Cell:
-        return (int(round(p["x"] / CELL + gx / 2 - 0.5)), int(round(p["z"] / CELL + gz / 2 - 0.5)))
+    def world_at(c: Cell) -> tuple[float, float]:
+        return te._world_x(gx, c[0]), te._world_z(gz, c[1])
 
-    floor_cells = {
-        cell_of(p)
-        for p in pieces
-        if p.get("role") in ("floor", "deck")
-        and p.get("stem") == "floor"
-        and p.get("kit") == KIT
-        and int(p.get("floor_level", 0)) == 0
-        and not p.get("ceiling")
-    }
-    wall_faces = {
-        (round(p["x"], 1), round(p["z"], 1))
-        for p in pieces
-        if p.get("role") == "wall" and int(p.get("floor_level", 0)) == 0
-    }
-    block_cells: Set[Cell] = set()  # door/stair cells + neighbours — keep clear
-    for p in pieces:
-        if p.get("role") in ("door", "stairs") and int(p.get("floor_level", 0)) == 0:
-            c = cell_of(p)
-            for dx in (-1, 0, 1):
-                for dz in (-1, 0, 1):
-                    block_cells.add((c[0] + dx, c[1] + dz))
+    def cell_at(x: float, z: float) -> Cell:
+        return si._world_to_cell(x, z, gx, gz)
 
-    def has_wall(cell: Cell, side: str) -> bool:
-        dx, dz = DELTA[side]
-        return (round(te._world_x(gx, cell[0]) + dx * CELL * 0.5, 1),
-                round(te._world_z(gz, cell[1]) + dz * CELL * 0.5, 1)) in wall_faces
+    synth_cells = [c for c in walkable if zone_lookup(c) in synth_zones]
+    zone = zone_lookup(synth_cells[0]) if synth_cells else "prev"
 
-    placed: Set[Cell] = set()
-    n = 0
-    for cell in sorted(floor_cells):
-        if zone_lookup(cell) not in synth or cell in deck_cells or cell in block_cells:
-            continue
-        if any((cell[0] + dx, cell[1] + dz) in placed for dx, dz in DELTA.values()):
-            continue  # no two props adjacent
-        if rng.random() > 0.14:
-            continue
-        wall_sides = [s for s in DELTA if has_wall(cell, s)]
-        open_sides = [
-            s for s, (dx, dz) in DELTA.items()
-            if (cell[0] + dx, cell[1] + dz) in floor_cells and not has_wall(cell, s)
-        ]
-        if not open_sides:
-            continue
-        if wall_sides:
-            face = OPPOSITE[wall_sides[0]] if OPPOSITE[wall_sides[0]] in open_sides else open_sides[0]
-            stem = _WALL_PROPS[rng.randrange(len(_WALL_PROPS))]
-        else:
-            face = open_sides[0]
-            stem = _CENTRE_PROPS[rng.randrange(len(_CENTRE_PROPS))]
-        fdx, fdz = DELTA[face]
-        yaw = math.atan2(float(fdx), float(fdz))  # front (+z) points ``face``
-        prop = _piece(
-            stem, te._world_x(gx, cell[0]), te._world_z(gz, cell[1]), yaw,
-            zone=zone_lookup(cell), tags=["synth_decor", "synth_prop", stem], role="prop",
-            scale=SCALE,
-        )
-        prop.pop("y", None)  # elevation pass sets 1.2 m
-        pieces.append(prop)
-        placed.add(cell)
-        n += 1
-    return n
+    return si.furnish_procgen_zone(
+        pieces,
+        floor_ix,
+        corridor_ix,
+        room_infos,
+        rng,
+        world_at=world_at,
+        zone=zone,
+        walkable=walkable,
+        transition_ix=transition_cells,
+        zone_lookup=zone_lookup,
+        cell_at=cell_at,
+        synth_zones=synth_zones,
+    )
 
 
 def _has_door_near(existing: List[dict], x: float, z: float, *, eps: float = 0.35) -> bool:
@@ -990,6 +1003,7 @@ def emit_synth_envelope_walls(
     existing: List[dict],
     corridor_cells: Optional[Set[Cell]] = None,
     door_spec: Optional[fp.EntrancePieceSpec] = None,
+    synth_zones: Optional[frozenset] = None,
 ) -> List[dict]:
     """Close every synth cell that borders a *walkable* non-synth cell.
 
@@ -1012,7 +1026,10 @@ def emit_synth_envelope_walls(
     Connectivity is an emergent property of closing the footprint, not an imposed rule.
     """
     out: List[dict] = []
-    synth_zones = {"prev", "next"}
+    if synth_zones is None:
+        synth_zones = frozenset({"prev", "next"})
+    if not synth_zones:
+        return out
     corridor_cells = corridor_cells or set()
     stair_cells: Set[Cell] = set()
     for p in existing:

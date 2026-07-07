@@ -9,6 +9,7 @@ pub const CREDITS: u32 = 13;
 pub const SCRAP: u32 = 14;
 pub const MEDICAL_BAG: u32 = 15;
 pub const HACKER_DEVICE: u32 = 16;
+pub const SCRAP_PISTOL: u32 = 17;
 
 pub fn flashlight() -> Item {
     Item {
@@ -71,6 +72,25 @@ pub fn hacker_device() -> Item {
         weight: 0.6,
         value: 0,
     }
+}
+
+pub fn scrap_pistol() -> Item {
+    Item {
+        id: SCRAP_PISTOL,
+        name: "Scrap Pistol".into(),
+        weight: 1.8,
+        value: 60,
+    }
+}
+
+/// What an NPC pays for an item — half list value, never zero. Lives in
+/// shared so the trade window shows exactly what the server will credit.
+pub fn sell_price(item: &Item) -> u32 {
+    (item.value / 2).max(1)
+}
+
+pub fn is_gun(item: &Item) -> bool {
+    item.id == SCRAP_PISTOL
 }
 
 pub fn is_map(item: &Item) -> bool {

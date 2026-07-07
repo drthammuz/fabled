@@ -24,6 +24,7 @@
   "transition": {
     "mode": "direct_on_substrate",
     "substrate_overlap_cells": 3,
+    "elevation_rise": 0.0,
     "entrance_door": { "stem": "gate-door", "kit": "space" }
   }
 }

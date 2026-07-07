@@ -40,6 +40,20 @@ def check_beds(pieces: list[dict]) -> list[str]:
             errors.append(
                 f"bed not on deck: {p['stem']}@({p['x']},{p['z']}) bottom {bottom:.2f} != deck {DECK}"
             )
+        if "corridor" in (p.get("tags") or []):
+            errors.append(f"bed in corridor: {p['stem']}@({p['x']},{p['z']})")
+    return errors
+
+
+def check_interior_props(pieces: list[dict]) -> list[str]:
+    """Props tagged synth_interior must stay in synth zone (not industrial substrate)."""
+    errors: list[str] = []
+    for p in pieces:
+        if "synth_interior" not in (p.get("tags") or []):
+            continue
+        z = p.get("zone")
+        if z not in ("prev", "next", None):
+            errors.append(f"interior prop outside synth zone: {p['stem']} zone={z!r}")
     return errors
 
 
@@ -140,7 +154,11 @@ def check_mezzanine(doc: dict, floor_ix, corridor_ix) -> list[str]:
     errors: list[str] = []
     pieces = doc.get("pieces", [])
     mezz_floors = [p for p in pieces if "mezz_floor" in (p.get("tags") or [])]
-    stairs = [p for p in pieces if p.get("stem") == "stairs" and "indoor_stairs" in (p.get("tags") or [])]
+    stairs = [
+        p for p in pieces
+        if p.get("stem") in (si.MEZZ_STAIR_STEM, "stairs")
+        and "indoor_stairs" in (p.get("tags") or [])
+    ]
     if not mezz_floors and not stairs:
         return errors
 
@@ -154,7 +172,7 @@ def check_mezzanine(doc: dict, floor_ix, corridor_ix) -> list[str]:
     command = next((i for i in infos if i.role == "command"), None)
     if command is None:
         return errors
-    plan = si.mezzanine_plan(command)
+    plan = si.mezzanine_plan(command, corridor_ix2)
     if plan is None:
         if mezz_floors or stairs:
             errors.append("mezzanine present but plan says it should not fit")
@@ -174,7 +192,10 @@ def check_mezzanine(doc: dict, floor_ix, corridor_ix) -> list[str]:
         if abs(top - plan["deck_top"]) > TOL:
             errors.append(f"mezz deck top {top:.2f} != plan {plan['deck_top']:.2f}")
             break
-    top_stair = max((float(s.get("y", 0.0)) for s in stairs), default=0.0) + DECK
+    top_stair = max((float(s.get("y", 0.0)) for s in stairs), default=0.0)
+    if stairs:
+        import faction_profiles as fp
+        top_stair += fp.stair_top_height_m(stairs[0]["stem"], si.SCALE, si.KIT)
     if stairs and abs(top_stair - plan["deck_top"]) > TOL:
         errors.append(f"top stair reaches {top_stair:.2f} != deck {plan['deck_top']:.2f}")
     return errors
@@ -207,6 +228,7 @@ def verify_doc(doc: dict, label: str) -> list[str]:
     errors: list[str] = []
     # Universal red flags (apply to every dressing doc, hand-authored or generated).
     errors.extend(check_beds(pieces))
+    errors.extend(check_interior_props(pieces))
     errors.extend(check_stacked_stairs(pieces))
     errors.extend(check_rail_crossings(pieces))
     errors.extend(si.validate_props(pieces, label))

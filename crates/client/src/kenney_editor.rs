@@ -41,7 +41,7 @@ use crate::editor_ops::{apply_pending_history, remove_group_from_document, remov
 use crate::editor_playtest::{enter_in_process_playtest, exit_in_process_playtest, EditorPlaytestActive};
 use crate::editor_selection::{
     draw_selection_gizmo, pick_piece_at, select_drag_input,
-    select_tool_input, EditorPlaced, EditorSelection, PieceOwner,
+    select_tool_input, EditorPieceTags, EditorPlaced, EditorSelection, PieceOwner,
 };
 use crate::editor_sidebar::{
     gallery_button_input, gallery_controller_input, load_picker_input, naming_modal_input,
@@ -54,7 +54,7 @@ use crate::editor_ui::{
     cancel_floor_tool, close_menus_on_pointer_leave, menu_button_input, spawn_editor_chrome,
     status_line, sync_dropdown_menus, sync_menu_labels, update_ui_hover_block,
 };
-use crate::editor_workspace::{EditorMenuRoot, EditorSidebarRoot, EditorWorkspace, FloorSlab, SpawnMarker};
+use crate::editor_workspace::{EditorSidebarRoot, EditorToolbarRoot, EditorWorkspace, FloorSlab, SpawnMarker};
 use crate::process_spawn::relaunch_fabled;
 use crate::test_showcase::{
     cut_kenney_mesh, init_editor_kenney_materials, kenney_material_slot, KenneyMaterialSlot,
@@ -457,6 +457,7 @@ fn load_initial_documents(ws: &mut EditorWorkspace) {
             yaw: p.yaw,
             floor_level: p.floor,
             scale: p.scale,
+            scale_y: p.scale_y,
             group_id: p.group_id,
             ceiling: p.ceiling,
             underside: p.underside,
@@ -593,6 +594,7 @@ fn spawn_module(
     pos: Vec3,
     yaw: f32,
     scale: f32,
+    scale_y: f32,
     collide: bool,
     floor_level: i32,
     sw_x: f32,
@@ -618,7 +620,7 @@ fn spawn_module(
         )),
         Transform::from_translation(pos)
             .with_rotation(Quat::from_rotation_y(yaw))
-            .with_scale(Vec3::splat(scale.max(0.01))),
+            .with_scale(Vec3::new(scale.max(0.01), scale_y.max(0.01), scale.max(0.01))),
         KenneyModule {
             name,
             collide,
@@ -652,7 +654,80 @@ fn spawn_module(
     if tags.iter().any(|t| t == "hidden_entrance") {
         commands.entity(entity).insert(HiddenEntranceDoor);
     }
-    let _ = tags;
+    if !tags.is_empty() {
+        commands
+            .entity(entity)
+            .insert(EditorPieceTags(tags.to_vec()));
+    }
+}
+
+fn match_piece_record<'a>(
+    records: &'a [shared::editor_map::PieceRecord],
+    stem: &str,
+    floor_level: i32,
+    x: f32,
+    z: f32,
+    y: f32,
+    group_id: Option<u32>,
+    tags: &[String],
+) -> Option<&'a shared::editor_map::PieceRecord> {
+    const EPS: f32 = 0.05;
+    const Y_EPS: f32 = 0.2;
+    records
+        .iter()
+        .filter(|p| {
+            p.stem == stem
+                && p.floor_level == floor_level
+                && (p.x - x).abs() < EPS
+                && (p.z - z).abs() < EPS
+                && group_id.map_or(true, |gid| p.group_id == Some(gid))
+        })
+        .min_by(|a, b| {
+            let score_a = (a.y.unwrap_or(0.0) - y).abs()
+                + if tags.is_empty() {
+                    0.0
+                } else if a
+                    .tags
+                    .iter()
+                    .any(|t| tags.iter().any(|u| u == t))
+                {
+                    -0.5
+                } else {
+                    0.5
+                };
+            let score_b = (b.y.unwrap_or(0.0) - y).abs()
+                + if tags.is_empty() {
+                    0.0
+                } else if b
+                    .tags
+                    .iter()
+                    .any(|t| tags.iter().any(|u| u == t))
+                {
+                    -0.5
+                } else {
+                    0.5
+                };
+            score_a
+                .partial_cmp(&score_b)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .filter(|p| (p.y.unwrap_or(0.0) - y).abs() < Y_EPS)
+}
+
+fn map_piece_y(
+    owner: PieceOwner,
+    tf_y: f32,
+    floor_level: i32,
+    prior: Option<&shared::editor_map::PieceRecord>,
+) -> Option<f32> {
+    if owner == PieceOwner::Dressing {
+        return Some(tf_y);
+    }
+    let default_y = shared::kenney_layout::piece_world_y(floor_level, None);
+    if (tf_y - default_y).abs() > 0.05 {
+        return Some(tf_y);
+    }
+    prior.and_then(|p| p.y).or(Some(default_y))
 }
 
 pub fn spawn_piece_record_pub(
@@ -675,6 +750,7 @@ pub fn spawn_piece_record_pub(
         .map(|x| x.collide_default)
         .unwrap_or(true)
         && !p.ceiling;
+    let sy = p.scale_y.unwrap_or(p.scale).max(0.01);
     spawn_module(
         commands,
         asset_server,
@@ -682,6 +758,7 @@ pub fn spawn_piece_record_pub(
         pos,
         yaw,
         p.scale.max(0.01),
+        sy,
         collide,
         p.floor_level,
         sw_x,
@@ -888,24 +965,31 @@ fn cycle_piece(
 }
 
 fn sync_pieces_from_world(
-    placed: &Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: &Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
     owner: PieceOwner,
     prev: &[PieceRecord],
 ) -> Vec<PieceRecord> {
     placed
         .iter()
-        .filter(|(_, _, _, ep)| ep.owner == owner)
-        .map(|(_, tf, km, ep)| {
-            // kit / tint / zone / tags are editor-map metadata NOT fully mirrored on
-            // the entity (zone isn't on it at all). Recover them from the matching
-            // existing piece so a quicksave/playtest round-trip doesn't wipe faction
-            // zones (the bug where G turned every zone into plain default).
-            let prior = prev.iter().find(|p| {
-                p.stem == km.name
-                    && p.floor_level == ep.floor_level
-                    && (p.x - tf.translation.x).abs() < 0.05
-                    && (p.z - tf.translation.z).abs() < 0.05
-            });
+        .filter(|(_, _, _, ep, _)| ep.owner == owner)
+        .map(|(_, tf, km, ep, tag_comp)| {
+            let tags = tag_comp.map(|t| t.0.clone()).unwrap_or_default();
+            let prior = match_piece_record(
+                prev,
+                km.name,
+                ep.floor_level,
+                tf.translation.x,
+                tf.translation.z,
+                tf.translation.y,
+                ep.group_id,
+                &tags,
+            );
             PieceRecord {
                 stem: km.name.to_string(),
                 x: tf.translation.x,
@@ -913,20 +997,21 @@ fn sync_pieces_from_world(
                 yaw: quantize_yaw(tf.rotation.to_euler(EulerRot::YXZ).0),
                 floor_level: ep.floor_level,
                 scale: tf.scale.x,
-                group_id: ep.group_id,
+                scale_y: if (tf.scale.y - tf.scale.x).abs() > 0.001 { Some(tf.scale.y) } else { None },
+                group_id: ep.group_id.or_else(|| prior.and_then(|p| p.group_id)),
                 ceiling: ep.ceiling,
                 underside: ep.underside,
                 kit: prior
                     .and_then(|p| p.kit.clone())
                     .or_else(|| km.kit.map(|s| s.to_string())),
                 tint: prior.and_then(|p| p.tint),
-                tags: prior.map(|p| p.tags.clone()).unwrap_or_default(),
-                zone: prior.and_then(|p| p.zone.clone()),
-                y: if owner == PieceOwner::Dressing {
-                    Some(tf.translation.y)
+                tags: if tags.is_empty() {
+                    prior.map(|p| p.tags.clone()).unwrap_or_default()
                 } else {
-                    prior.and_then(|p| p.y)
+                    tags
                 },
+                zone: prior.and_then(|p| p.zone.clone()),
+                y: map_piece_y(owner, tf.translation.y, ep.floor_level, prior),
             }
         })
         .collect()
@@ -934,7 +1019,13 @@ fn sync_pieces_from_world(
 
 fn quicksave(
     ws: &mut EditorWorkspace,
-    placed: &Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: &Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
     save_fb: &mut SaveFeedback,
     time: &Time,
 ) -> bool {
@@ -1031,7 +1122,13 @@ fn quicksave(
 fn autosave_on_exit(
     mut exit: MessageReader<AppExit>,
     mut ws: ResMut<EditorWorkspace>,
-    placed: Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
     mut save_fb: ResMut<SaveFeedback>,
     time: Res<Time>,
 ) {
@@ -1080,7 +1177,15 @@ fn launch_kenney_editor() {
     relaunch_fabled(&["--host", "--editor"]);
 }
 
-fn test_return_to_editor(keys: Res<ButtonInput<KeyCode>>, test: Option<Res<TestMode>>) {
+fn test_return_to_editor(
+    keys: Res<ButtonInput<KeyCode>>,
+    test: Option<Res<TestMode>>,
+    capture: Res<crate::netplay::InputCapture>,
+) {
+    // Terminal/dialogue own the keyboard: a G typed there must not relaunch.
+    if capture.0 {
+        return;
+    }
     let Some(test) = test else {
         return;
     };
@@ -1109,7 +1214,13 @@ fn editor_input(
     windows: Query<&Window, With<PrimaryWindow>>,
     camera: Query<(&Camera, &GlobalTransform), With<EditorCamera>>,
     ghosts: Query<Entity, With<EditorGhost>>,
-    placed: Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
 ) {
     if mouse.just_pressed(MouseButton::Forward) {
         state.yaw += std::f32::consts::FRAC_PI_2;
@@ -1266,6 +1377,7 @@ fn editor_input(
             state.snap,
             state.yaw,
             scale,
+            scale,
             collide,
             ws.floor_level,
             state.cell_sw.x,
@@ -1288,6 +1400,7 @@ fn editor_input(
             yaw: state.yaw,
             floor_level: ws.floor_level,
             scale,
+            scale_y: None,
             group_id: None,
             ceiling: false,
             underside: false,
@@ -1351,7 +1464,7 @@ fn editor_input(
                 std::collections::HashSet::new();
 
             for id in &sel.selected {
-                for (e, tf, km, ep) in &placed {
+                for (e, tf, km, ep, _) in &placed {
                     if ep.piece_id != *id || ep.owner != owner {
                         continue;
                     }
@@ -1366,7 +1479,7 @@ fn editor_input(
                 }
             }
             // Collect every member of groups that were hit.
-            for (ge, gtf, gkm, gep) in &placed {
+            for (ge, gtf, gkm, gep, _) in &placed {
                 if let Some(gid) = gep.group_id {
                     if groups_to_remove.contains(&gid) && gep.owner == owner {
                         to_despawn.push(ge);
@@ -1397,7 +1510,7 @@ fn editor_input(
     if mouse.just_pressed(MouseButton::Right) && !ws.pointer_over_ui {
         let mut found_group: Option<u32> = None;
         if let Some(id) = pick_piece_at(state.hover_world, ws.floor_level, owner, &placed) {
-            for (e, tf, km, ep) in &placed {
+            for (e, tf, km, ep, _) in &placed {
                 if ep.piece_id != id || ep.floor_level != ws.floor_level || ep.owner != owner {
                     continue;
                 }
@@ -1420,7 +1533,7 @@ fn editor_input(
         // When a whole module group was right-clicked, despawn every entity in that group.
         if let Some(gid) = found_group {
             let mut undo_snaps = Vec::new();
-            for (ge, gtf, gkm, gep) in &placed {
+            for (ge, gtf, gkm, gep, _) in &placed {
                 if gep.group_id == Some(gid) && gep.owner == owner {
                     undo_snaps.push(snapshot_from_entity(gep.piece_id, gkm.name, gtf, gep, gkm));
                     commands.entity(ge).despawn();
@@ -1463,6 +1576,7 @@ fn place_module_on_map(
             yaw: p.yaw,
             floor_level: p.floor_level + ws.floor_level,
             scale: p.scale,
+            scale_y: p.scale_y,
             group_id: Some(group_id),
             ceiling: p.ceiling,
             underside: p.underside,
@@ -1542,7 +1656,13 @@ fn file_menu_actions(
     mut save_fb: ResMut<SaveFeedback>,
     time: Res<Time>,
     asset_server: Res<AssetServer>,
-    placed: Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
     map_placed: Query<(Entity, &EditorPlaced)>,
     _ghosts: Query<Entity, With<EditorGhost>>,
 ) {
@@ -1625,6 +1745,49 @@ fn file_menu_actions(
     if ws.file_load {
         ws.file_load = false;
         ws.pending_load_picker = true;
+    }
+
+    // Faction button: background gen + auto load preview for the clicked faction
+    if let Some(f) = ws.pending_faction_generate.take() {
+        ws.generating_faction = Some(f.clone());
+        let res = ws.faction_gen_result.clone();
+        std::thread::spawn(move || {
+            let seed = ((std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() % 99999) + 1) as i32;
+            let mut cmd = std::process::Command::new("python");
+            cmd.args(&["tools/gen_maps.py", "--seed", &seed.to_string(), "--prev-faction", &f, "--preview", "--no-layout-export"]);
+            #[cfg(windows)]
+            {
+                use std::os::windows::process::CommandExt;
+                const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+                cmd.creation_flags(CREATE_NO_WINDOW);
+            }
+            let _ = cmd.output();
+            let p = std::path::PathBuf::from("userinput/maps/_editor_preview.json");
+            *res.lock().unwrap() = Some(p);
+        });
+    }
+    if ws.generating_faction.is_some() {
+        let maybe_p = {
+            if let Ok(mut lock) = ws.faction_gen_result.lock() {
+                lock.take()
+            } else {
+                None
+            }
+        };
+        if let Some(p) = maybe_p {
+            ws.dressing_only = false;
+            ws.set_workflow(EditorWorkflow::MapMaker);
+            ws.active.kind = ActiveDocKind::Map;
+            ws.pending_load_map = Some(p);
+            ws.pending_map_gen_load = true;  // treat as generated preview for patches
+            ws.clear_dressing_pieces = true;
+            ws.generating_faction = None;
+            ws.refocus_camera = true;
+            ws.sidebar_dirty = true;
+        }
     }
 
     if let Some(path) = ws.pending_load_map.take() {
@@ -1797,7 +1960,13 @@ fn sync_cam_on_workflow_change(
 fn persist_module_on_map_switch(
     mut ws: ResMut<EditorWorkspace>,
     mut last: Local<Option<EditorWorkflow>>,
-    placed: Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
     mut save_fb: ResMut<SaveFeedback>,
     time: Res<Time>,
 ) {
@@ -2181,19 +2350,32 @@ fn sync_ceiling_piece_transforms(
     const EPS: f32 = 0.05;
     for (entity, mut ep, mut module, gt) in &mut placed {
         let px = gt.translation().x;
+        let py = gt.translation().y;
         let pz = gt.translation().z;
         // Floor and ceiling slabs share stem + (x, z) on hub/landing levels — pick the
         // record that matches this entity's role, not whichever appears first in JSON.
         let want_ceiling = ep.ceiling || module.ceiling;
-        let Some(p) = ws.map.pieces.iter().find(|p| {
-            p.floor_level == ep.floor_level
-                && p.ceiling == want_ceiling
-                && (p.x - px).abs() < EPS
-                && (p.z - pz).abs() < EPS
-                && stem_static(&p.stem) == module.name
+        let candidates: Vec<_> = ws
+            .map
+            .pieces
+            .iter()
+            .filter(|p| {
+                p.floor_level == ep.floor_level
+                    && p.ceiling == want_ceiling
+                    && (p.x - px).abs() < EPS
+                    && (p.z - pz).abs() < EPS
+                    && stem_static(&p.stem) == module.name
+            })
+            .collect();
+        let Some(p) = candidates.iter().min_by(|a, b| {
+            (a.y.unwrap_or(0.0) - py)
+                .abs()
+                .partial_cmp(&(b.y.unwrap_or(0.0) - py).abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
         }) else {
             continue;
         };
+        let p = *p;
         if ep.ceiling != p.ceiling || module.ceiling != p.ceiling {
             ep.ceiling = p.ceiling;
             module.ceiling = p.ceiling;
@@ -2221,6 +2403,7 @@ fn editor_apply_materials(
             &KenneyModule,
             &GlobalTransform,
             &EditorPlaced,
+            Option<&EditorPieceTags>,
             Option<&EditorGhost>,
             Option<&PieceTint>,
         ),
@@ -2236,31 +2419,28 @@ fn editor_apply_materials(
         ..default()
     });
 
-    for (root, module, root_gt, placed, ghost, _tint) in &modules {
+    for (root, module, root_gt, placed, tag_comp, ghost, _tint) in &modules {
         let want_ceiling = placed.ceiling || module.ceiling;
         let px = root_gt.translation().x;
         let pz = root_gt.translation().z;
         let py = root_gt.translation().y;
+        let tags = tag_comp.map(|t| t.0.as_slice()).unwrap_or(&[]);
         let pieces = match placed.owner {
             PieceOwner::Dressing => &ws.dressing.pieces,
             PieceOwner::Module => &ws.module.pieces,
             PieceOwner::Map => &ws.map.pieces,
         };
-        let matched = pieces
-            .iter()
-            .filter(|p| {
-                p.floor_level == placed.floor_level
-                    && p.ceiling == want_ceiling
-                    && (p.x - px).abs() < 0.12
-                    && (p.z - pz).abs() < 0.12
-                    && stem_static(&p.stem) == module.name
-            })
-            .min_by(|a, b| {
-                let da = (a.y.unwrap_or(0.0) - py).abs();
-                let db = (b.y.unwrap_or(0.0) - py).abs();
-                da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-            })
-            .filter(|p| (p.y.unwrap_or(0.0) - py).abs() < 0.15);
+        let matched = match_piece_record(
+            pieces,
+            module.name,
+            placed.floor_level,
+            px,
+            pz,
+            py,
+            placed.group_id.or(module.group_id),
+            tags,
+        )
+        .filter(|p| p.ceiling == want_ceiling);
         let zone = matched.and_then(|p| p.zone.as_deref());
         let kit = module
             .kit
@@ -2491,19 +2671,28 @@ fn editor_playtest_enter(
     mut ws: ResMut<EditorWorkspace>,
     mut save_fb: ResMut<SaveFeedback>,
     time: Res<Time>,
-    placed: Query<(Entity, &Transform, &KenneyModule, &EditorPlaced)>,
+    placed: Query<(
+        Entity,
+        &Transform,
+        &KenneyModule,
+        &EditorPlaced,
+        Option<&EditorPieceTags>,
+    )>,
     editor_cam_ent: Query<Entity, Or<(With<EditorCamera>, With<crate::editor_playtest::EditorPlaytestCamera>)>>,
-    menu: Query<Entity, With<EditorMenuRoot>>,
+    menu: Query<Entity, With<EditorToolbarRoot>>,
     sidebar: Query<Entity, With<EditorSidebarRoot>>,
     ghosts: Query<Entity, With<EditorGhost>>,
     toast: Query<Entity, With<SaveToastText>>,
     floors: Query<Entity, With<FloorSlab>>,
     test_mode: ResMut<TestMode>,
     generation: ResMut<KenneyPlaytestGeneration>,
-    window: Single<&mut CursorOptions, With<PrimaryWindow>>,
-    mut skip_exit: ResMut<SkipPlaytestExit>,
+    window: Single<(&mut CursorOptions, &mut bevy::window::Window), With<PrimaryWindow>>,
+    (mut skip_exit, capture): (
+        ResMut<SkipPlaytestExit>,
+        Res<crate::netplay::InputCapture>,
+    ),
 ) {
-    if !keys.just_pressed(KeyCode::KeyG) {
+    if capture.0 || !keys.just_pressed(KeyCode::KeyG) {
         return;
     }
     if !quicksave(&mut ws, &placed, &mut save_fb, &time) {
@@ -2539,13 +2728,18 @@ fn editor_playtest_exit(
     cam: Res<EditorCam>,
     test_mode: ResMut<TestMode>,
     generation: ResMut<KenneyPlaytestGeneration>,
-    window: Single<&mut CursorOptions, With<PrimaryWindow>>,
+    window: Single<(&mut CursorOptions, &mut bevy::window::Window), With<PrimaryWindow>>,
     player_vis: Query<&mut Visibility, With<crate::netplay::OwnPlayer>>,
     playtest_cam: Query<Entity, With<crate::editor_playtest::EditorPlaytestCamera>>,
-    coords_hud: Query<Entity, With<crate::editor_playtest::PlaytestCoordsHud>>,
-    map_placed: Query<(Entity, &EditorPlaced)>,
+    (coords_hud, map_placed, capture): (
+        Query<Entity, With<crate::editor_playtest::PlaytestCoordsHud>>,
+        Query<(Entity, &EditorPlaced)>,
+        Res<crate::netplay::InputCapture>,
+    ),
 ) {
-    if !keys.just_pressed(KeyCode::KeyG) {
+    // A G typed into a terminal or dialogue must never yank the player back
+    // to the editor (the terminal also hard-blocks keys; this covers dialogue).
+    if capture.0 || !keys.just_pressed(KeyCode::KeyG) {
         return;
     }
     if skip_exit.0 {

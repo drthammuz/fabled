@@ -44,6 +44,8 @@ pub struct MapGenSettings {
     pub default_fraction: f32,
     pub next_fraction: f32,
     pub auto_regen: bool,
+    /// Number of enemies to spawn on the generated map (for testing enemy base).
+    pub enemy_count: u32,
 }
 
 impl Default for MapGenSettings {
@@ -69,6 +71,7 @@ impl Default for MapGenSettings {
             default_fraction: 60.0 / 110.0,
             next_fraction: 35.0 / 110.0,
             auto_regen: true,
+            enemy_count: 5,
         }
     }
 }
@@ -131,6 +134,8 @@ pub enum MapGenBtn {
     DefaultFractionInc,
     NextFractionDec,
     NextFractionInc,
+    EnemyCountDec,
+    EnemyCountInc,
 }
 
 #[derive(Component)]
@@ -219,6 +224,10 @@ fn run_python_preview(settings: &MapGenSettings) -> MapGenOutcome {
         format!("{:.2}", settings.default_fraction),
         "--next-fraction".into(),
         format!("{:.2}", settings.next_fraction),
+        "--num-enemies".into(),
+        settings.enemy_count.to_string(),
+        // NPC counts are RULES in gen_freeform (stall keepers + hub wanderers
+        // + hidden-room keepers), not a slider — Pass D 2026-07-07.
         "--out".into(),
         out.to_string_lossy().into_owned(),
     ];
@@ -602,6 +611,14 @@ pub fn map_gen_button_input(
                 bump_fraction(&mut settings, "next", 0.05);
                 bump_params(&mut runtime, time.elapsed_secs());
             }
+            MapGenBtn::EnemyCountDec => {
+                settings.enemy_count = settings.enemy_count.saturating_sub(1);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
+            MapGenBtn::EnemyCountInc => {
+                settings.enemy_count = (settings.enemy_count + 1).min(20);
+                bump_params(&mut runtime, time.elapsed_secs());
+            }
         }
         ws.sidebar_dirty = true;
     }
@@ -707,6 +724,10 @@ pub fn spawn_map_gen_panel(
     param_row(parent, "Grid (cells)", &settings.cells.to_string(), MapGenBtn::CellsDec, MapGenBtn::CellsInc);
     param_row(parent, "Max rooms", &settings.rooms.to_string(), MapGenBtn::RoomsDec, MapGenBtn::RoomsInc);
     param_row(parent, "Loops", &settings.loops.to_string(), MapGenBtn::LoopsDec, MapGenBtn::LoopsInc);
+
+    section_label(parent, "Agents (test)");
+    param_row(parent, "Enemies", &settings.enemy_count.to_string(), MapGenBtn::EnemyCountDec, MapGenBtn::EnemyCountInc);
+    // NPC counts are placement RULES (market keepers + wanderers), no slider.
 
     section_label(parent, "Feel");
     slider_row(parent, "Organicness", &format!("{:.1}", settings.organicness),

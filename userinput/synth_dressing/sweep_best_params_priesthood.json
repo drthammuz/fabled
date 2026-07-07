@@ -1,0 +1,12 @@
+{
+  "best": {
+    "params": {
+      "gap_multiplier": 1.1266643743529134,
+      "note": "rich optimized"
+    },
+    "score": 13.0,
+    "faction": "priesthood"
+  },
+  "time_slice_min": 2.0,
+  "global_minutes": 10.0
+}

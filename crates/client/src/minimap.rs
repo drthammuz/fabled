@@ -1,7 +1,8 @@
-//! TAB minimap: top-down overview of the current stretch grid.
-//! Press TAB to toggle. Each cell = coloured square; connection slots = small
-//! bars on the cell edges. Start = white, extraction = green, open = blue-grey,
-//! sewer tunnel = teal, sewer double = olive, sewer cross = gold.
+//! Sector map grid: top-down overview of the current stretch, rendered inside
+//! the Tab overlay's map panel (tab_overlay.rs owns the Tab toggle).
+//! Each cell = coloured square; connection slots = small bars on the cell
+//! edges. Start = white, extraction = green, open = blue-grey, sewer tunnel =
+//! teal, sewer double = olive, sewer cross = gold.
 //!
 //! Orientation: forward (+Z) = up on map, +X = left on map (matches in-game
 //! perspective where east is to the player's left when facing north).
@@ -12,13 +13,14 @@ use shared::run::RunState;
 
 use crate::level_render::LastRenderedLevel;
 use crate::netplay::OwnPlayer;
+use crate::tab_overlay::OverlayMapPanel;
 
 pub struct MinimapPlugin;
 
 impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MinimapState>()
-            .add_systems(Update, (toggle_tab, rebuild_if_stale, update_player_dot).chain());
+            .add_systems(Update, (rebuild_if_stale, update_player_dot).chain());
     }
 }
 
@@ -28,7 +30,6 @@ impl Plugin for MinimapPlugin {
 
 #[derive(Resource, Default)]
 pub struct MinimapState {
-    visible: bool,
     built_id: String,
     built_seed: u64,
 }
@@ -46,25 +47,13 @@ struct MinimapPlayerDot;
 // Systems
 // ---------------------------------------------------------------------------
 
-fn toggle_tab(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut state: ResMut<MinimapState>,
-    mut roots: Query<&mut Visibility, With<MinimapRoot>>,
-) {
-    if keys.just_pressed(KeyCode::Tab) {
-        state.visible = !state.visible;
-        for mut vis in &mut roots {
-            *vis = if state.visible { Visibility::Visible } else { Visibility::Hidden };
-        }
-    }
-}
-
 fn rebuild_if_stale(
     run: Query<&RunState>,
     last: Res<LastRenderedLevel>,
     mut state: ResMut<MinimapState>,
     mut commands: Commands,
     old_roots: Query<Entity, With<MinimapRoot>>,
+    panel: Query<Entity, With<OverlayMapPanel>>,
 ) {
     let (level_id, seed) = run.single()
         .map(|s| (s.level_id.clone(), s.run_seed))
@@ -72,6 +61,7 @@ fn rebuild_if_stale(
 
     if state.built_id == level_id && state.built_seed == seed { return; }
     if last.id != level_id { return; }
+    let Ok(panel) = panel.single() else { return };
 
     state.built_id   = level_id.clone();
     state.built_seed = seed;
@@ -79,7 +69,7 @@ fn rebuild_if_stale(
     for e in &old_roots { commands.entity(e).despawn(); }
 
     let level_def = shared::level::level_by_id(&level_id, seed);
-    spawn_minimap(&mut commands, &level_def.grid_cells, state.visible);
+    spawn_minimap(&mut commands, panel, &level_def.grid_cells);
 }
 
 /// Move the player dot to whichever grid cell the local player occupies.
@@ -100,11 +90,13 @@ fn update_player_dot(
 // Geometry
 // ---------------------------------------------------------------------------
 
-const CELL_PX:  f32 = 22.0;  // each grid cell in pixels
-const DOOR_PX:  f32 = 5.0;   // connection bar thickness
+const CELL_PX:  f32 = 34.0;  // each grid cell in pixels
+const DOOR_PX:  f32 = 7.0;   // connection bar thickness
 const PAD:      f32 = 6.0;   // container padding
-// 5x5 grid + padding: 5*22 + 12 = 122px
-const MAP_SIZE: f32 = 110.0;
+// 5x5 grid: 5*34 = 170px
+const MAP_SIZE: f32 = 170.0;
+/// Outer size of the overlay's map panel (tab_overlay.rs sizes its node this).
+pub const MAP_PANEL_PX: f32 = MAP_SIZE + PAD * 2.0;
 
 /// Map grid X to screen-left pixels (+gx = left on screen, X axis flipped).
 fn cell_px(gx: i32) -> f32 { PAD + MAP_SIZE * 0.5 - gx as f32 * CELL_PX - CELL_PX * 0.5 }
@@ -133,39 +125,23 @@ fn conn_bar_color(c: ConnType) -> Option<Color> {
     }
 }
 
-fn spawn_minimap(commands: &mut Commands, cells: &[GridCell], visible: bool) {
+fn spawn_minimap(commands: &mut Commands, panel: Entity, cells: &[GridCell]) {
     if cells.is_empty() { return; }
 
-    let vis = if visible { Visibility::Visible } else { Visibility::Hidden };
     let c = cells.to_vec();
 
-    commands.spawn((
+    let root = commands.spawn((
         MinimapRoot,
         Node {
             position_type: PositionType::Absolute,
-            right:  Val::Px(14.0),
-            bottom: Val::Px(72.0),
-            width:  Val::Px(MAP_SIZE + PAD * 2.0),
-            height: Val::Px(MAP_SIZE + PAD * 2.0),
+            left: Val::Px(0.0),
+            top: Val::Px(0.0),
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             overflow: Overflow::clip(),
             ..default()
         },
-        BackgroundColor(Color::srgba(0.0, 0.02, 0.06, 0.78)),
-        vis,
     )).with_children(|root| {
-        // TAB hint
-        root.spawn((
-            Text::new("TAB"),
-            TextFont { font_size: 9.0, ..default() },
-            TextColor(Color::srgba(0.5, 0.7, 0.9, 0.6)),
-            Node {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(2.0),
-                right:  Val::Px(5.0),
-                ..default()
-            },
-        ));
-
         // Player dot — transparent cell-sized frame; update_player_dot repositions it each frame.
         root.spawn((
             MinimapPlayerDot,
@@ -178,6 +154,7 @@ fn spawn_minimap(commands: &mut Commands, cells: &[GridCell], visible: bool) {
                 ..default()
             },
             BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.0)),
+            GlobalZIndex(61),
         )).with_children(|dot_root| {
             let dot = (CELL_PX - 1.0) * 0.3;
             let off = (CELL_PX - 1.0) * 0.35;
@@ -227,5 +204,7 @@ fn spawn_minimap(commands: &mut Commands, cells: &[GridCell], visible: bool) {
                 }
             });
         }
-    });
+    }).id();
+
+    commands.entity(panel).add_child(root);
 }

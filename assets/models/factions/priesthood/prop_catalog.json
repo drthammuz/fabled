@@ -1,0 +1,870 @@
+{
+  "version": 2,
+  "generated_by": "tools/probe_faction_catalog.py (prop_kit)",
+  "prop_kit": "retro_fantasy",
+  "prop_scale": 4.8,
+  "cell_m": 4.0,
+  "stems": {
+    "barrels": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.29600000381469727,
+        "x1": 0.29600000381469727,
+        "y0": -3.725290298461914e-08,
+        "y1": 0.492000013589859,
+        "z0": -0.15000003576278687,
+        "z1": 0.15000002086162567
+      },
+      "half_x_m": 0.29600000381469727,
+      "half_z_m": 0.15000002831220627,
+      "height_m": 0.492000050842762,
+      "auto_scale": 4.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.246000025421381,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.15000002831220627,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "stack against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for barrels.",
+      "prop_kit": "retro_fantasy"
+    },
+    "bricks": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.20977625250816345,
+        "x1": 0.29775470495224,
+        "y0": 0.0,
+        "y1": 0.17216756939888,
+        "z0": -0.2226569950580597,
+        "z1": 0.24000754952430725
+      },
+      "half_x_m": 0.2537654787302017,
+      "half_z_m": 0.23133227229118347,
+      "height_m": 0.17216756939888,
+      "auto_scale": 4.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.08608378469944,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.23133227229118347,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "scatter on floor, ruins feel",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for bricks.",
+      "prop_kit": "retro_fantasy"
+    },
+    "column-damaged": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.10000000149011612,
+        "x1": 0.10000000149011612,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.10000000149011612,
+        "z1": 0.10000000149011612
+      },
+      "half_x_m": 0.10000000149011612,
+      "half_z_m": 0.10000000149011612,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.10000000149011612,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "structural",
+      "usage": "ruins column, scatter or corner",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for column-damaged.",
+      "prop_kit": "retro_fantasy"
+    },
+    "column-paint": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.10000000149011612,
+        "x1": 0.10000000149011612,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.10000000149011612,
+        "z1": 0.10000000149011612
+      },
+      "half_x_m": 0.10000000149011612,
+      "half_z_m": 0.10000000149011612,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.10000000149011612,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for column-paint.",
+      "prop_kit": "retro_fantasy"
+    },
+    "column-wood": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.15000000596046448,
+        "x1": 0.15000000596046448,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.15000000596046448,
+        "z1": 0.15000000596046448
+      },
+      "half_x_m": 0.15000000596046448,
+      "half_z_m": 0.15000000596046448,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.15000000596046448,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "structural",
+      "usage": "wooden post, against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for column-wood.",
+      "prop_kit": "retro_fantasy"
+    },
+    "column": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.10000000149011612,
+        "x1": 0.10000000149011612,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.10000000149011612,
+        "z1": 0.10000000149011612
+      },
+      "half_x_m": 0.10000000149011612,
+      "half_z_m": 0.10000000149011612,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.10000000149011612,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "structural",
+      "usage": "upright, flanking altar or doorway",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for column.",
+      "prop_kit": "retro_fantasy"
+    },
+    "detail-barrel": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.12300000339746475,
+        "x1": 0.12300000339746475,
+        "y0": 0.0,
+        "y1": 0.30000001192092896,
+        "z0": -0.12300000339746475,
+        "z1": 0.12300000339746475
+      },
+      "half_x_m": 0.12300000339746475,
+      "half_z_m": 0.12300000339746475,
+      "height_m": 0.30000001192092896,
+      "auto_scale": 4.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.15000000596046448,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.12300000339746475,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "single barrel against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for detail-barrel.",
+      "prop_kit": "retro_fantasy"
+    },
+    "detail-crate-ropes": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.15000000596046448,
+        "x1": 0.15000000596046448,
+        "y0": 0.0,
+        "y1": 0.30000001192092896,
+        "z0": -0.15000000596046448,
+        "z1": 0.15000000596046448
+      },
+      "half_x_m": 0.15000000596046448,
+      "half_z_m": 0.15000000596046448,
+      "height_m": 0.30000001192092896,
+      "auto_scale": 4.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.15000000596046448,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.15000000596046448,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "crate with ropes, against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for detail-crate-ropes.",
+      "prop_kit": "retro_fantasy"
+    },
+    "detail-crate-small": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.10000000149011612,
+        "x1": 0.10000000149011612,
+        "y0": 0.0,
+        "y1": 0.20000000298023224,
+        "z0": -0.10000000149011612,
+        "z1": 0.10000000149011612
+      },
+      "half_x_m": 0.10000000149011612,
+      "half_z_m": 0.10000000149011612,
+      "height_m": 0.20000000298023224,
+      "auto_scale": 4.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.10000000149011612,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.10000000149011612,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "small crate scatter",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for detail-crate-small.",
+      "prop_kit": "retro_fantasy"
+    },
+    "detail-crate": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.15000000596046448,
+        "x1": 0.15000000596046448,
+        "y0": 0.0,
+        "y1": 0.30000001192092896,
+        "z0": -0.15000000596046448,
+        "z1": 0.15000000596046448
+      },
+      "half_x_m": 0.15000000596046448,
+      "half_z_m": 0.15000000596046448,
+      "height_m": 0.30000001192092896,
+      "auto_scale": 4.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.15000000596046448,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.15000000596046448,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "stack or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for detail-crate.",
+      "prop_kit": "retro_fantasy"
+    },
+    "fence-wood": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.30000001192092896,
+        "z0": -0.05000000074505806,
+        "z1": 0.05000000074505806
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.05000000074505806,
+      "height_m": 0.30000001192092896,
+      "auto_scale": 3.6,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.15000000596046448,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.05000000074505806,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "boundary",
+      "usage": "low divider, edge of rooms",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "boundary",
+        "interior_dressing"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for fence-wood.",
+      "prop_kit": "retro_fantasy"
+    },
+    "fence": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.5,
+        "z0": 0.0,
+        "z1": 1.4438228216156449e-15
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 7.219114108078224e-16,
+      "height_m": 0.5,
+      "auto_scale": 3.6,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.25,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 7.219114108078224e-16,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "boundary",
+      "usage": "perimeter",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "boundary",
+        "interior_dressing"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for fence.",
+      "prop_kit": "retro_fantasy"
+    },
+    "ladder": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.15000000596046448,
+        "x1": 0.15000000596046448,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.025000030174851418,
+        "z1": 0.025000030174851418
+      },
+      "half_x_m": 0.15000000596046448,
+      "half_z_m": 0.025000030174851418,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.025000030174851418,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "access",
+      "usage": "against wall, vertical",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for ladder.",
+      "prop_kit": "retro_fantasy"
+    },
+    "pulley-crate": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.1837117224931717,
+        "x1": 0.1837117075920105,
+        "y0": -0.9499999284744263,
+        "y1": 0.05000000074505806,
+        "z0": -0.7337117195129395,
+        "z1": 0.0
+      },
+      "half_x_m": 0.1837117150425911,
+      "half_z_m": 0.3668558597564697,
+      "height_m": 0.9999999292194843,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.49999996460974216,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.3668558597564697,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "storage/lift against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pulley-crate.",
+      "prop_kit": "retro_fantasy"
+    },
+    "pulley": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.050000011920928955,
+        "x1": 0.05000004172325134,
+        "y0": -0.949999988079071,
+        "y1": 0.05000000074505806,
+        "z0": -0.6000000238418579,
+        "z1": 0.0
+      },
+      "half_x_m": 0.05000002682209015,
+      "half_z_m": 0.30000001192092896,
+      "height_m": 0.9999999888241291,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.49999999441206455,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.30000001192092896,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "against wall or ceiling",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pulley.",
+      "prop_kit": "retro_fantasy"
+    },
+    "structure-pole": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.05000000074505806,
+        "x1": 0.05000000074505806,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.05000000074505806,
+        "z1": 0.05000000074505806
+      },
+      "half_x_m": 0.05000000074505806,
+      "half_z_m": 0.05000000074505806,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.05000000074505806,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "structural",
+      "usage": "ruins remnant, scatter",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for structure-pole.",
+      "prop_kit": "retro_fantasy"
+    },
+    "structure-poles": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for structure-poles.",
+      "prop_kit": "retro_fantasy"
+    },
+    "structure-wall": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 1.0,
+      "auto_scale": 3.4,
+      "front": "+z",
+      "snap": "wall",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "structural",
+      "usage": "ruins wall fragment, against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "wall",
+        "prop",
+        "placement",
+        "structure",
+        "interior_dressing"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for structure-wall.",
+      "prop_kit": "retro_fantasy"
+    },
+    "tree-large": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.4596194326877594,
+        "x1": 0.4596194326877594,
+        "y0": 0.0,
+        "y1": 1.6999999284744263,
+        "z0": -0.4596194326877594,
+        "z1": 0.4596194326877594
+      },
+      "half_x_m": 0.4596194326877594,
+      "half_z_m": 0.4596194326877594,
+      "height_m": 1.6999999284744263,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.8499999642372131,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.4596194326877594,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for tree-large.",
+      "prop_kit": "retro_fantasy"
+    },
+    "tree-shrub": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.4596194326877594,
+        "x1": 0.4596194326877594,
+        "y0": 0.0,
+        "y1": 0.699999988079071,
+        "z0": -0.4596194326877594,
+        "z1": 0.4596194326877594
+      },
+      "half_x_m": 0.4596194326877594,
+      "half_z_m": 0.4596194326877594,
+      "height_m": 0.699999988079071,
+      "auto_scale": 3.916,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.3499999940395355,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.4596194326877594,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "organic accent, corners",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for tree-shrub.",
+      "prop_kit": "retro_fantasy"
+    }
+  }
+}

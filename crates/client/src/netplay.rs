@@ -30,6 +30,8 @@ impl Plugin for NetPlayPlugin {
         app.init_resource::<LookAngles>()
             .init_resource::<CharacterScenes>()
             .init_resource::<SmoothEyeHeight>()
+            .init_resource::<InputCapture>()
+            .init_resource::<PendingTrade>()
             .add_systems(Startup, preload_character_scenes)
             .add_observer(on_you_are)
             .add_systems(
@@ -61,7 +63,18 @@ impl Plugin for NetPlayPlugin {
                         ),
                     attach_remote_player_visuals,
                     update_class_model,
-                    remove_own_player_model,
+                    tag_own_player_model,
+                    drive_own_player_model,
+                    // Remote client ONLY. On the host this entity is an
+                    // avian-interpolated kinematic body: writing its Transform
+                    // from Update marks it changed with the *interpolated*
+                    // (lagging) translation, which the physics sync copies back
+                    // into Position every frame — rewinding the body and
+                    // reducing walk speed to a crawl (and with it the per-frame
+                    // position delta that drives the walk animation). The
+                    // server's `rotate_to_yaw` already rotates the host player.
+                    rotate_own_player_third_person
+                        .run_if(in_state(ClientState::Connected)),
                     position_name_tags.run_if(any_with_component::<FlyCamera>),
                     cleanup_name_tags,
                 ),
@@ -73,9 +86,24 @@ impl Plugin for NetPlayPlugin {
 #[derive(Component)]
 pub struct OwnPlayer;
 
+/// While true, a UI window (NPC dialogue/trade — later: terminals) owns the
+/// keyboard and mouse: look input freezes and `send_input` sends a neutral
+/// input (no movement, no actions) so keys pressed in the UI can't fire guns
+/// or move the player. Set by `dialogue.rs` and `terminal.rs`.
+#[derive(Resource, Default)]
+pub struct InputCapture(pub bool);
+
+/// Trade actions queued by the dialogue UI; drained into the next
+/// `PlayerInput` message.
+#[derive(Resource, Default)]
+pub struct PendingTrade {
+    pub buy: Option<u8>,
+    pub sell: Option<u8>,
+}
+
 /// Smoothly lerped eye height for crouch visual transition.
 #[derive(Resource)]
-struct SmoothEyeHeight(f32);
+pub(crate) struct SmoothEyeHeight(f32);
 
 impl Default for SmoothEyeHeight {
     fn default() -> Self {
@@ -135,9 +163,10 @@ fn on_you_are(you: On<YouAre>, mut commands: Commands) {
 fn look_input(
     mut motion: MessageReader<MouseMotion>,
     window: Single<&CursorOptions, With<PrimaryWindow>>,
+    capture: Res<InputCapture>,
     mut look: ResMut<LookAngles>,
 ) {
-    if window.grab_mode == CursorGrabMode::None {
+    if window.grab_mode == CursorGrabMode::None || capture.0 {
         motion.clear();
         return;
     }
@@ -147,13 +176,30 @@ fn look_input(
     }
 }
 
-fn send_input(
+pub(crate) fn send_input(
     keys: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
     look: Res<LookAngles>,
+    aim: Res<crate::fly_camera::CrosshairAim>,
     inventory: Res<crate::hotbar::OwnInventory>,
+    capture: Res<InputCapture>,
+    mut trade: ResMut<PendingTrade>,
     mut writer: MessageWriter<PlayerInput>,
 ) {
+    if capture.0 {
+        // A UI window owns the keyboard: keep the server fed (yaw/pitch/slot
+        // stay current) but send no movement or actions, only queued trades.
+        writer.write(PlayerInput {
+            yaw: look.yaw,
+            pitch: look.pitch,
+            aim: aim.0,
+            selected_slot: inventory.selected as u8,
+            trade_buy: trade.buy.take(),
+            trade_sell: trade.sell.take(),
+            ..default()
+        });
+        return;
+    }
     let mut move_dir = Vec2::ZERO;
     if keys.pressed(KeyCode::KeyW) {
         move_dir.y += 1.0;
@@ -182,8 +228,13 @@ fn send_input(
             .then_some(inventory.selected as u8),
         shop_buy: shop_buy_key(&keys),
         route_select: route_select_key(&keys),
-        attack: keys.just_pressed(KeyCode::KeyV),
+        // Left click fires (pistol) / swings (bat), per the selected hotbar slot.
+        attack: mouse.just_pressed(MouseButton::Left),
+        aim: aim.0,
+        selected_slot: inventory.selected as u8,
         flashlight_toggle: keys.just_pressed(KeyCode::KeyF),
+        trade_buy: None,
+        trade_sell: None,
     });
 }
 
@@ -213,7 +264,7 @@ fn route_select_key(keys: &ButtonInput<KeyCode>) -> Option<u8> {
     None
 }
 
-fn drive_first_person_camera(
+pub(crate) fn drive_first_person_camera(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     look: Res<LookAngles>,
@@ -240,10 +291,11 @@ fn drive_first_person_camera(
     eye_height.0 = eye_height.0 + (target - eye_height.0) * t;
 
     if third_person.0 {
-        // Position camera behind and above the player, looking at head height.
-        let behind = Quat::from_rotation_y(look.yaw) * Vec3::new(0.0, 0.0, 3.5);
-        cam.translation = player.translation + Vec3::Y * 1.8 + behind;
-        cam.look_to(-behind.normalize(), Vec3::Y);
+        *cam = crate::fly_camera::third_person_transform(
+            player.translation,
+            look.yaw,
+            look.pitch,
+        );
     } else {
         cam.translation = player.translation + Vec3::Y * eye_height.0;
         cam.rotation = Quat::from_euler(EulerRot::YXZ, look.yaw, look.pitch, 0.0);
@@ -330,14 +382,21 @@ fn sync_own_player_transform(
     }
 }
 
+/// Marker on the own player's character-model scene root. Hidden in first
+/// person, shown in third person (`drive_own_player_model`).
+#[derive(Component)]
+pub struct OwnPlayerModel;
+
 /// Re-spawn the character model when a player's class changes (e.g., after
 /// class selection arrives from the server after `PlayerName` was already added).
+/// The own player gets a model too — tagged `OwnPlayerModel` and hidden until
+/// third-person mode is toggled on.
 fn update_class_model(
     mut commands: Commands,
-    changed: Query<(Entity, &PlayerClass, Option<&Children>), (Changed<PlayerClass>, Without<OwnPlayer>)>,
+    changed: Query<(Entity, &PlayerClass, Option<&Children>, Has<OwnPlayer>), Changed<PlayerClass>>,
     scenes: Res<CharacterScenes>,
 ) {
-    for (entity, class, children) in &changed {
+    for (entity, class, children, is_own) in &changed {
         // Despawn old model child(ren).
         if let Some(children) = children {
             for child in children.iter() {
@@ -345,7 +404,7 @@ fn update_class_model(
             }
         }
         if let Some(scene_handle) = class_scene(&scenes, class.0) {
-            let child = commands.spawn((
+            let mut child = commands.spawn((
                 SceneRoot(scene_handle),
                 Transform {
                     translation: Vec3::new(0.0, CHAR_OFFSET_Y, 0.0),
@@ -353,22 +412,76 @@ fn update_class_model(
                     scale: Vec3::splat(CHAR_SCALE),
                 },
                 crate::character_animation::PlayerSceneLink(entity),
-            )).id();
+            ));
+            if is_own {
+                // Explicit Hidden so the model can't flash across the camera
+                // for a frame before drive_own_player_model first runs.
+                child.insert((OwnPlayerModel, Visibility::Hidden));
+            }
+            let child = child.id();
             commands.entity(entity).add_child(child);
         }
     }
 }
 
-/// Despawn any model children from the own player entity — handles the race
-/// where the character model is attached before `YouAre` / `OwnPlayer` arrives.
-fn remove_own_player_model(
+/// Tags model children that were attached before `YouAre` / `OwnPlayer`
+/// arrived, so they pick up first/third-person visibility control.
+fn tag_own_player_model(
     mut commands: Commands,
     new_own: Query<&Children, Added<OwnPlayer>>,
+    models: Query<(), With<crate::character_animation::PlayerSceneLink>>,
 ) {
     for children in &new_own {
         for child in children.iter() {
-            commands.entity(child).despawn();
+            if models.contains(child) {
+                commands.entity(child).insert((OwnPlayerModel, Visibility::Hidden));
+            }
         }
+    }
+}
+
+/// Shows the own-player model only in third person, and keeps its feet on the
+/// floor while crouched (the capsule centre drops to crouch half-height, but
+/// the model's Y offset is authored for the standing capsule).
+fn drive_own_player_model(
+    third_person: Res<crate::fly_camera::ThirdPersonMode>,
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut models: Query<(&mut Visibility, &mut Transform), With<OwnPlayerModel>>,
+) {
+    let crouching =
+        keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
+    // Capsule centre sits (length/2 + radius) above the feet.
+    let target_y = if crouching {
+        -(config::PLAYER_CROUCH_LENGTH * 0.5 + config::PLAYER_CAPSULE_RADIUS)
+    } else {
+        CHAR_OFFSET_Y
+    };
+    let t = 1.0 - f32::exp(-12.0 * time.delta_secs());
+    for (mut vis, mut transform) in &mut models {
+        *vis = if third_person.0 {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+        transform.translation.y += (target_y - transform.translation.y) * t;
+    }
+}
+
+/// In third person the model must face the look yaw. Runs on remote clients
+/// only (nothing else updates the own entity's rotation there — interpolation
+/// excludes OwnPlayer). On the host the server's `rotate_to_yaw` handles it,
+/// and writing Transform here would fight physics interpolation (see plugin).
+fn rotate_own_player_third_person(
+    third_person: Res<crate::fly_camera::ThirdPersonMode>,
+    look: Res<LookAngles>,
+    mut own: Query<&mut Transform, With<OwnPlayer>>,
+) {
+    if !third_person.0 {
+        return;
+    }
+    for mut transform in &mut own {
+        transform.rotation = Quat::from_rotation_y(look.yaw);
     }
 }
 

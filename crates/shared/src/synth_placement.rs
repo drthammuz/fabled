@@ -31,6 +31,9 @@ pub struct StemPlacement {
     /// `+z` or `-z` — local axis that points "forward" / user-facing for props.
     pub front: String,
     pub snap: String,
+    /// Legacy per-stem annotation; newer probe-generated catalogs omit it
+    /// (only the top-level `deck_y` height is read by the game).
+    #[serde(default)]
     pub deck_y: String,
     #[serde(default)]
     pub back_anchor_local_m: Option<f32>,

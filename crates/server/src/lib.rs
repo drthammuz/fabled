@@ -4,10 +4,12 @@ use shared::config;
 
 pub mod character;
 pub mod combat;
+pub mod nav;
 pub mod grab;
 pub mod items;
 pub mod map_stream;
 pub mod level;
+pub mod npc;
 pub mod liquids;
 pub mod players;
 pub mod run;
@@ -38,6 +40,7 @@ impl Plugin for ServerCorePlugin {
                 players::ServerPlayersPlugin,
                 grab::ServerGrabPlugin,
                 items::ServerItemsPlugin,
+                npc::ServerNpcPlugin,
                 combat::CombatPlugin,
                 run::RunPlugin,
             ))

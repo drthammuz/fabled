@@ -2,7 +2,7 @@
 
 **Last updated: 2026-06-24.** For the next agent. The user playtests synth maps in the editor and authors dressing vignettes; we fix **generation logic** and keep audits green. They are time-pressed — reproduce before claiming fixes, and don't hand things back "for re-test" when you can verify yourself.
 
-**Start here for interior/balcony/mezz work:** [synth-master-plan.md](synth-master-plan.md). **Transition seam only:** [synth-transition-architecture.md](synth-transition-architecture.md).
+**Start here for interior/balcony/mezz work:** [synth-master-plan.md](synth-master-plan.md) — read the "Critical Context: Interior Proc-Gen History..." and "Automation-First Plan" sections first. They contain the full record of past manual-feedback pain, the window/stair/floor/relation rules, and the script/CPU plan so future work does not repeat the expensive human loop. **Transition seam only:** [synth-transition-architecture.md](synth-transition-architecture.md).
 
 ---
 
@@ -93,9 +93,9 @@ Canonical regression sweep (paste-run): BFS reachability honoring walls/doors/st
 ## 6. Open / next
 
 - **D5 spawn fall** — confirm after user rebuild; chase collider path if it persists (§2).
-- **Dressing sandbox — active (2026-06-24):** see §7 below. Balconies, mezzanine, room-first furnish, floor scratch texture, and playtest fixes are **done in dressing**; **not yet wired into live procgen**.
-- **Interior decor on procgen maps:** first `furnish_synth_interior` scatter pass is structurally safe but visually wrong — replace with vignette-derived setups from `tools/synth_interior.py` once signed off.
-- Possible polish (not user-blocking): wide-stair dead deck cells (seed 1); short stairs for compact mezzanine runs.
+- **Dressing sandbox — active (2026-06-24):** see §7 below. Balconies, mezzanine, room-first furnish wired into **live procgen** via `furnish_synth_interior` → `synth_interior.furnish_procgen_zone`.
+- **Interior decor on procgen maps:** room-first pass in `synth_interior.furnish_procgen_zone` (2026-06-24). Known fixed/ open defects: [synth-master-plan.md § Open issues + problem history](synth-master-plan.md#open-issues-tracker-agent-maintained--update-each-session). Wall decal pass still TODO.
+- Possible polish (not user-blocking): wide-stair dead deck cells (seed 1).
 - Throwaway local outputs: `tools/_*.png`, `tools/_*.log` (gitignored). Keep referenced diagnostics: `tools/_diag_*.py`, `tools/_render_*.py`, `tools/audit_synth_scene.py`, `tools/verify_synth_placement.py`.
 
 ---
@@ -108,7 +108,7 @@ Canonical regression sweep (paste-run): BFS reachability honoring walls/doors/st
 dressing.bat          # rebuild + --dressing shell (NOT editor.bat)
 ```
 
-Window title shows `EDITOR_BUILD_TAG` (currently `2026-06-24b`) — if stale, rebuild failed or exe was locked.
+Window title shows `EDITOR_BUILD_TAG` (currently `2026-06-24g`) — if stale, rebuild failed or exe was locked.
 
 ### Key files
 
@@ -130,6 +130,7 @@ python tools/gen_dressing_showcase.py
 python tools/gen_balcony_test.py
 python tools/gen_dressing_rating_map.py
 python tools/verify_synth_placement.py userinput/synth_dressing/interior_showcase.json
+python tools/test_synth_interior_rules.py   # procgen interior rules @ cells=25 (50 seeds)
 ```
 
 ### Balcony gotchas (learned the hard way)
@@ -141,10 +142,19 @@ python tools/verify_synth_placement.py userinput/synth_dressing/interior_showcas
 ### Mezzanine / playtest gotchas
 
 - Elevated `floor` + `stairs` need `SynthProp` / base synth routing and positive `depth_bias` on props — otherwise z-fight in editor.
-- **G playtest** used to collapse dressing piece Y via Kenney map sync — gated off for dressing workflow; if stairs/deck vanish in playtest again, check `sync_playtest_patched_pieces` / `sync_playtest_mesh_cutouts`.
+- **G playtest Y corruption:** stacked mezz + ground pieces at same x/z lost elevated `y` on quicksave/playtest — fixed via `EditorPieceTags` + tag-aware sync (`2026-06-24g`). If mezz vanishes again, check `sync_pieces_from_world` / `sync_playtest_patched_pieces`.
+- **Procgen mezz pitfalls:** see [synth-master-plan.md § Procgen interior — problem history](synth-master-plan.md#procgen-interior--problem-history-2026-06-23--24) and open issues O1–O15 in same doc.
 - Chained stair flights get `mezz_stair_fill` floor blocks underneath in `add_command_mezzanine`.
 
 ### What's left
 
-- Wire `furnish_showcase` logic into `tools/synth_transition.py` `furnish_synth_interior` (procgen maps still use old scatter).
-- Optional: short stairs for mezzanine; balcony rules on live procgen footprint (currently dressing-only).
+- **High priority (see master-plan Critical Context + Automation Plan + "Closed-Loop Self-Evaluation"):** 
+  - Use `python tools/synth_interior_sweep.py --minutes 10` for automatic multi-seed evaluation + param adaptation before any human look. The loop reads physical + visual catalog data, scores relational placement (pairs with space), free walking space, supports, window correctness, etc., and iterates internally.
+  - Fix window variant selection in `decorate_synth_walls` + any generator (open frames + frame stems require real maptile; shutters allowed vs void; ensure frames are emitted on open cases).
+  - Stair support + floor-half for chained short stairs (no levitation); 1.2 m supporting floor under raised sections created by short stairs.
+  - Enrich `probe_synth_catalog.py` + placement_catalog for relations (computer+chair with space test), clearance, void_ok flags, support metadata.
+  - Add free-walk / anti-swamp metrics (post-placement path clearance) so players can walk freely.
+  - Make room-role + cluster logic + density data-driven so new factions bootstrap with scripts, not days of human feedback on hundreds of props.
+- Optional: short stairs for mezzanine; reduce balcony piece count on maps with long void perimeters.
+- Wall decal pass (`display-wall`, `wall-detail`) — separate from floor furnish.
+- All changes must be accompanied by CPU checks; human eyes only for policy + final playtest.

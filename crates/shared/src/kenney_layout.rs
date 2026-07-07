@@ -26,6 +26,54 @@ fn default_hub_exit_kind() -> String {
 
 pub const LAYOUT_PATH: &str = "userinput/kenney_layout.json";
 
+/// One walkable cell of the baked enemy nav grid (`gen_freeform.build_nav_grid`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NavCell {
+    /// Grid index [ix, iz].
+    pub c: [i32; 2],
+    /// Floor surface Y (zone elevation, e.g. synth deck 1.2).
+    #[serde(default)]
+    pub y: f32,
+    /// Passable faces as a subset of "NSEW" (walls block, doors pass,
+    /// elevation steps only via stair cells) — mirrors player reachability.
+    #[serde(default)]
+    pub open: String,
+    /// A stair piece sits in this cell (expect a ramp between elevations).
+    #[serde(default)]
+    pub stair: bool,
+}
+
+/// Baked navigation grid for server-side agent pathfinding.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct NavGrid {
+    #[serde(default = "default_grid_unit")]
+    pub cell_m: f32,
+    #[serde(default)]
+    pub cells_x: u32,
+    #[serde(default)]
+    pub cells_z: u32,
+    #[serde(default)]
+    pub cells: Vec<NavCell>,
+}
+
+impl NavGrid {
+    /// World XZ of a cell centre — matches gen_freeform `world_x/world_z`.
+    pub fn cell_world(&self, ix: i32, iz: i32) -> Vec2 {
+        Vec2::new(
+            (ix as f32 - self.cells_x as f32 / 2.0 + 0.5) * self.cell_m,
+            (iz as f32 - self.cells_z as f32 / 2.0 + 0.5) * self.cell_m,
+        )
+    }
+
+    /// Grid cell containing a world XZ position.
+    pub fn cell_of(&self, x: f32, z: f32) -> (i32, i32) {
+        (
+            (x / self.cell_m + self.cells_x as f32 / 2.0 - 0.5).round() as i32,
+            (z / self.cell_m + self.cells_z as f32 / 2.0 - 0.5).round() as i32,
+        )
+    }
+}
+
 fn layout_path() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../")
@@ -62,6 +110,19 @@ pub struct KenneyLayout {
     /// Legacy embedded branch destinations (deprecated).
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub branch_levels: HashMap<String, BranchLevel>,
+    /// Enemy spawn positions for proc maps (editor sliders). [x, y, z] world.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enemy_spawns: Vec<[f32; 3]>,
+    /// Friendly NPC spawn positions for proc maps. [x, y, z] world.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub npc_spawns: Vec<[f32; 3]>,
+    /// Baked patrol routes, parallel to `enemy_spawns` (may be shorter):
+    /// per-enemy list of nav-connected world waypoints to loop between.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enemy_patrols: Vec<Vec<[f32; 3]>>,
+    /// Baked nav grid for enemy pathfinding (proc maps only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nav: Option<NavGrid>,
 }
 
 fn default_grid_unit() -> f32 {
@@ -86,6 +147,10 @@ impl Default for KenneyLayout {
             hub_exits: HashMap::new(),
             hub_model: None,
             branch_levels: HashMap::new(),
+            enemy_spawns: Vec::new(),
+            npc_spawns: Vec::new(),
+            enemy_patrols: Vec::new(),
+            nav: None,
         }
     }
 }
@@ -258,6 +323,10 @@ pub struct KenneyPlacement {
     pub floor: i32,
     #[serde(default = "default_placement_scale")]
     pub scale: f32,
+    /// Optional non-uniform Y scale (for height extension on short wall models etc.).
+    /// Falls back to `scale` if absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale_y: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_id: Option<u32>,
     /// True for ceiling slabs (`template-floor` one level above walkable); not hidden over mask void.
@@ -302,8 +371,10 @@ fn default_placement_scale() -> f32 {
 /// above the piece origin. Thin floors (`template-floor`, corridor, room) put the
 /// surface at the origin. Using the origin for the block let the player spawn *inside*
 /// it and drop through (synth-spawn fall-through).
-fn walkable_surface_y(p: &KenneyPlacement) -> f32 {
-    let block_h = if p.stem == "floor" && p.kit.as_deref() == Some("factions/synth") {
+pub fn walkable_surface_y(p: &KenneyPlacement) -> f32 {
+    let block_h = if (p.stem == "floor" || p.stem.starts_with("floor-panel"))
+        && p.kit.as_deref() == Some("factions/synth")
+    {
         0.3 * p.scale
     } else {
         0.0
@@ -372,9 +443,15 @@ mod tests {
                     yaw: 0.0,
                     floor: 0,
                     scale: 1.0,
+                    scale_y: None,
                     group_id: None,
                     ceiling: false,
                     underside: false,
+                    kit: None,
+                    tint: None,
+                    tags: vec![],
+                    zone: None,
+                    y: None,
                 },
                 KenneyPlacement {
                     stem: "template-floor".into(),
@@ -383,9 +460,15 @@ mod tests {
                     yaw: 0.0,
                     floor: 1,
                     scale: 1.0,
+                    scale_y: None,
                     group_id: None,
                     ceiling: false,
                     underside: false,
+                    kit: None,
+                    tint: None,
+                    tags: vec![],
+                    zone: None,
+                    y: None,
                 },
             ],
             ..Default::default()
@@ -405,9 +488,15 @@ mod tests {
                     yaw: 0.0,
                     floor: -1,
                     scale: 1.0,
+                    scale_y: None,
                     group_id: None,
                     ceiling: false,
                     underside: false,
+                    kit: None,
+                    tint: None,
+                    tags: vec![],
+                    zone: None,
+                    y: None,
                 },
                 KenneyPlacement {
                     stem: "template-floor".into(),
@@ -416,9 +505,15 @@ mod tests {
                     yaw: 0.0,
                     floor: 0,
                     scale: 1.0,
+                    scale_y: None,
                     group_id: None,
                     ceiling: true,
                     underside: false,
+                    kit: None,
+                    tint: None,
+                    tags: vec![],
+                    zone: None,
+                    y: None,
                 },
             ],
             ..Default::default()
@@ -437,9 +532,15 @@ mod tests {
             yaw: 0.0,
             floor: -1,
             scale: 1.0,
+            scale_y: None,
             group_id: None,
             ceiling: false,
             underside: false,
+            kit: None,
+            tint: None,
+            tags: vec![],
+            zone: None,
+            y: None,
         };
         let _landing = KenneyPlacement {
             stem: "template-floor".into(),
@@ -448,9 +549,15 @@ mod tests {
             yaw: 0.0,
             floor: -2,
             scale: 1.0,
+            scale_y: None,
             group_id: None,
             ceiling: false,
             underside: false,
+            kit: None,
+            tint: None,
+            tags: vec![],
+            zone: None,
+            y: None,
         };
         assert!(!is_ceiling_slab(&hub));
     }

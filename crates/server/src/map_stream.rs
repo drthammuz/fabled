@@ -52,9 +52,48 @@ pub struct KenneyStreamPlugin;
 
 impl Plugin for KenneyStreamPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            FixedUpdate,
-            (mount_hub_candidates, stream_hub_commit).chain(),
+        app.init_resource::<shared::proc_stream::ProcStreamState>()
+            .add_systems(
+                FixedUpdate,
+                (mount_hub_candidates, stream_hub_commit).chain(),
+            )
+            .add_systems(Update, spawn_proc_child_colliders);
+    }
+}
+
+// NOTE: hub exit shafts stay permanently OPEN during development (user call —
+// the interim "invisible seal until the child mounts" slab was one of the two
+// things plugging the drop; the other was the child map's colliding roof,
+// now skipped over its spawn cell at gen time).
+
+/// Server half of runtime hub streaming (`shared::proc_stream`): give each
+/// background-generated child map its colliders + floor cells so the player
+/// can LAND in it. Visuals/generation/commit live on the client; the swap
+/// itself goes through the normal `reload_kenney_playtest` (generation bump)
+/// which also despawns these instance-tagged colliders.
+fn spawn_proc_child_colliders(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    state: Option<ResMut<shared::proc_stream::ProcStreamState>>,
+) {
+    let Some(mut state) = state else {
+        return;
+    };
+    for child in state.children.iter_mut().filter(|c| !c.colliders_spawned) {
+        let exit = child.exit_key.parse().unwrap_or(0);
+        let mounted = MountedMap::candidate(
+            child.instance_id,
+            format!("proc_child_{}", child.exit_key),
+            child.layout.clone(),
+            child.offset,
+            exit,
+        );
+        spawn_instance_pieces(&mut commands, &asset_server, &mounted);
+        spawn_instance_floors(&mut commands, &mounted);
+        child.colliders_spawned = true;
+        info!(
+            "proc stream: child colliders spawned (exit {}, instance {})",
+            child.exit_key, child.instance_id
         );
     }
 }
@@ -312,7 +351,7 @@ pub fn spawn_stream_geometries(
     }
 }
 
-fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, inst: &MountedMap) {
+pub fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, inst: &MountedMap) {
     for p in &inst.layout.pieces {
         let collide = kenney_catalog::piece(&p.stem)
             .map(|x| x.collide_default)
@@ -330,6 +369,7 @@ fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, in
             p.kit.as_deref().unwrap_or("space"),
         );
         let scale = p.scale.max(0.01);
+        let scale_y = p.scale_y.unwrap_or(p.scale).max(0.01);
         // Compute cutouts in the local frame (local mask + local extraction), then translate
         // the resulting world-space hole/opening centres by the instance offset.
         let mesh_cutouts = shared::kenney_pit::mesh_cutouts_for_piece(
@@ -361,12 +401,12 @@ fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, in
             SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
             Transform::from_translation(inst.piece_translation(p))
                 .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
-                .with_scale(Vec3::splat(scale)),
+                .with_scale(Vec3::new(scale, scale_y, scale)),
         ));
     }
 }
 
-fn spawn_instance_floors(commands: &mut Commands, inst: &MountedMap) {
+pub fn spawn_instance_floors(commands: &mut Commands, inst: &MountedMap) {
     let layout = &inst.layout;
     if layout.floors.is_empty() {
         return;

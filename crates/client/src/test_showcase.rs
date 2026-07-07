@@ -131,7 +131,7 @@ pub fn kenney_material_slot(
             return KenneyMaterialSlot::SynthProp;
         }
         // Floor blocks (ground + mezzanine deck) get the tiled scratch detail map.
-        if stem == "floor" {
+        if stem == "floor" || stem.starts_with("floor-panel") {
             return KenneyMaterialSlot::SynthFloor;
         }
         // Walls use the base synth colormap.
@@ -150,7 +150,7 @@ pub fn kenney_material_slot(
     KenneyMaterialSlot::SpaceCyber
 }
 
-pub const EDITOR_BUILD_TAG: &str = "2026-06-24b";
+pub const EDITOR_BUILD_TAG: &str = "2026-06-24g";
 
 pub fn init_kenney_materials(
     asset_server: &AssetServer,
@@ -277,12 +277,12 @@ pub fn init_editor_kenney_materials(
     let mut synth_rail_mat = synth_mat.clone();
     synth_rail_mat.depth_bias = -0.75;
     let synth_rail = materials.add(synth_rail_mat);
-    // Ground floor: keep the synth colour but multiply in a tiled scratch/scuff map so the
-    // floor isn't one flat colour. The floor GLB samples a tiny colormap swatch, so the
-    // detail texture is set to Repeat and uv_transform tiles it ~2x across each 4 m tile
-    // (24/15 ratio compensates the non-square swatch so scratches read square).
-    let floor_detail = asset_server.load_with_settings(
-        "models/factions/synth/Textures/floor_detail.png",
+    // Ground floor: tileable veined marble (procedural, tools-generated) instead of the
+    // flat near-white scratch look. The floor GLB samples a tiny colormap swatch, so the
+    // texture is set to Repeat and uv_transform tiles it ~1x across each 4 m tile
+    // (8/5 keeps the 24/15 non-square swatch ratio so veins read square).
+    let floor_marble = asset_server.load_with_settings(
+        "models/factions/synth/Textures/floor_marble.png",
         |s: &mut ImageLoaderSettings| {
             s.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor {
                 address_mode_u: ImageAddressMode::Repeat,
@@ -292,15 +292,17 @@ pub fn init_editor_kenney_materials(
         },
     );
     let mut synth_floor_mat = synth_mat.clone();
-    synth_floor_mat.base_color = Color::srgb(0.86, 0.84, 0.80);
-    synth_floor_mat.base_color_texture = Some(floor_detail);
+    synth_floor_mat.base_color = Color::srgb(0.78, 0.78, 0.80);
+    synth_floor_mat.base_color_texture = Some(floor_marble);
+    synth_floor_mat.perceptual_roughness = 0.35; // polished stone sheen
     synth_floor_mat.uv_transform =
-        Affine2::from_scale_angle_translation(Vec2::new(16.0, 10.0), 0.0, Vec2::ZERO);
+        Affine2::from_scale_angle_translation(Vec2::new(8.0, 5.0), 0.0, Vec2::ZERO);
+    synth_floor_mat.depth_bias = -1.0;
     let synth_floor = materials.add(synth_floor_mat);
     // Props + stairs sit ON a floor block; positive bias makes them win the coplanar
     // contact so beds/desks don't sink and stairs don't vanish into the deck.
     let mut synth_prop_mat = synth_mat;
-    synth_prop_mat.depth_bias = 0.75;
+    synth_prop_mat.depth_bias = 2.0;
     let synth_prop = materials.add(synth_prop_mat);
     (
         CyberMaterial(cyber),
@@ -395,6 +397,7 @@ struct Placement {
     pos: Vec3,
     yaw: f32,
     scale: f32,
+    scale_y: Option<f32>,
     collide: bool,
     mesh_cutouts: kenney_pit::KenneyMeshCutouts,
     group_id: Option<u32>,
@@ -418,6 +421,7 @@ fn m(
         pos,
         yaw,
         scale,
+        scale_y: None,
         collide,
         mesh_cutouts,
         group_id,
@@ -603,7 +607,10 @@ fn sync_stream_showcase(
             )),
             Transform::from_translation(p.pos)
                 .with_rotation(Quat::from_rotation_y(p.yaw))
-                .with_scale(Vec3::splat(p.scale)),
+                .with_scale({
+                    let sy = p.scale_y.unwrap_or(p.scale);
+                    Vec3::new(p.scale, sy, p.scale)
+                }),
             KenneyModule {
                 name: p.stem,
                 collide: p.collide,
@@ -661,7 +668,10 @@ fn spawn_showcase(
             )),
             Transform::from_translation(p.pos)
                 .with_rotation(Quat::from_rotation_y(p.yaw))
-                .with_scale(Vec3::splat(p.scale)),
+                .with_scale({
+                    let sy = p.scale_y.unwrap_or(p.scale);
+                    Vec3::new(p.scale, sy, p.scale)
+                }),
             KenneyModule {
                 name: p.stem,
                 collide: p.collide,

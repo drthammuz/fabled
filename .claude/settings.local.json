@@ -36,7 +36,26 @@
       "Bash(unzip -o /c/Users/Benji/fabled/assets/downloads/kenney_animated-characters-protagonists.zip \"Model/*\" -d /c/Users/Benji/fabled/assets/models/kenney_characters/)",
       "Bash(cargo build:*)",
       "Bash(unzip:*)",
-      "Bash(\"/c/Program Files/Blender Foundation/Blender 4.0/blender.exe\" --background --python-expr \":*)"
+      "Bash(\"/c/Program Files/Blender Foundation/Blender 4.0/blender.exe\" --background --python-expr \":*)",
+      "Bash(python tools/_inspect_seed1_integrity.py)",
+      "Bash(python tools/_inspect_seed1_full.py)",
+      "Bash(python tools/_probe_stairs.py)",
+      "Bash(cat)",
+      "Bash(python tools/_probe_uv.py)",
+      "Bash(python tools/_scan_wide.py)",
+      "Bash(python -c ' *)",
+      "Bash(python tools/test_transition_stairs.py)",
+      "Bash(python tools/test_synth_transition.py)",
+      "Bash(python tools/gen_maps.py --preview --no-layout-export --seed 1 --prev-faction synth --next-faction synth)",
+      "Bash(python tools/gen_maps.py --preview --no-layout-export --seed 6 --prev-faction synth --next-faction synth)",
+      "Bash(python tools/_probe_rail.py)",
+      "Bash(python tools/_verify_rails.py)",
+      "Bash(python tools/_probe_lowwalls.py)",
+      "Bash(python tools/_diag_synth.py)",
+      "Bash(cd *)",
+      "Bash(python tools/_diag_access.py)",
+      "Bash(sed -i 's/for s in range\\(2,11\\): run\\(s\\)/import sys\\\\nbad=0\\\\nfor s in range\\(1,40\\):\\\\n    pass/' tools/_diag_access.py)",
+      "Bash(python -c \"import sys,json; d=json.loads\\(sys.stdin.read\\(\\).strip\\(\\).split\\(chr\\(10\\)\\)[-1]\\); print\\('seed1 ok',d['ok'],'pieces',d['pieces']\\)\")"
     ]
   }
 }

@@ -1,0 +1,21 @@
+{
+  "best": {
+    "params": {
+      "gap_multiplier": 1.2,
+      "pairing_aggressiveness": 1.0,
+      "quarters_area_max": 6
+    },
+    "score": 31.08,
+    "metrics": {
+      "avg_pairs": 5,
+      "avg_free_walk": 0.638,
+      "avg_composite": 31.08,
+      "hard_errors_total": 0,
+      "avg_props": 32.0,
+      "composite_for_ranking": 31.08
+    },
+    "faction": "synth"
+  },
+  "time_slice_min": 2.0,
+  "global_minutes": 10.0
+}

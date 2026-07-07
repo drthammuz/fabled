@@ -245,6 +245,10 @@ pub struct PieceRecord {
     pub floor_level: i32,
     #[serde(default = "default_scale")]
     pub scale: f32,
+    /// Optional non-uniform Y scale (for height extension on short wall models etc).
+    /// Falls back to `scale` (uniform) if absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scale_y: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_id: Option<u32>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -416,6 +420,7 @@ impl DressingDocument {
                     yaw: p.yaw,
                     floor: 0,
                     scale: p.scale,
+                    scale_y: p.scale_y,
                     group_id: p.group_id,
                     ceiling: p.ceiling,
                     underside: p.underside,
@@ -434,6 +439,10 @@ impl DressingDocument {
             hub_exits: HashMap::new(),
             hub_model: None,
             branch_levels: HashMap::new(),
+            enemy_spawns: vec![],
+            npc_spawns: vec![],
+            enemy_patrols: vec![],
+            nav: None,
         }
     }
 
@@ -541,6 +550,17 @@ pub struct MapDocument {
     /// Modular architecture kit folder used for this map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub building_system: Option<String>,
+    /// Enemy and friendly NPC spawn points written by proc gen (for editor Proc sliders).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enemy_spawns: Vec<[f32; 3]>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub npc_spawns: Vec<[f32; 3]>,
+    /// Per-enemy patrol waypoint loops, parallel to `enemy_spawns`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enemy_patrols: Vec<Vec<[f32; 3]>>,
+    /// Baked enemy nav grid written by proc gen (`gen_freeform.build_nav_grid`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nav: Option<crate::kenney_layout::NavGrid>,
 }
 
 impl Default for MapDocument {
@@ -571,6 +591,10 @@ impl MapDocument {
             hub_model: None,
             faction_profile: None,
             building_system: None,
+            enemy_spawns: vec![],
+            npc_spawns: vec![],
+            enemy_patrols: vec![],
+            nav: None,
         }
     }
 
@@ -652,6 +676,10 @@ impl MapDocument {
                                 .and_then(|x| x.as_f64())
                                 .map(|x| x as f32)
                                 .unwrap_or(1.0),
+                            scale_y: p
+                                .get("scale_y")
+                                .and_then(|x| x.as_f64())
+                                .map(|x| x as f32),
                             group_id: p.get("group_id").and_then(|x| x.as_u64()).map(|x| x as u32),
                             ceiling: p.get("ceiling").and_then(|x| x.as_bool()).unwrap_or(false),
                             underside: p.get("underside").and_then(|x| x.as_bool()).unwrap_or(false),
@@ -738,6 +766,21 @@ impl MapDocument {
                 .get("building_system")
                 .and_then(|x| x.as_str())
                 .map(str::to_string),
+            enemy_spawns: v
+                .get("enemy_spawns")
+                .and_then(|s| serde_json::from_value(s.clone()).ok())
+                .unwrap_or_default(),
+            npc_spawns: v
+                .get("npc_spawns")
+                .and_then(|s| serde_json::from_value(s.clone()).ok())
+                .unwrap_or_default(),
+            enemy_patrols: v
+                .get("enemy_patrols")
+                .and_then(|s| serde_json::from_value(s.clone()).ok())
+                .unwrap_or_default(),
+            nav: v
+                .get("nav")
+                .and_then(|s| serde_json::from_value(s.clone()).ok()),
         })
     }
 
@@ -765,6 +808,7 @@ impl MapDocument {
                     yaw: p.yaw,
                     floor: p.floor_level,
                     scale: p.scale,
+                    scale_y: p.scale_y,
                     group_id: p.group_id,
                     ceiling: p.ceiling,
                     underside: p.underside,
@@ -781,6 +825,10 @@ impl MapDocument {
             hub_exits: self.hub_exits.clone(),
             hub_model: self.hub_model.clone(),
             branch_levels: self.branch_levels.clone(),
+            enemy_spawns: self.enemy_spawns.clone(),
+            npc_spawns: self.npc_spawns.clone(),
+            enemy_patrols: self.enemy_patrols.clone(),
+            nav: self.nav.clone(),
         }
     }
 
@@ -803,6 +851,7 @@ impl MapDocument {
                 yaw: p.yaw,
                 floor_level: p.floor,
                 scale: p.scale,
+                scale_y: p.scale_y,
                 group_id: p.group_id,
                 ceiling: p.ceiling,
                 underside: p.underside,

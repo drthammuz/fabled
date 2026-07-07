@@ -22,13 +22,13 @@
   },
   "roles": {
     "wall": {
-      "stem": "brick-wall",
+      "stem": "brick-wall2",
       "yaw_offset": 0.0,
       "inset": 1.4,
       "collide": true,
       "placement": "edge",
       "faces_at_yaw0": "+Z",
-      "inset_note": "brick-wall depth anchor is off-centre (z-centre -0.35); inset = 0.35*scale(4) = 1.4 pushes it out to straddle the cell edge like a normal wall.",
+      "inset_note": "brick-wall2 is the user's Blender height-scaled version (Y only, for full floor-to-roof).",
       "alt_stems": ["stone-wall", "iron-fence"]
     },
     "corridor": {
@@ -40,6 +40,6 @@
     }
   },
   "provides": ["wall", "corridor"],
-  "scale_note": "graveyard is 1-unit → scale 4. brick-wall (1x0.73x0.3) has thickness but is low (gothic/ruined look). graveyard has NO clean 1x1 floor (road is 0.8), so floor falls back to the flush space template-floor; gothic brick WALLS carry the theme.",
+  "scale_note": "graveyard is 1-unit → scale 4. Main wall now uses brick-wall2 (user's Blender Y-scaled version for proper height). graveyard has NO clean 1x1 floor (road is 0.8), so floor falls back to the flush space template-floor; gothic brick WALLS carry the theme.",
   "notes": "NEEDS EDITOR TUNING: wall/corner yaw_offset, scale-4 check. Rich PROP set in-folder for later: gravestones, crypts, mausoleum, pillars, iron fences, lanterns, candles, altars, coffins, dead trees. alt walls: stone-wall, iron-fence (open railing)."
 }

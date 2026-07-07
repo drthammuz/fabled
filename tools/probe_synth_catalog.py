@@ -111,6 +111,37 @@ def infer_front(stem: str, bb: Bounds, verts: list[tuple[float, float, float]]) 
     return "+z"
 
 
+def analyze_visual_features(stem: str, bb: Bounds, verts: list[tuple[float, float, float]]) -> dict:
+    """Deeper visual + physical analysis for catalog (used by auto-placement + sweep scoring).
+    Physical: bounds already. "Visual": center-of-mass, flat tops for desks/screens, protrusion for clearance needs,
+    seat-like (low front mass or specific z for chairs).
+    This lets the engine catalogue "this computer needs ~0.8m front clearance for a chair" etc.
+    """
+    if not verts:
+        return {}
+    n = len(verts)
+    # Center of mass
+    cx = sum(v[0] for v in verts) / n
+    cy = sum(v[1] for v in verts) / n
+    cz = mass_z(verts)
+    # Rough "top flatness": variance of y near max y
+    y_max = bb.y1
+    top_ys = [v[1] for v in verts if v[1] > y_max - 0.05]
+    flatness = 1.0 - (max(top_ys) - min(top_ys) if top_ys else 0) / max(0.1, bb.y1 - bb.y0)
+    # Front protrusion (how much the mesh extends in +front local z beyond center)
+    front_z = max((v[2] for v in verts), default=0) - cz
+    # Approx "needs clearance" for work items (tall or screen like)
+    needs_front_clearance = stem.startswith(("computer", "table", "display")) or flatness > 0.7
+    clearance_hint_m = round(max(0.6, abs(front_z) * 1.5), 2) if needs_front_clearance else 0.0
+    return {
+        "center_of_mass": {"x": round(cx, 3), "y": round(cy, 3), "z": round(cz, 3)},
+        "top_flatness": round(flatness, 2),
+        "front_protrusion_local_z": round(front_z, 3),
+        "needs_front_clearance": needs_front_clearance,
+        "suggested_front_clearance_m": clearance_hint_m,
+    }
+
+
 def infer_snap(stem: str) -> str:
     if stem in ("bed-single", "bed-double"):
         return "back_z"
@@ -175,6 +206,7 @@ def probe_stem(stem: str) -> dict | None:
         "front": infer_front(stem, bb, verts),
         "snap": snap,
         "deck_y": deck_y_mode(stem, bb),
+        "visual": analyze_visual_features(stem, bb, verts),
     }
     if snap == "back_z":
         entry["back_anchor_local_m"] = 2.0
@@ -190,6 +222,26 @@ def probe_stem(stem: str) -> dict | None:
             "wall-switch": 0.05,
         }.get(stem, 0.5)
         entry["decal_depth_half_m"] = depth
+
+    # Automation seed data (per Critical Context + Plan in synth-master-plan.md)
+    # void_facing_ok: false for open frames (require real maptile), true for shutters.
+    if stem.startswith("wall-window"):
+        if "shutter" in stem:
+            entry["void_facing_ok"] = True
+        else:
+            entry["void_facing_ok"] = False
+        entry["window_type"] = "shutter" if "shutter" in stem else "open_frame"
+
+    # Stair / half support hints (short stairs cover half tile; chained need floor-half support)
+    if stem.startswith("stairs-small"):
+        entry["short_stair"] = True
+        entry["half_tile"] = True
+        entry["requires_support"] = "floor-half"   # rotate/place correctly; repair colors after Blender
+    if stem == "floor-half" or "floor-half" in stem:
+        entry["support_for"] = ["stairs-small"]
+        entry["snap"] = entry.get("snap", "origin")
+
+    # Future: clearance_front_m, pair_with etc. will be expanded here via deeper mesh analysis.
     return entry
 
 

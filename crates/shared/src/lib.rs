@@ -1,3 +1,4 @@
+pub mod ai_tuning;
 pub mod classes;
 pub mod config;
 pub mod editor_catalog;
@@ -13,6 +14,7 @@ pub mod kenney_layout;
 pub mod kenney_pit;
 pub mod kenney_transitions;
 pub mod level;
+pub mod proc_stream;
 pub mod props;
 pub mod protocol;
 pub mod run;

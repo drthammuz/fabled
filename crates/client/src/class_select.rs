@@ -29,6 +29,7 @@ impl Plugin for ClassSelectPlugin {
                 Update,
                 (auto_select_test, pick_class).run_if(in_state(SelectState::Choosing)),
             )
+            .add_systems(Update, playtest_class_select)
             .add_systems(OnEnter(SelectState::Playing), (hide_select_screen, lock_cursor_for_play));
     }
 }
@@ -63,6 +64,38 @@ fn setup_select_screen(
     if test.is_some() || city.is_some() {
         return; // test / city bypasses the overlay
     }
+    spawn_select_ui(&mut commands, &asset_server);
+}
+
+/// Editor playtest (G) with the "Playtest class select" option ON: re-open
+/// the class screen on entry, so editor runs exercise the real class flow
+/// (the server accepts re-picks while alive). Leaving playtest cleans up so
+/// the editor never sits behind the overlay.
+fn playtest_class_select(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    playtest: Option<Res<crate::editor_playtest::EditorPlaytestActive>>,
+    prefs: Option<Res<shared::editor_settings::UserEditorPrefs>>,
+    screen: Query<Entity, With<ClassSelectRoot>>,
+    mut next: ResMut<NextState<SelectState>>,
+    mut was_active: Local<bool>,
+) {
+    let active = playtest.is_some();
+    if active && !*was_active {
+        if prefs.as_ref().is_some_and(|p| p.playtest_class_select) && screen.is_empty() {
+            spawn_select_ui(&mut commands, &asset_server);
+            next.set(SelectState::Choosing);
+        }
+    } else if !active && *was_active && !screen.is_empty() {
+        for entity in &screen {
+            commands.entity(entity).despawn();
+        }
+        next.set(SelectState::Playing);
+    }
+    *was_active = active;
+}
+
+fn spawn_select_ui(commands: &mut Commands, asset_server: &AssetServer) {
     commands
         .spawn((
             ClassSelectRoot,

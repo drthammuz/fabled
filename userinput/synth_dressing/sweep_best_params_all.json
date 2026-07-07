@@ -1,0 +1,51 @@
+{
+  "industrial": {
+    "params": {
+      "gap_multiplier": 1.3887066038426021,
+      "note": "rich optimized"
+    },
+    "score": 8.6,
+    "faction": "industrial"
+  },
+  "necropolis": {
+    "params": {
+      "gap_multiplier": 1.4558618547732052,
+      "note": "rich optimized"
+    },
+    "score": 12.2,
+    "faction": "necropolis"
+  },
+  "priesthood": {
+    "params": {
+      "gap_multiplier": 1.1266643743529134,
+      "note": "rich optimized"
+    },
+    "score": 13.0,
+    "faction": "priesthood"
+  },
+  "synth": {
+    "params": {
+      "gap_multiplier": 1.2,
+      "pairing_aggressiveness": 1.0,
+      "quarters_area_max": 6
+    },
+    "score": 31.08,
+    "metrics": {
+      "avg_pairs": 5,
+      "avg_free_walk": 0.638,
+      "avg_composite": 31.08,
+      "hard_errors_total": 0,
+      "avg_props": 32.0,
+      "composite_for_ranking": 31.08
+    },
+    "faction": "synth"
+  },
+  "urban": {
+    "params": {
+      "gap_multiplier": 1.53429196450154,
+      "note": "rich optimized"
+    },
+    "score": 8.6,
+    "faction": "urban"
+  }
+}

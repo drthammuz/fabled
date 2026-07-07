@@ -1,0 +1,12 @@
+{
+  "best": {
+    "params": {
+      "gap_multiplier": 1.3887066038426021,
+      "note": "rich optimized"
+    },
+    "score": 8.6,
+    "faction": "industrial"
+  },
+  "time_slice_min": 2.0,
+  "global_minutes": 10.0
+}

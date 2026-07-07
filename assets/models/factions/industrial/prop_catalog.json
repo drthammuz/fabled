@@ -1,0 +1,2935 @@
+{
+  "version": 2,
+  "generated_by": "tools/probe_faction_catalog.py (prop_kit)",
+  "prop_kit": "factory",
+  "prop_scale": 2.0,
+  "cell_m": 4.0,
+  "stems": {
+    "box-large": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.550000011920929,
+        "x1": 0.550000011920929,
+        "y0": 0.0,
+        "y1": 0.550000011920929,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.550000011920929,
+      "half_z_m": 0.5,
+      "height_m": 0.550000011920929,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.2750000059604645,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "stack or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for box-large.",
+      "prop_kit": "factory"
+    },
+    "box-long": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.550000011920929,
+        "x1": 0.550000011920929,
+        "y0": 0.0,
+        "y1": 0.550000011920929,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.550000011920929,
+      "half_z_m": 0.25,
+      "height_m": 0.550000011920929,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.2750000059604645,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.25,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for box-long.",
+      "prop_kit": "factory"
+    },
+    "box-small": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.29750001430511475,
+        "x1": 0.29749998450279236,
+        "y0": 0.0,
+        "y1": 0.550000011920929,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.29749999940395355,
+      "half_z_m": 0.25,
+      "height_m": 0.550000011920929,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.2750000059604645,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.25,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "scatter or stack",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for box-small.",
+      "prop_kit": "factory"
+    },
+    "box-wide": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.29750001430511475,
+        "x1": 0.29749998450279236,
+        "y0": 0.0,
+        "y1": 0.550000011920929,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.29749999940395355,
+      "half_z_m": 0.5,
+      "height_m": 0.550000011920929,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.2750000059604645,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for box-wide.",
+      "prop_kit": "factory"
+    },
+    "button-floor-round": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.15000000596046448,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.25,
+      "height_m": 0.15000000596046448,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.07500000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.8,
+        "front_protrusion_local_z": 0.25,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "structure",
+      "usage": "base",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "floor",
+        "prop",
+        "placement",
+        "structure",
+        "interior_dressing"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for button-floor-round.",
+      "prop_kit": "factory"
+    },
+    "button-floor-square": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.17499999701976776,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.17499999701976776,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.08749999850988388,
+          "z": 0
+        },
+        "top_flatness": 0.8,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "structure",
+      "usage": "base",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "floor",
+        "prop",
+        "placement",
+        "structure",
+        "interior_dressing"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for button-floor-square.",
+      "prop_kit": "factory"
+    },
+    "catwalk-corner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -1.154119610786438,
+        "x1": -0.0,
+        "y0": -0.14724737405776978,
+        "y1": 0.45411962270736694,
+        "z0": 0.0,
+        "z1": 1.1541194915771484
+      },
+      "half_x_m": 0.577059805393219,
+      "half_z_m": 0.5770597457885742,
+      "height_m": 0.6013669967651367,
+      "auto_scale": 2.0,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.30068349838256836,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5770597457885742,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for catwalk-corner.",
+      "prop_kit": "factory"
+    },
+    "catwalk-junction": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.14724737405776978,
+        "y1": 0.45411962270736694,
+        "z0": -0.5,
+        "z1": 0.6277433037757874
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5638716518878937,
+      "height_m": 0.6013669967651367,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.30068349838256836,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5638716518878937,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for catwalk-junction.",
+      "prop_kit": "factory"
+    },
+    "catwalk-stairs": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 1.5,
+        "y0": 1.6813231695778086e-08,
+        "y1": 1.4000000953674316,
+        "z0": -0.6277433037757874,
+        "z1": 0.6277433037757874
+      },
+      "half_x_m": 1.0,
+      "half_z_m": 0.6277433037757874,
+      "height_m": 1.4000000785542,
+      "auto_scale": 1.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.7000000392771,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.6277433037757874,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "transition",
+      "usage": "connect levels, base support",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "transition"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for catwalk-stairs.",
+      "prop_kit": "factory"
+    },
+    "catwalk-straight": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.14724737405776978,
+        "y1": 0.45411962270736694,
+        "z0": -0.6277433037757874,
+        "z1": 0.6277433037757874
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.6277433037757874,
+      "height_m": 0.6013669967651367,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.30068349838256836,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.6277433037757874,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for catwalk-straight.",
+      "prop_kit": "factory"
+    },
+    "cog-a": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.15000000596046448,
+        "y1": 0.07499998807907104,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.22499999403953552,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.11249999701976776,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for cog-a.",
+      "prop_kit": "factory"
+    },
+    "cog-b": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.15000000596046448,
+        "y1": 0.07499998807907104,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.22499999403953552,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.11249999701976776,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for cog-b.",
+      "prop_kit": "factory"
+    },
+    "cog-c": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.15000000596046448,
+        "y1": 0.07499998807907104,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.22499999403953552,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.11249999701976776,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for cog-c.",
+      "prop_kit": "factory"
+    },
+    "cog-d": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.15000000596046448,
+        "y1": 0.07499998807907104,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.22499999403953552,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.11249999701976776,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for cog-d.",
+      "prop_kit": "factory"
+    },
+    "cog-e": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.15000000596046448,
+        "y1": 0.07499998807907104,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.22499999403953552,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.11249999701976776,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for cog-e.",
+      "prop_kit": "factory"
+    },
+    "conveyor-bars-stripe": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.25,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.25,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.125,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-bars-stripe.",
+      "prop_kit": "factory"
+    },
+    "conveyor-bars": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -1.3535838489425528e-15,
+        "y1": 0.25,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.25000000000000133,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.12500000000000067,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-bars.",
+      "prop_kit": "factory"
+    },
+    "conveyor-corner": {
+      "class": "structure",
+      "bounds_scale1": {
+        "x0": -0.5000002384185791,
+        "x1": 0.5000002384185791,
+        "y0": -8.468255258261767e-14,
+        "y1": 0.44999998807907104,
+        "z0": -0.4999999701976776,
+        "z1": 0.5000002980232239
+      },
+      "half_x_m": 0.5000002384185791,
+      "half_z_m": 0.5000001341104507,
+      "height_m": 0.44999998807915575,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.22499999403957788,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5000001341104507,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "conveyor",
+      "usage": "conveyor corner turn",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-corner.",
+      "prop_kit": "factory"
+    },
+    "conveyor-long-part-end": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.4000000059604645,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.5,
+      "height_m": 0.4000000059604645,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.20000000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-long-part-end.",
+      "prop_kit": "factory"
+    },
+    "conveyor-long-part-middle": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.4000000059604645,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.5,
+      "height_m": 0.4000000059604645,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.20000000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-long-part-middle.",
+      "prop_kit": "factory"
+    },
+    "conveyor-sides": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.4000000059604645,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.4000000059604645,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.20000000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "conveyor",
+      "usage": "run along wall or floor, directional",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-sides.",
+      "prop_kit": "factory"
+    },
+    "conveyor-stripe-part-end": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.4000000059604645,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.5,
+      "height_m": 0.4000000059604645,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.20000000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-stripe-part-end.",
+      "prop_kit": "factory"
+    },
+    "conveyor-stripe-part-middle": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 0.4000000059604645,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.5,
+      "height_m": 0.4000000059604645,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.20000000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-stripe-part-middle.",
+      "prop_kit": "factory"
+    },
+    "conveyor-stripe": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.4000000059604645,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.4000000059604645,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.20000000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "conveyor",
+      "usage": "run along wall or floor, directional",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor-stripe.",
+      "prop_kit": "factory"
+    },
+    "conveyor": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 0.4000000059604645,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.4000000059604645,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.20000000298023224,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "conveyor",
+      "usage": "run along wall or floor, directional",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for conveyor.",
+      "prop_kit": "factory"
+    },
+    "crane-magnet": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.3583333194255829,
+        "x1": 0.3583333194255829,
+        "y0": 0.0,
+        "y1": 0.8999999761581421,
+        "z0": -0.3583333194255829,
+        "z1": 0.3583333194255829
+      },
+      "half_x_m": 0.3583333194255829,
+      "half_z_m": 0.3583333194255829,
+      "height_m": 0.8999999761581421,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.44999998807907104,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.3583333194255829,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for crane-magnet.",
+      "prop_kit": "factory"
+    },
+    "crane": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.9630127549171448,
+        "x1": 0.9630127549171448,
+        "y0": -8.121503305413553e-16,
+        "y1": 3.003319263458252,
+        "z0": -2.9901251792907715,
+        "z1": 0.6901248693466187
+      },
+      "half_x_m": 0.9630127549171448,
+      "half_z_m": 1.840125024318695,
+      "height_m": 3.003319263458253,
+      "auto_scale": 0.978,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 1.5016596317291264,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 1.840125024318695,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "machinery",
+      "usage": "large, corner or centre of big rooms",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for crane.",
+      "prop_kit": "factory"
+    },
+    "hopper-high-round": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5590987801551819,
+        "x1": 0.5590987801551819,
+        "y0": 0.0,
+        "y1": 1.5,
+        "z0": -0.5590987801551819,
+        "z1": 0.5590987801551819
+      },
+      "half_x_m": 0.5590987801551819,
+      "half_z_m": 0.5590987801551819,
+      "height_m": 1.5,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.75,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5590987801551819,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for hopper-high-round.",
+      "prop_kit": "factory"
+    },
+    "hopper-high-square": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5586000084877014,
+        "x1": 0.5586000084877014,
+        "y0": 0.0,
+        "y1": 1.5,
+        "z0": -0.5586000084877014,
+        "z1": 0.5586000084877014
+      },
+      "half_x_m": 0.5586000084877014,
+      "half_z_m": 0.5586000084877014,
+      "height_m": 1.5,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.75,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5586000084877014,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for hopper-high-square.",
+      "prop_kit": "factory"
+    },
+    "hopper-round": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5590987801551819,
+        "x1": 0.5590987801551819,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5590987801551819,
+        "z1": 0.5590987801551819
+      },
+      "half_x_m": 0.5590987801551819,
+      "half_z_m": 0.5590987801551819,
+      "height_m": 1.0,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5590987801551819,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "corner or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for hopper-round.",
+      "prop_kit": "factory"
+    },
+    "hopper-square": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5586000084877014,
+        "x1": 0.5586000084877014,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5586000084877014,
+        "z1": 0.5586000084877014
+      },
+      "half_x_m": 0.5586000084877014,
+      "half_z_m": 0.5586000084877014,
+      "height_m": 1.0,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5586000084877014,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "storage",
+      "usage": "corner or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for hopper-square.",
+      "prop_kit": "factory"
+    },
+    "machine-connection-pipe": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000238418579,
+        "x1": 0.6000000238418579,
+        "y0": -4.106748552334949e-10,
+        "y1": 1.7500001192092896,
+        "z0": -0.75,
+        "z1": 0.75
+      },
+      "half_x_m": 0.6000000238418579,
+      "half_z_m": 0.75,
+      "height_m": 1.7500001196199644,
+      "auto_scale": 1.943,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.8750000598099822,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.75,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for machine-connection-pipe.",
+      "prop_kit": "factory"
+    },
+    "machine-fortified": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000238418579,
+        "x1": 0.6000000238418579,
+        "y0": -4.106748552334949e-10,
+        "y1": 1.3504987955093384,
+        "z0": -0.800000011920929,
+        "z1": 0.800000011920929
+      },
+      "half_x_m": 0.6000000238418579,
+      "half_z_m": 0.800000011920929,
+      "height_m": 1.3504987959200132,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.6752493979600066,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.800000011920929,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "machinery",
+      "usage": "heavy machinery, corner or centre",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for machine-fortified.",
+      "prop_kit": "factory"
+    },
+    "machine-window": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000238418579,
+        "x1": 0.6000000238418579,
+        "y0": -4.106748552334949e-10,
+        "y1": 1.2897067070007324,
+        "z0": -0.75,
+        "z1": 0.75
+      },
+      "half_x_m": 0.6000000238418579,
+      "half_z_m": 0.75,
+      "height_m": 1.2897067074114072,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.6448533537057036,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.75,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "machinery",
+      "usage": "focal or against wall, face room",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for machine-window.",
+      "prop_kit": "factory"
+    },
+    "machine": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000238418579,
+        "x1": 0.6000000238418579,
+        "y0": -4.106748552334949e-10,
+        "y1": 1.299751877784729,
+        "z0": -0.75,
+        "z1": 0.75
+      },
+      "half_x_m": 0.6000000238418579,
+      "half_z_m": 0.75,
+      "height_m": 1.2997518781954038,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.6498759390977019,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.75,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "machinery",
+      "usage": "focal or against wall, face room",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for machine.",
+      "prop_kit": "factory"
+    },
+    "pipe-glass-large-bend": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.8999999761581421,
+        "x1": 0.9999999403953552,
+        "y0": -0.00023920065723359585,
+        "y1": 1.0,
+        "z0": -1.4000000953674316,
+        "z1": 0.5
+      },
+      "half_x_m": 0.9499999582767487,
+      "half_z_m": 0.9500000476837158,
+      "height_m": 1.0002392006572336,
+      "auto_scale": 1.895,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5001196003286168,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.9500000476837158,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-glass-large-bend.",
+      "prop_kit": "factory"
+    },
+    "pipe-glass-large-curve": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -1.0020815134048462,
+        "x1": 0.5,
+        "y0": -0.0002392200258327648,
+        "y1": 1.0,
+        "z0": -0.7464466094970703,
+        "z1": 0.5
+      },
+      "half_x_m": 0.7510407567024231,
+      "half_z_m": 0.6232233047485352,
+      "height_m": 1.0002392200258328,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5001196100129164,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.6232233047485352,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-glass-large-curve.",
+      "prop_kit": "factory"
+    },
+    "pipe-glass-large-junction": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -1.05563485622406,
+        "x1": 0.9999999403953552,
+        "y0": 0.0,
+        "y1": 2.0556347370147705,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 1.0278173983097076,
+      "half_z_m": 0.5,
+      "height_m": 2.0556347370147705,
+      "auto_scale": 1.654,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 1.0278173685073853,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-glass-large-junction.",
+      "prop_kit": "factory"
+    },
+    "pipe-glass-large-long": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.9999999403953552,
+        "x1": 0.9999999403953552,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.9999999403953552,
+      "half_z_m": 0.5,
+      "height_m": 1.0,
+      "auto_scale": 1.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-glass-large-long.",
+      "prop_kit": "factory"
+    },
+    "pipe-glass-large-valve": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -9.023893032144474e-16,
+        "y1": 1.0,
+        "z0": -0.515600860118866,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.507800430059433,
+      "height_m": 1.0000000000000009,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5000000000000004,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.507800430059433,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-glass-large-valve.",
+      "prop_kit": "factory"
+    },
+    "pipe-glass-large": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -9.023893032144474e-16,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 1.0000000000000009,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5000000000000004,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-glass-large.",
+      "prop_kit": "factory"
+    },
+    "pipe-large-bend": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.8999999761581421,
+        "x1": 0.9999999403953552,
+        "y0": -0.00023920065723359585,
+        "y1": 1.0,
+        "z0": -1.4000000953674316,
+        "z1": 0.5
+      },
+      "half_x_m": 0.9499999582767487,
+      "half_z_m": 0.9500000476837158,
+      "height_m": 1.0002392006572336,
+      "auto_scale": 1.895,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5001196003286168,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.9500000476837158,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "pipe corner, along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-large-bend.",
+      "prop_kit": "factory"
+    },
+    "pipe-large-curve": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -1.0020815134048462,
+        "x1": 0.5,
+        "y0": -0.0002392200258327648,
+        "y1": 1.0,
+        "z0": -0.7464466094970703,
+        "z1": 0.5
+      },
+      "half_x_m": 0.7510407567024231,
+      "half_z_m": 0.6232233047485352,
+      "height_m": 1.0002392200258328,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5001196100129164,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.6232233047485352,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-large-curve.",
+      "prop_kit": "factory"
+    },
+    "pipe-large-junction": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -1.05563485622406,
+        "x1": 0.9999999403953552,
+        "y0": 0.0,
+        "y1": 2.0556347370147705,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 1.0278173983097076,
+      "half_z_m": 0.5,
+      "height_m": 2.0556347370147705,
+      "auto_scale": 1.654,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 1.0278173685073853,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "pipe junction, along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-large-junction.",
+      "prop_kit": "factory"
+    },
+    "pipe-large-long": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.9999999403953552,
+        "x1": 0.9999999403953552,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.9999999403953552,
+      "half_z_m": 0.5,
+      "height_m": 1.0,
+      "auto_scale": 1.8,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-large-long.",
+      "prop_kit": "factory"
+    },
+    "pipe-large-valve": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -9.023893032144474e-16,
+        "y1": 1.0,
+        "z0": -0.515600860118866,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.507800430059433,
+      "height_m": 1.0000000000000009,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5000000000000004,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.507800430059433,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-large-valve.",
+      "prop_kit": "factory"
+    },
+    "pipe-large": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -9.023893032144474e-16,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 1.0000000000000009,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5000000000000004,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "utility",
+      "usage": "along walls or ceiling-drop",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "utility",
+        "placement",
+        "interior_dressing",
+        "prop"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for pipe-large.",
+      "prop_kit": "factory"
+    },
+    "piston-round": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 1.0,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for piston-round.",
+      "prop_kit": "factory"
+    },
+    "piston-square": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 1.0,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for piston-square.",
+      "prop_kit": "factory"
+    },
+    "piston-thin-round": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.25,
+      "height_m": 1.0,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.25,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for piston-thin-round.",
+      "prop_kit": "factory"
+    },
+    "piston-thin-square": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.25,
+        "x1": 0.25,
+        "y0": 0.0,
+        "y1": 1.0,
+        "z0": -0.25,
+        "z1": 0.25
+      },
+      "half_x_m": 0.25,
+      "half_z_m": 0.25,
+      "height_m": 1.0,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.25,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for piston-thin-square.",
+      "prop_kit": "factory"
+    },
+    "robot-arm-a": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.20000004768371582,
+        "y1": 0.6000001430511475,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 0.8000001907348633,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.40000009536743164,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "machinery",
+      "usage": "against wall, working arm",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for robot-arm-a.",
+      "prop_kit": "factory"
+    },
+    "robot-arm-b": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.5,
+        "x1": 0.5,
+        "y0": -0.20000004768371582,
+        "y1": 0.8000001907348633,
+        "z0": -0.5,
+        "z1": 0.5
+      },
+      "half_x_m": 0.5,
+      "half_z_m": 0.5,
+      "height_m": 1.000000238418579,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5000001192092896,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "machinery",
+      "usage": "against wall, working arm",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for robot-arm-b.",
+      "prop_kit": "factory"
+    },
+    "scanner-high": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.24199999868869781,
+        "x1": 0.24199999868869781,
+        "y0": -2.6056488933325463e-15,
+        "y1": 1.2699999809265137,
+        "z0": -0.8870000243186951,
+        "z1": 0.8869999647140503
+      },
+      "half_x_m": 0.24199999868869781,
+      "half_z_m": 0.8869999945163727,
+      "height_m": 1.2699999809265163,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.6349999904632582,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.8869999945163727,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "scanner",
+      "usage": "against wall, face room",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for scanner-high.",
+      "prop_kit": "factory"
+    },
+    "scanner-low": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.3499999940395355,
+        "x1": 0.3499999940395355,
+        "y0": -4.51194631754889e-17,
+        "y1": 1.0700000524520874,
+        "z0": -0.800000011920929,
+        "z1": 0.800000011920929
+      },
+      "half_x_m": 0.3499999940395355,
+      "half_z_m": 0.800000011920929,
+      "height_m": 1.0700000524520874,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.5350000262260437,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.800000011920929,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "scanner",
+      "usage": "floor or wall-adjacent",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for scanner-low.",
+      "prop_kit": "factory"
+    },
+    "screen-flat": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000834465027,
+        "x1": 0.600000262260437,
+        "y0": 0.0,
+        "y1": 0.7452698349952698,
+        "z0": -0.2553553581237793,
+        "z1": 0.38948357105255127
+      },
+      "half_x_m": 0.6000001728534698,
+      "half_z_m": 0.3224194645881653,
+      "height_m": 0.7452698349952698,
+      "auto_scale": 2.0,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.3726349174976349,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.3224194645881653,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "info",
+      "usage": "wall-adjacent, face room",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-flat.",
+      "prop_kit": "factory"
+    },
+    "screen-hanging-small": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.30000001192092896,
+        "x1": 0.30000001192092896,
+        "y0": 0.0,
+        "y1": 0.69130939245224,
+        "z0": -0.361819863319397,
+        "z1": 0.21473273634910583
+      },
+      "half_x_m": 0.30000001192092896,
+      "half_z_m": 0.2882762998342514,
+      "height_m": 0.69130939245224,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.34565469622612,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.2882762998342514,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-hanging-small.",
+      "prop_kit": "factory"
+    },
+    "screen-hanging-wide": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.45000001788139343,
+        "x1": 0.45000001788139343,
+        "y0": 0.0,
+        "y1": 0.69130939245224,
+        "z0": -0.361819863319397,
+        "z1": 0.21473273634910583
+      },
+      "half_x_m": 0.45000001788139343,
+      "half_z_m": 0.2882762998342514,
+      "height_m": 0.69130939245224,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.34565469622612,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.2882762998342514,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-hanging-wide.",
+      "prop_kit": "factory"
+    },
+    "screen-panel-flat": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000834465027,
+        "x1": 0.600000262260437,
+        "y0": 0.0,
+        "y1": 0.7452698349952698,
+        "z0": -0.4102848768234253,
+        "z1": 0.38948357105255127
+      },
+      "half_x_m": 0.6000001728534698,
+      "half_z_m": 0.3998842239379883,
+      "height_m": 0.7452698349952698,
+      "auto_scale": 2.0,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.3726349174976349,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.3998842239379883,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-panel-flat.",
+      "prop_kit": "factory"
+    },
+    "screen-panel-small": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.30000001192092896,
+        "x1": 0.30000001192092896,
+        "y0": 0.0,
+        "y1": 0.991309404373169,
+        "z0": -0.3286058306694031,
+        "z1": 0.3286058306694031
+      },
+      "half_x_m": 0.30000001192092896,
+      "half_z_m": 0.3286058306694031,
+      "height_m": 0.991309404373169,
+      "auto_scale": 2.0,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.4956547021865845,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.3286058306694031,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-panel-small.",
+      "prop_kit": "factory"
+    },
+    "screen-panel-wide": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000238418579,
+        "x1": 0.6000000238418579,
+        "y0": 0.0,
+        "y1": 0.991309404373169,
+        "z0": -0.32860586047172546,
+        "z1": 0.3286058306694031
+      },
+      "half_x_m": 0.6000000238418579,
+      "half_z_m": 0.32860584557056427,
+      "height_m": 0.991309404373169,
+      "auto_scale": 2.0,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.4956547021865845,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.32860584557056427,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "info",
+      "usage": "wall-adjacent, face room",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-panel-wide.",
+      "prop_kit": "factory"
+    },
+    "screen-small": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.30000001192092896,
+        "x1": 0.30000001192092896,
+        "y0": 0.0,
+        "y1": 0.991309404373169,
+        "z0": -0.17063888907432556,
+        "z1": 0.3286058306694031
+      },
+      "half_x_m": 0.30000001192092896,
+      "half_z_m": 0.24962235987186432,
+      "height_m": 0.991309404373169,
+      "auto_scale": 2.0,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.4956547021865845,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.24962235987186432,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-small.",
+      "prop_kit": "factory"
+    },
+    "screen-wide": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.6000000238418579,
+        "x1": 0.6000000238418579,
+        "y0": 0.0,
+        "y1": 0.991309404373169,
+        "z0": -0.1588941514492035,
+        "z1": 0.3286058306694031
+      },
+      "half_x_m": 0.6000000238418579,
+      "half_z_m": 0.24374999105930328,
+      "height_m": 0.991309404373169,
+      "auto_scale": 2.0,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.4956547021865845,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.24374999105930328,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "info",
+      "usage": "wall-adjacent, face room",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for screen-wide.",
+      "prop_kit": "factory"
+    },
+    "warning-orange": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.20000000298023224,
+        "x1": 0.20000000298023224,
+        "y0": 0.0,
+        "y1": 1.2903574705123901,
+        "z0": -0.20000000298023224,
+        "z1": 0.20000000298023224
+      },
+      "half_x_m": 0.20000000298023224,
+      "half_z_m": 0.20000000298023224,
+      "height_m": 1.2903574705123901,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.6451787352561951,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.20000000298023224,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "small accent near machinery",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for warning-orange.",
+      "prop_kit": "factory"
+    },
+    "warning-traffic": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.20000000298023224,
+        "x1": 0.20000000298023224,
+        "y0": 0.0,
+        "y1": 1.5511152744293213,
+        "z0": -0.20000000298023224,
+        "z1": 0.20000000298023224
+      },
+      "half_x_m": 0.20000000298023224,
+      "half_z_m": 0.20000000298023224,
+      "height_m": 1.5511152744293213,
+      "auto_scale": 2.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.7755576372146606,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.20000000298023224,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "small accent near exits",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for warning-traffic.",
+      "prop_kit": "factory"
+    },
+    "skip": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.3499999940395355,
+        "x1": 0.3499999940395355,
+        "y0": 0.0,
+        "y1": 0.5,
+        "z0": -0.6000000238418579,
+        "z1": 0.6000000238418579
+      },
+      "half_x_m": 0.3499999940395355,
+      "half_z_m": 0.6000000238418579,
+      "height_m": 0.5,
+      "auto_scale": 3.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.25,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.6000000238418579,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "place on floor or against wall",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for skip.",
+      "prop_kit": "space_station"
+    },
+    "skip-rocks": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -0.3499999940395355,
+        "x1": 0.3499999940395355,
+        "y0": 0.0,
+        "y1": 0.699999988079071,
+        "z0": -0.6000000238418579,
+        "z1": 0.6000000238418579
+      },
+      "half_x_m": 0.3499999940395355,
+      "half_z_m": 0.6000000238418579,
+      "height_m": 0.699999988079071,
+      "auto_scale": 3.0,
+      "front": "+z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.3499999940395355,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.6000000238418579,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "scatter, edges",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for skip-rocks.",
+      "prop_kit": "space_station"
+    },
+    "rocks": {
+      "class": "prop",
+      "bounds_scale1": {
+        "x0": -1.1113616228103638,
+        "x1": -0.0,
+        "y0": 0.0,
+        "y1": 0.35255998373031616,
+        "z0": 0.007377296686172485,
+        "z1": 1.0245381593704224
+      },
+      "half_x_m": 0.5556808114051819,
+      "half_z_m": 0.5085804313421249,
+      "height_m": 0.35255998373031616,
+      "auto_scale": 3.239,
+      "front": "-z",
+      "snap": "floor",
+      "visual": {
+        "center_of_mass": {
+          "x": 0,
+          "y": 0.17627999186515808,
+          "z": 0
+        },
+        "top_flatness": 0.3,
+        "front_protrusion_local_z": 0.5085804313421249,
+        "needs_front_clearance": false,
+        "suggested_front_clearance_m": 0.3
+      },
+      "purpose": "decor",
+      "usage": "scatter, edges",
+      "relations": [],
+      "density": {
+        "weight": 1,
+        "avoid_center": true
+      },
+      "tags": [
+        "prop",
+        "placement",
+        "interior_dressing",
+        "decor"
+      ],
+      "notes": "Auto-catalogued from GLB. Physical bounds; visual CoM/flatness inferred. Doublecheck for rocks.",
+      "prop_kit": "space_station"
+    }
+  }
+}

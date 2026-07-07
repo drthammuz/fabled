@@ -18,7 +18,7 @@ use shared::{EditorMode, KenneyPlaytestGeneration, TestMapStyle, TestMode, CityV
 
 use crate::combat::{EnemyBrain, Health};
 use crate::liquids;
-use shared::protocol::Enemy;
+use shared::protocol::{Enemy, Npc};
 
 /// Marks geometry/props/items spawned by the current level (despawned on reload).
 #[derive(Component)]
@@ -330,6 +330,7 @@ fn reload_kenney_playtest(
             )>,
     >,
     stretch_statics: Query<Entity, With<StretchStaticCollider>>,
+    old_agents: Query<Entity, bevy::ecs::query::Or<(With<Enemy>, With<Npc>)>>,
 ) {
     let Some(test) = test else {
         return;
@@ -343,9 +344,14 @@ fn reload_kenney_playtest(
     for e in &kenney_collision {
         commands.entity(e).despawn();
     }
+    // Despawn prior agents from previous proc gen.
+    for e in &old_agents {
+        commands.entity(e).despawn();
+    }
 
     if test.style != TestMapStyle::Kenney {
         // Leaving Kenney playtest — restore procedural stretch statics for editor.
+        commands.insert_resource(crate::nav::EnemyNav::default());
         if editor.is_some() && stretch_statics.is_empty() {
             if let Some(src) = stretch_src.as_ref() {
                 let def = level::level_by_id(&src.id, src.seed);
@@ -361,6 +367,13 @@ fn reload_kenney_playtest(
     }
 
     layout_cache.0 = shared::map_pool::play_layout(editor.is_some());
+    let enemy_nav = crate::nav::EnemyNav::from_layout(&layout_cache.0);
+    info!(
+        "enemy nav: {} cells ({})",
+        enemy_nav.cells.len(),
+        if enemy_nav.is_empty() { "fallback wander" } else { "A* pathfinding" }
+    );
+    commands.insert_resource(enemy_nav);
     spawn_kenney_floor_cells(&mut commands, Some(&test), editor.as_deref(), epoch);
     spawn_kenney_piece_scenes(
         &mut commands,
@@ -376,9 +389,63 @@ fn reload_kenney_playtest(
         epoch,
         &layout_cache.0,
     );
+    spawn_agents_from_layout(&mut commands, &layout_cache.0);
 }
 
-/// Closed-state physics slab for hidden-room gate-doors (removed while "open").
+/// Despawn prior agents and spawn fresh ones from the current kenney layout spawns (proc map sliders).
+fn spawn_agents_from_layout(commands: &mut Commands, layout: &shared::kenney_layout::KenneyLayout) {
+    let base_y = layout.spawn_y.unwrap_or(0.0);
+    // Nav floor height is authoritative on floor 0 — a stale/legacy baked y
+    // would drop an agent INSIDE an elevated deck block. Off-grid spawns
+    // (hub floors, hidden shafts) keep their baked y.
+    let nav_floor = |x: f32, z: f32| -> Option<f32> {
+        let nav = layout.nav.as_ref()?;
+        let c = nav.cell_of(x, z);
+        nav.cells
+            .iter()
+            .find(|e| e.c[0] == c.0 && e.c[1] == c.1)
+            .map(|e| e.y)
+    };
+    let resolve_y = |p: &[f32; 3]| -> f32 {
+        let baked = if p[1].abs() > 0.01 { p[1] } else { base_y };
+        if baked > -0.5 {
+            nav_floor(p[0], p[2]).map(|f| f + 0.15).unwrap_or(baked)
+        } else {
+            baked // hub / sub-level spawn: baked y is deliberate
+        }
+    };
+    for (i, p) in layout.enemy_spawns.iter().enumerate() {
+        // Baked patrol waypoints ride along; the nav grid supplies real floor
+        // Y at walk time, so the baked y passes through untouched.
+        let patrol: Vec<Vec3> = layout
+            .enemy_patrols
+            .get(i)
+            .map(|route| route.iter().map(|w| Vec3::new(w[0], w[1], w[2])).collect())
+            .unwrap_or_default();
+        spawn_enemy(commands, Vec3::new(p[0], resolve_y(p), p[2]), patrol);
+    }
+    for (i, p) in layout.npc_spawns.iter().enumerate() {
+        spawn_npc(commands, Vec3::new(p[0], resolve_y(p), p[2]), i);
+    }
+    let n_e = layout.enemy_spawns.len();
+    let n_n = layout.npc_spawns.len();
+    if n_e + n_n > 0 {
+        info!("kenney agents: spawned {} enemies + {} npcs from layout", n_e, n_n);
+        for (i, p) in layout.enemy_spawns.iter().take(2).enumerate() {
+            info!("  enemy{} @ ({:.1}, {:.1}, {:.1})", i, p[0], p[1], p[2]);
+        }
+        for (i, p) in layout.npc_spawns.iter().take(2).enumerate() {
+            info!("  npc{} @ ({:.1}, {:.1}, {:.1})", i, p[0], p[1], p[2]);
+        }
+    }
+}
+
+/// Closed-state physics slab for EVERY gate-door (hidden entrances, zone
+/// transition doors, entrances). Removed while "open". Blocks walking, enemy
+/// line-of-sight and projectiles when closed; opens on proximity of players
+/// AND agents so enemies pass doors exactly like players do (nav pathfinding
+/// already treats door faces as passable). Open state is replicated via
+/// `DoorState` so the client door animation mirrors the physical truth.
 #[derive(Component)]
 struct HiddenDoorSeal {
     open: bool,
@@ -399,46 +466,61 @@ fn spawn_hidden_door_seals(
     let _ = editor;
     let mut n = 0u32;
     for p in &layout.pieces {
-        if !p.tags.iter().any(|t| t == "hidden_entrance") {
-            continue;
-        }
         if !matches!(p.stem.as_str(), "gate-door" | "gate-door-window") {
             continue;
         }
         let yaw = quantize_yaw(p.yaw);
         let (hx, hy, hz) = shared::hidden_door::seal_cuboid_half_extents(yaw);
         let half = Vec3::new(hx, hy, hz);
-        let y = shared::hidden_door::seal_center_y(p.floor);
+        // Piece-relative so elevated deck doors (synth 1.2 m) seal at the
+        // right height, not at the bare floor level.
+        let y = p.world_y() + 2.06;
         commands.spawn((
             LevelEntity,
+            Replicated,
+            shared::protocol::DoorState { open: false },
             HiddenDoorSeal { open: false, half },
             KenneyColliderEpoch(epoch),
             RigidBody::Static,
             Collider::cuboid(hx, hy, hz),
             Transform::from_translation(Vec3::new(p.x, y, p.z))
                 .with_rotation(shared::kenney_layout::placement_rotation(yaw, false)),
+            NetTransform {
+                translation: Vec3::new(p.x, y, p.z),
+                rotation: shared::kenney_layout::placement_rotation(yaw, false),
+            },
         ));
         n += 1;
     }
     if n > 0 {
-        info!("kenney layout reload: {n} hidden-door seal collider(s)");
+        info!("kenney layout reload: {n} door seal collider(s)");
     }
 }
 
 fn sync_hidden_door_seals(
     mut commands: Commands,
-    players: Query<
+    // Players and enemies open doors; NPCs deliberately don't — a hidden-room
+    // keeper idling near its gate-door would otherwise hold the secret door
+    // open permanently.
+    openers: Query<
         &Transform,
         Or<(
             With<crate::players::EditorPlaytestPlayer>,
             With<crate::character::CharacterController>,
+            With<Enemy>,
         )>,
     >,
-    mut seals: Query<(Entity, &Transform, &mut HiddenDoorSeal, Option<&Collider>)>,
+    mut seals: Query<(
+        Entity,
+        &Transform,
+        &mut HiddenDoorSeal,
+        &mut shared::protocol::DoorState,
+        Option<&Collider>,
+    )>,
 ) {
-    for (entity, seal_tf, mut seal, collider) in &mut seals {
+    for (entity, seal_tf, mut seal, mut state, collider) in &mut seals {
         let door_pos = seal_tf.translation;
-        let min_dist = players
+        let min_dist = openers
             .iter()
             .map(|p| p.translation.distance(door_pos))
             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
@@ -449,6 +531,7 @@ fn sync_hidden_door_seals(
         } else if seal.open && min_dist > shared::hidden_door::PROXIMITY_CLOSE_M {
             seal.open = false;
         }
+        state.set_if_neq(shared::protocol::DoorState { open: seal.open });
 
         let (hx, hy, hz) = (seal.half.x, seal.half.y, seal.half.z);
         if seal.open && collider.is_some() {
@@ -491,6 +574,7 @@ fn spawn_kenney_piece_scenes(
             p.kit.as_deref().unwrap_or("space"),
         );
         let scale = p.scale.max(0.01);
+        let scale_y = p.scale_y.unwrap_or(p.scale).max(0.01);
         let mesh_cutouts = shared::kenney_pit::mesh_cutouts_for_piece(
             &p.stem,
             p.floor,
@@ -517,7 +601,7 @@ fn spawn_kenney_piece_scenes(
             SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
             Transform::from_translation(Vec3::new(p.x, floor_y, p.z))
                 .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
-                .with_scale(Vec3::splat(scale)),
+                .with_scale(Vec3::new(scale, scale_y, scale)),
         ));
         n += 1;
     }
@@ -530,10 +614,9 @@ pub fn kenney_skip_piece_collider(
     p: &shared::kenney_layout::KenneyPlacement,
     layout: &KenneyLayout,
 ) -> bool {
-    // Ceiling / roof slabs are visual-only (template-floor one level above walkable).
-    if shared::kenney_layout::is_ceiling_slab(p) {
-        return true;
-    }
+    // Ceiling / roof slabs DO collide: on raised floors (synth deck 1.2 m,
+    // mezz 2.4 m) the ceiling is close enough overhead that a jumping player
+    // passed straight through the visual-only slab onto the roof plane.
     // The hole frame (template-floor-hole) is a raised rim with an open centre: it
     // SHOULD collide so you stand on the rim and fall through the middle. Never skip it.
     if matches!(
@@ -805,7 +888,7 @@ fn spawn_level_content(commands: &mut Commands, level: &LevelDef) {
     }
 
     for pos in &level.enemy_spawns {
-        spawn_enemy(commands, *pos);
+        spawn_enemy(commands, *pos, Vec::new());
     }
 
     info!(
@@ -818,21 +901,46 @@ fn spawn_level_content(commands: &mut Commands, level: &LevelDef) {
     );
 }
 
-fn spawn_enemy(commands: &mut Commands, position: Vec3) {
+fn spawn_enemy(commands: &mut Commands, feet_pos: Vec3, patrol: Vec<Vec3>) {
+    let body_h = 1.7;
+    let body_w = 0.55;
+    let center = Vec3::new(feet_pos.x, feet_pos.y + body_h * 0.5, feet_pos.z);
     commands.spawn((
         LevelEntity,
         Replicated,
         Enemy,
-        EnemyBrain::at(position),
+        shared::protocol::EnemyAiMode::default(),
+        EnemyBrain::at(center).with_patrol(patrol),
         Health {
             current: 40.0,
             max: 40.0,
         },
         RigidBody::Kinematic,
-        Collider::sphere(0.55),
-        Transform::from_translation(position),
+        Collider::cuboid(body_w, body_h, body_w),
+        Transform::from_translation(center),
         NetTransform {
-            translation: position,
+            translation: center,
+            rotation: Quat::IDENTITY,
+        },
+    ));
+}
+
+fn spawn_npc(commands: &mut Commands, feet_pos: Vec3, idx: usize) {
+    // Friendly NPCs use similar brain for basic wandering but no aggro logic targets them.
+    let body_h = 1.6;
+    let body_w = 0.5;
+    let center = Vec3::new(feet_pos.x, feet_pos.y + body_h * 0.5, feet_pos.z);
+    commands.spawn((
+        LevelEntity,
+        Replicated,
+        Npc,
+        crate::npc::profile_for(idx, center),
+        EnemyBrain::sized(center, body_h * 0.5), // re-use for patrol/wander on server
+        RigidBody::Kinematic,
+        Collider::cuboid(body_w, body_h, body_w),
+        Transform::from_translation(center),
+        NetTransform {
+            translation: center,
             rotation: Quat::IDENTITY,
         },
     ));

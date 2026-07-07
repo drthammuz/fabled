@@ -58,8 +58,23 @@ pub struct PlayerInput {
     pub route_select: Option<u8>,
     /// Melee attack this tick (pipe bat).
     pub attack: bool,
+    /// World-space point under the crosshair: the client raycasts from its
+    /// CAMERA through screen center (first person ≈ the eye ray; third person
+    /// diverges from it near the shoulder camera). The server fires from a
+    /// muzzle point toward this, so shots land exactly on the crosshair.
+    /// Vec3::ZERO / non-finite / far off the look ray = ignored (server falls
+    /// back to the raw yaw/pitch ray).
+    pub aim: Vec3,
+    /// Which hotbar slot is selected (drives which weapon `attack` uses).
+    pub selected_slot: u8,
     /// Toggle flashlight (if owned).
     pub flashlight_toggle: bool,
+    /// NPC trade: buy the item at this index of the stock last sent in
+    /// [`NpcDialogue`]. Validated server-side against NPC proximity — the
+    /// server keeps no dialogue session state.
+    pub trade_buy: Option<u8>,
+    /// NPC trade: sell the item in this inventory slot.
+    pub trade_sell: Option<u8>,
 }
 
 /// A pickup item. On world entities this is replicated to everyone;
@@ -156,6 +171,72 @@ pub struct ClassPick(pub ClassKind);
 #[derive(Component, Serialize, Deserialize, Clone, Copy)]
 pub struct Enemy;
 
+/// Friendly NPC (non-hostile). Main logic server-authoritative.
+#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+pub struct Npc;
+
+/// One purchasable line in an NPC's trade stock.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct ShopEntry {
+    pub item_id: u32,
+    pub name: String,
+    pub cost: u32,
+}
+
+/// Server → owning client: opens the dialogue window for the NPC the player
+/// just pressed E on. Trade actions come back via `PlayerInput::trade_buy` /
+/// `trade_sell` and are re-validated against NPC proximity, so the server
+/// holds no dialogue session state. The client auto-closes the window when
+/// the player walks away from `npc_pos`.
+#[derive(Message, Serialize, Deserialize, Clone, Debug)]
+pub struct NpcDialogue {
+    pub npc_pos: Vec3,
+    pub npc_name: String,
+    pub greeting: String,
+    pub rumor: String,
+    pub stock: Vec<ShopEntry>,
+}
+
+/// Enemy AI mode, replicated for the dev marker above each enemy's head.
+/// `mode` mirrors `server::combat::AiMode` (0 Patrol, 1 Suspicious, 2 Combat,
+/// 3 Search, 4 Cover). `frac` is the remaining fraction (0..=63) of the
+/// current mode's countdown — the marker's clock hand; 0 = no timer running.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct EnemyAiMode {
+    pub mode: u8,
+    pub frac: u8,
+}
+
+/// Open/closed state of a door seal, replicated so clients can drive the
+/// door animation from the same state that blocks physics/vision/bullets.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct DoorState {
+    pub open: bool,
+}
+
+/// A flying bullet/tracer. Server simulates; clients render a glowing streak
+/// from the replicated `NetTransform`. `friendly` = fired by a player.
+#[derive(Component, Serialize, Deserialize, Clone, Copy)]
+pub struct Projectile {
+    pub friendly: bool,
+}
+
+/// This player's health, replicated so every client can draw HP bars.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq)]
+pub struct PlayerHealth {
+    pub current: f32,
+    pub max: f32,
+}
+
+impl Default for PlayerHealth {
+    fn default() -> Self {
+        Self {
+            current: 100.0,
+            max: 100.0,
+        }
+    }
+}
+
 /// Server -> owning client: "this replicated entity is your player".
 #[derive(Event, Serialize, Deserialize, Clone, Copy)]
 pub struct YouAre {
@@ -186,10 +267,16 @@ impl Plugin for ProtocolPlugin {
             .replicate::<PlayerClass>()
             .replicate::<PlayerGrounded>()
             .replicate::<Enemy>()
+            .replicate::<Npc>()
+            .replicate::<EnemyAiMode>()
+            .replicate::<Projectile>()
+            .replicate::<PlayerHealth>()
+            .replicate::<DoorState>()
             .add_client_message::<PlayerInput>(Channel::Unreliable)
             .add_client_message::<ClassPick>(Channel::Ordered)
             .add_server_message::<InventoryUpdate>(Channel::Ordered)
             .add_server_message::<PlayTrainSound>(Channel::Ordered)
+            .add_server_message::<NpcDialogue>(Channel::Ordered)
             .add_server_message::<WaterImpact>(Channel::Unreliable)
             .add_mapped_server_event::<YouAre>(Channel::Ordered);
     }

@@ -358,6 +358,7 @@ fn enter_crouch(
 }
 
 fn try_stand_up(
+    liquids: Query<Entity, With<crate::liquids::Liquid>>,
     mut param_set: ParamSet<(
         Query<
             (
@@ -393,19 +394,26 @@ fn try_stand_up(
         })
         .collect();
 
+    // Sweep the CROUCHED box upward by the height difference: that volume is
+    // exactly the extra headroom standing needs.  (Casting the standing box from
+    // the crouched center starts it embedded in the floor, so the cast always
+    // hit and the player stayed crouched until a jump lifted it clear.)
+    let liquid_entities: Vec<Entity> = liquids.iter().collect();
     let can_stand: Vec<Entity> = {
         let spatial = param_set.p1();
         candidates
             .into_iter()
             .filter(|(entity, translation, rotation)| {
+                let mut excluded = liquid_entities.clone();
+                excluded.push(*entity);
                 spatial
                     .cast_shape(
-                        &standing_collider(),
+                        &crouch_collider(),
                         translation.adjust_precision(),
                         rotation.adjust_precision(),
                         Dir3::Y,
-                        &ShapeCastConfig::from_max_distance(config::PLAYER_STAND_UP_CLEARANCE),
-                        &SpatialQueryFilter::from_excluded_entities([*entity]),
+                        &ShapeCastConfig::from_max_distance(2.0 * CROUCH_Y_SHIFT + 0.02),
+                        &SpatialQueryFilter::from_excluded_entities(excluded),
                     )
                     .is_none()
             })
@@ -440,6 +448,14 @@ fn sanitize_input(message: &PlayerInput) -> Option<PlayerInput> {
             input.drop_slot = None;
         }
     }
+    if let Some(slot) = input.trade_sell {
+        if slot as usize >= config::INVENTORY_SLOTS {
+            input.trade_sell = None;
+        }
+    }
+    if !input.aim.is_finite() {
+        input.aim = Vec3::ZERO; // combat falls back to the yaw/pitch ray
+    }
     Some(input)
 }
 
@@ -454,14 +470,31 @@ fn apply_player_inputs(
         };
         for (owner, mut latest) in &mut players {
             if owner.0 == *client_id {
-                // Jump is edge-triggered only — do not OR with previous ticks (no air buffer).
+                // One-frame edge actions (just_pressed on the client) are OR-latched:
+                // the client sends input every render frame, so without the latch the
+                // NEXT frame's `false` overwrites a press before the fixed tick reads
+                // it — randomly dropped jumps/attacks at high fps. This does NOT
+                // buffer air jumps: player_movement consumes `jump` every tick
+                // whether or not the jump happened.
+                let jump = latest.0.jump || message.jump;
+                let attack = latest.0.attack || message.attack;
                 let throw_action = latest.0.throw_action || message.throw_action;
                 let interact = latest.0.interact || message.interact;
                 let drop_slot = message.drop_slot.or(latest.0.drop_slot);
+                let shop_buy = message.shop_buy.or(latest.0.shop_buy);
+                let route_select = message.route_select.or(latest.0.route_select);
+                let trade_buy = message.trade_buy.or(latest.0.trade_buy);
+                let trade_sell = message.trade_sell.or(latest.0.trade_sell);
                 latest.0 = message;
+                latest.0.jump = jump;
+                latest.0.attack = attack;
                 latest.0.throw_action = throw_action;
                 latest.0.interact = interact;
                 latest.0.drop_slot = drop_slot;
+                latest.0.shop_buy = shop_buy;
+                latest.0.route_select = route_select;
+                latest.0.trade_buy = trade_buy;
+                latest.0.trade_sell = trade_sell;
             }
         }
     }
@@ -472,14 +505,17 @@ fn sync_grounded_component(
     query: Query<(Entity, &GroundContact), With<CharacterController>>,
 ) {
     for (entity, contact) in &query {
+        // try_insert: the player entity can be despawned in this same frame
+        // (level rebuild on playtest exit); a plain `insert` on a despawned
+        // entity PANICS and takes the whole app down with exit code 101.
         if contact.on_ground {
-            commands.entity(entity).insert(Grounded);
+            commands.entity(entity).try_insert(Grounded);
         } else {
-            commands.entity(entity).remove::<Grounded>();
+            commands.entity(entity).try_remove::<Grounded>();
         }
         commands
             .entity(entity)
-            .insert(PlayerGrounded(contact.on_ground));
+            .try_insert(PlayerGrounded(contact.on_ground));
     }
 }
 

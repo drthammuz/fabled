@@ -65,7 +65,7 @@ class TransitionSpec:
     mode: str = "direct_on_substrate"  # outdoor_then_indoor | direct_on_substrate
     substrate_overlap_cells: int = 0
     # Top of stairs-small-center @ scale 4 (space_station bbox ymax 0.3 × 4).
-    elevation_rise: float = 1.2
+    elevation_rise: float = 0.0
     entrance_door: Optional[EntrancePieceSpec] = None
     entrance_stairs: Optional[EntrancePieceSpec] = None
 
@@ -193,7 +193,7 @@ def _transition_from_dict(raw: Optional[dict], profile_id: str) -> TransitionSpe
     return TransitionSpec(
         mode=str(raw.get("mode", "direct_on_substrate")),
         substrate_overlap_cells=int(raw.get("substrate_overlap_cells", 0)),
-        elevation_rise=float(raw.get("elevation_rise", 1.2)),
+        elevation_rise=float(raw.get("elevation_rise", 0.0)),
         entrance_door=_piece_spec(raw.get("entrance_door")),
         entrance_stairs=_piece_spec(raw.get("entrance_stairs")),
     )

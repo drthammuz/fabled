@@ -6,29 +6,45 @@ Author-stated design (professions, faction camps, reputation, prologue → campa
 
 ## Synth dressing sandbox — read before interior / balcony / mezzanine work
 
-**Master plan:** [docs/synth-master-plan.md](docs/synth-master-plan.md). **Handover (transition + dressing):** [docs/handover-synth-2026-06-23.md](docs/handover-synth-2026-06-23.md) §7.
+**Master plan (START HERE):** [docs/synth-master-plan.md](docs/synth-master-plan.md) — roadmap, **open issues O1–O15**, **procgen problem history**, acceptance checklist, **Critical Context section (full history of manual feedback cost + all specific rules for windows/stairs/floors/relations/density)**, and **Automation-First Plan** (script/CPU approach). **Handover:** [docs/handover-synth-2026-06-23.md](docs/handover-synth-2026-06-23.md) §7 (now references the automation context). **Transition seam only:** [docs/synth-transition-architecture.md](docs/synth-transition-architecture.md) (D-table).
 
-Launch **`dressing.bat`** (not `editor.bat`). Saves under `userinput/synth_dressing/`. After generator changes:
+**Before touching synth_interior.py, placement_catalog, probe_synth_catalog.py (or probe_faction_catalog.py), decorate, furnish, or faction_interior.py:** read the Critical Context + Automation Plan in synth-master-plan.md so the expensive manual-per-object loop is never repeated. All future catalog/relation work must be script-driven. For all-faction interiors see the 2026-06-29 handover.
+
+**Dressing workflow** — launch **`dressing.bat`** (not `editor.bat`). Saves under `userinput/synth_dressing/`. The same automation principles (probe + script rules + sweeps) were extended to all factions (see handover 2026-06-29). After generator or catalog changes (and always after GLB edits):
 
 ```bash
+python tools/probe_synth_catalog.py
 python tools/gen_dressing_showcase.py
 python tools/verify_synth_placement.py userinput/synth_dressing/*.json
+# plus free-space / rule checks per Automation Plan
 ```
 
-Placement source of truth: `tools/synth_interior.py` + `assets/models/factions/synth/placement_catalog.json`.
+**Live procgen interior** (editor Map → Proc tab, cells=25) — same placement rules in `tools/synth_interior.py`. After changes:
+
+```bash
+python tools/test_synth_interior_rules.py
+python tools/gen_maps.py --seed 42 --probe
+```
+
+Rebuild client after Rust editor/playtest changes (`cargo build -p client`; tag **`2026-06-24g`**). Proc regen alone does not pick up Y-sync fixes.
+
+Placement source of truth: `tools/synth_interior.py` + `assets/models/factions/synth/placement_catalog.json` (enriched by probe + relations) + the full rules in synth-master-plan.md#critical-context. The catalog + rules must be script-probed so hundreds of items do not require manual per-object feedback.
 
 ## Faction asset system — read FIRST if continuing faction / per-faction architecture work
 
 **Latest handover (2026-06-22): [docs/handover-factions-2026-06-22.md](docs/handover-factions-2026-06-22.md)** — self-contained context with no prior chat needed. Covers the per-faction asset-folder pipeline, the 5 current factions (industrial, priesthood, synth, outlaw/urban, necropolis), calibration (scale/yaw_offset/inset), critical gotchas (Blender white-bug, role-aware floor audits, faction-driven colour), and the remaining roster (props system, castle pass, slopes). Detailed refs: [docs/faction_assets.md](docs/faction_assets.md), [docs/faction_roster.md](docs/faction_roster.md).
 
+**Faction interior placement automation handover (this session, 2026-06-29):** [docs/handover-faction-interior-2026-06-29.md](docs/handover-faction-interior-2026-06-29.md) — user's initial automation goals (script-driven catalog + relations + no manual loops), what was built (probe, unified placer, sweeps, bats, wall/corridor attempts), recurring complaints (overlaps, bench facing/backrest, roadblocks in corridors, grave rows, priesthood ruins logic, cross-faction, lack of probe auto-detection), and what remained unfixed. Read after the 2026-06-22 handover. Always re-read synth-master-plan Critical Context + Automation Plan before touching placement/catalog code.
+
 ## Procedural map generation — read before touching `gen_maps`, tile synthesis, or editor Proc tab
 
 Kenney map procgen is mid-refactor: **tile synthesis only**, **no room GLBs**, **mission graph not yet implemented**.
 
-**Before changing `tools/gen_maps.py`, `tools/gen_modules.py` (strat_planned / synthesis), `editor_map_gen.rs`, `level_composition.py`, `gen_freeform.py`, or Kenney layout generation:**
+**Before changing `tools/gen_maps.py`, `tools/gen_modules.py` (strat_planned / synthesis), `editor_map_gen.rs`, `level_composition.py`, `gen_freeform.py`, `tools/synth_interior.py`, `tools/synth_transition.py`, or Kenney layout generation:**
 
 1. Read **[docs/procgen-faction-manifest.md](docs/procgen-faction-manifest.md)** — start at **§0 Agent handoff** if you have no prior chat context. It defines phased delivery, current vs target state, and the **Phase 1** task (spine + branches + role-based synthesis).
 2. For **multi-faction zone paint, prev/next adjacency, or per-faction corridor/room requirements**, read **[docs/procgen-zone-composition.md](docs/procgen-zone-composition.md)** — current pipeline vs manifest layer order, options, and recommendations.
+3. For **synth interior furnish, balconies, or mezzanine**, read **[docs/synth-master-plan.md](docs/synth-master-plan.md)** (open issues + problem history) — not the manifest Phase 1 scope alone.
 3. **Scope:** Phase 1 = Kenney layout quality only. Do not wire faction profiles, industrial merge, or camp transitions until Phase 1 exit criteria in the manifest are met.
 4. After map gen changes, run:
    - `python tools/gen_maps.py --seed 42 --probe`
@@ -73,10 +89,11 @@ For hub / extraction / Kenney playtest visual–physics work, Bugbot should use 
 
 | Topic | Doc |
 |-------|-----|
-| **Synth master plan & interior roadmap (START HERE for synth)** | [docs/synth-master-plan.md](docs/synth-master-plan.md) |
+| **Synth master plan & interior roadmap (START HERE for synth)** | [docs/synth-master-plan.md](docs/synth-master-plan.md) — incl. open issues + procgen problem history + **Critical Context (pain + rules)** + **Automation Plan (scripts/CPU)** |
 | Synth handover (transition D-table + dressing §7) | [docs/handover-synth-2026-06-23.md](docs/handover-synth-2026-06-23.md) |
 | Synth transition & elevated deck (rules + D-table) | [docs/synth-transition-architecture.md](docs/synth-transition-architecture.md) |
 | **Faction asset system (latest handover, 2026-06-22)** | [docs/handover-factions-2026-06-22.md](docs/handover-factions-2026-06-22.md) |
+| Faction interior placement automation (this session) | [docs/handover-faction-interior-2026-06-29.md](docs/handover-faction-interior-2026-06-29.md) |
 | Faction asset folders / manifest schema | [docs/faction_assets.md](docs/faction_assets.md) |
 | Faction roster (5 factions × 13 kits) | [docs/faction_roster.md](docs/faction_roster.md) |
 | Procgen / factions / Phase 1 task | [docs/procgen-faction-manifest.md](docs/procgen-faction-manifest.md) |

@@ -9,7 +9,10 @@ import random
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from collections.abc import Callable
 from typing import Iterable
+
+WorldAt = Callable[[tuple[int, int]], tuple[float, float]]
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = ROOT / "assets" / "models" / "factions" / "synth" / "placement_catalog.json"
@@ -21,8 +24,14 @@ GAP_M = 0.35
 PLACE_GAP = GAP_M * 2.0 + 0.1
 
 CATALOG = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-WALL_FACE = CATALOG["wall_face_offset_m"]
-WALL_T = CATALOG["wall_half_thickness_m"]
+if isinstance(CATALOG, dict) and "stems" in CATALOG and "wall_face_offset_m" not in CATALOG:
+    # Compatibility with new probe_faction_catalog format (stems only + metadata).
+    # These were top-level in the old synth-specific probe.
+    CATALOG["wall_face_offset_m"] = 2.0
+    CATALOG["wall_half_thickness_m"] = 0.6
+    CATALOG["deck_y"] = CATALOG.get("deck_y", 1.2)
+WALL_FACE = CATALOG.get("wall_face_offset_m", 2.0)
+WALL_T = CATALOG.get("wall_half_thickness_m", 0.6)
 
 CellIx = tuple[int, int]
 CellW = tuple[float, float]
@@ -314,14 +323,52 @@ def flush_back_to_wall(
     raise ValueError(f"flush_back_to_wall unsupported: {stem} {wall} yaw={yaw}")
 
 
+def get_desk_front_clearance(desk_stem: str) -> float:
+    """Return explicit min safety offset using the probe's visual features + suggested_front_clearance_m.
+    This ensures chairs are placed far enough from desks/computers/tables based on catalogued visual+physical data,
+    preventing bbox overlaps that the fixed PLACE_GAP alone sometimes misses.
+    """
+    try:
+        vis = stem_info(desk_stem).get("visual", {})
+        suggested = float(vis.get("suggested_front_clearance_m", 0.0))
+        # explicit minimum safety: never smaller than suggested, and at least the normal PLACE_GAP
+        return max(PLACE_GAP, suggested + 0.05)
+    except Exception:
+        return PLACE_GAP
+
+
 def chair_before_desk(chair_stem: str, desk: dict, desk_stem: str | None = None) -> dict:
+    """Seat the chair in FRONT of the desk along its facing axis (not always north).
+
+    Desk yaw is always axis-aligned (0, pi, +/-pi/2). A north-only assumption put the
+    chair behind/beside desks on side walls — sometimes onto a reserved (stair) cell.
+
+    Now incorporates catalog visual `suggested_front_clearance_m` for safety offset (fix for overlaps in sweeps).
+    """
     desk_stem = desk_stem or desk["stem"]
-    desk_bb = world_bbox(desk_stem, desk["x"], desk["z"], desk["yaw"], desk["scale"])
-    cz = desk_bb.z1 + 1.5
-    yaw = look_at(chair_stem, desk["x"], cz, desk["x"], desk["z"])
-    chair_offs = _world_corner_offsets(chair_stem, yaw, desk["scale"])
-    cz = desk_bb.z1 + PLACE_GAP - min(wz for _, wz in chair_offs)
-    return prop(chair_stem, desk["x"], cz, yaw=yaw)
+    yaw = desk["yaw"]
+    fx = round(math.sin(yaw))
+    fz = round(math.cos(yaw))
+    desk_bb = world_bbox(desk_stem, desk["x"], desk["z"], yaw, desk["scale"])
+    clear_gap = get_desk_front_clearance(desk_stem)
+    if fz != 0:  # desk faces north/south
+        face_z = desk_bb.z1 if fz > 0 else desk_bb.z0
+        chair_yaw = look_at(chair_stem, desk["x"], face_z + fz * clear_gap, desk["x"], desk["z"])
+        offs = _world_corner_offsets(chair_stem, chair_yaw, desk["scale"])
+        if fz > 0:
+            cz = face_z + clear_gap - min(wz for _, wz in offs)
+        else:
+            cz = face_z - clear_gap - max(wz for _, wz in offs)
+        return prop(chair_stem, desk["x"], cz, yaw=chair_yaw)
+    # desk faces east/west
+    face_x = desk_bb.x1 if fx > 0 else desk_bb.x0
+    chair_yaw = look_at(chair_stem, face_x + fx * clear_gap, desk["z"], desk["x"], desk["z"])
+    offs = _world_corner_offsets(chair_stem, chair_yaw, desk["scale"])
+    if fx > 0:
+        cx = face_x + clear_gap - min(wx for wx, _ in offs)
+    else:
+        cx = face_x - clear_gap - max(wx for wx, _ in offs)
+    return prop(chair_stem, cx, desk["z"], yaw=chair_yaw)
 
 
 def chairs_at_east_table(chair_stem: str, table: dict) -> list[dict]:
@@ -330,15 +377,16 @@ def chairs_at_east_table(chair_stem: str, table: dict) -> list[dict]:
     table_bb = world_bbox(table["stem"], tx, tz, table["yaw"], scale)
     z0, z1 = table_bb.z0, table_bb.z1
 
+    clear_gap = get_desk_front_clearance(table.get("stem", "table"))
     north_z = z1 + 1.5
     yaw_n = look_at(chair_stem, tx, north_z, tx, tz)
     off_n = _world_corner_offsets(chair_stem, yaw_n, scale)
-    north_z = z1 + PLACE_GAP - min(wz for _, wz in off_n)
+    north_z = z1 + clear_gap - min(wz for _, wz in off_n)
 
     south_z = z0 - 1.5
     yaw_s = look_at(chair_stem, tx, south_z, tx, tz)
     off_s = _world_corner_offsets(chair_stem, yaw_s, scale)
-    south_z = z0 - PLACE_GAP - max(wz for _, wz in off_s)
+    south_z = z0 - clear_gap - max(wz for _, wz in off_s)
 
     return [
         prop(chair_stem, tx, north_z, yaw=yaw_n),
@@ -352,6 +400,217 @@ def cells_rect(ix0: int, iz0: int, ix1: int, iz1: int) -> set[CellIx]:
 
 def ix_to_world(cell: CellIx) -> CellW:
     return cell[0] * CELL, cell[1] * CELL
+
+
+def _cell_world(cell: CellIx, world_at: WorldAt | None = None) -> CellW:
+    return world_at(cell) if world_at else ix_to_world(cell)
+
+
+def analyze_synth_zone(
+    walkable: set[CellIx],
+    zone_lookup: Callable[[CellIx], str | None],
+    deck_cells: set[CellIx],
+    corridor_cells: set[CellIx],
+    *,
+    transition_cells: set[CellIx] | None = None,
+    synth_zones: frozenset[str] = frozenset({"prev", "next"}),
+) -> tuple[set[CellIx], set[CellIx], dict[int, set[CellIx]]]:
+    """Derive floor grid, corridor mask, and room components inside a synth zone.
+
+    Used by live procgen (``gen_freeform``) — dressing vignettes use hand-authored
+    floor plans instead.
+    """
+    synth_cells = {c for c in walkable if zone_lookup(c) in synth_zones}
+    if not synth_cells:
+        return set(), set(), {}
+    floor_ix = synth_cells
+    transition = (transition_cells or set()) & synth_cells
+    corridor_ix = (synth_cells & corridor_cells) | (deck_cells & synth_cells) | transition
+    # One-cell buffer around transitions/deck — no beds or heavy props in the foyer band.
+    for c in list(transition):
+        ix, iz = c
+        for dx, dz in ((0, -1), (0, 1), (1, 0), (-1, 0)):
+            nb = (ix + dx, iz + dz)
+            if nb in synth_cells:
+                corridor_ix.add(nb)
+    candidates = synth_cells - corridor_ix
+    rooms: dict[int, set[CellIx]] = {}
+    visited: set[CellIx] = set()
+    rid = 0
+    for start in sorted(candidates):
+        if start in visited:
+            continue
+        stack = [start]
+        component: set[CellIx] = set()
+        while stack:
+            c = stack.pop()
+            if c in visited or c not in candidates:
+                continue
+            visited.add(c)
+            component.add(c)
+            for dx, dz in ((0, -1), (0, 1), (1, 0), (-1, 0)):
+                stack.append((c[0] + dx, c[1] + dz))
+        if component:
+            rooms[rid] = component
+            rid += 1
+    # Corridor segments mis-parsed as rooms (1-wide hall, alcoves between corridor arms).
+    for rid, cells in list(rooms.items()):
+        mouths = count_corridor_mouths(cells, corridor_ix)
+        if mouths >= 2 or (len(cells) == 1 and mouths >= 1):
+            corridor_ix |= cells
+            del rooms[rid]
+    return floor_ix, corridor_ix, rooms
+
+
+def _world_to_cell(x: float, z: float, gx: int, gz: int) -> CellIx:
+    return (
+        int(round(x / CELL + gx / 2 - 0.5)),
+        int(round(z / CELL + gz / 2 - 0.5)),
+    )
+
+
+def _prop_anchor_cell(p: dict, cell_at: Callable[[float, float], CellIx] | None) -> CellIx | None:
+    if cell_at is None:
+        return None
+    return cell_at(float(p["x"]), float(p["z"]))
+
+
+def _bbox_footprint_cells(
+    bb: BBox,
+    cell_at: Callable[[float, float], CellIx],
+    *,
+    step: float = CELL / 2,
+) -> set[CellIx]:
+    """Grid samples covering a prop bbox (catches corridor spill from large pieces)."""
+    cells: set[CellIx] = set()
+    x = bb.x0
+    while x <= bb.x1 + 1e-6:
+        z = bb.z0
+        while z <= bb.z1 + 1e-6:
+            cells.add(cell_at(x, z))
+            z += step
+        x += step
+    return cells
+
+
+def _prop_allowed(
+    p: dict,
+    info: RoomInfo,
+    corridor_ix: set[CellIx],
+    transition_ix: set[CellIx],
+    synth_zones: frozenset[str],
+    zone_lookup: Callable[[CellIx], str | None],
+    cell_at: Callable[[float, float], CellIx],
+    blocked: set[CellIx] | None = None,
+) -> bool:
+    blocked = blocked or set()
+    cell = cell_at(float(p["x"]), float(p["z"]))
+    if cell not in info.cells_ix:
+        return False
+    if cell in corridor_ix or cell in transition_ix or cell in blocked:
+        return False
+    if zone_lookup(cell) not in synth_zones:
+        return False
+    if p["stem"].startswith(("bed-single", "bed-double")):
+        if touches_transition(info.cells_ix, transition_ix):
+            return False
+    bb = world_bbox(p["stem"], p["x"], p["z"], p["yaw"], p.get("scale", SCALE))
+    footprint = _bbox_footprint_cells(bb, cell_at)
+    for fc in footprint:
+        if fc in corridor_ix or fc in transition_ix or fc in blocked:
+            return False
+        if fc not in info.cells_ix:
+            return False
+        zc = zone_lookup(fc)
+        if zc is not None and zc not in synth_zones:
+            return False
+    return True
+
+
+def furnish_procgen_zone(
+    pieces: list[dict],
+    floor_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    room_infos: list[RoomInfo],
+    rng: random.Random,
+    *,
+    world_at: WorldAt | None = None,
+    zone: str | None = None,
+    walkable: set[CellIx] | None = None,
+    transition_ix: set[CellIx] | None = None,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    cell_at: Callable[[float, float], CellIx] | None = None,
+    synth_zones: frozenset[str] = frozenset({"prev", "next"}),
+) -> int:
+    """Room-first props + perimeter balconies + command mezzanine for procgen maps."""
+    trans = transition_ix or set()
+    n = 0
+
+    # Reserve the mezzanine footprint (deck + stair cell) so ground furniture never
+    # lands on a cell that becomes elevated deck (props would float 1.2 m below it).
+    command = next((i for i in room_infos if i.role == "command"), None)
+    mezz_blocked: set[CellIx] = set()
+    if command is not None:
+        mplan = mezzanine_plan(command, corridor_ix)
+        if mplan is not None:
+            mezz_blocked = set(mplan["deck_cells"]) | {
+                (mplan["stair_col"], mplan["stairs"][0][1])
+            }
+            # Ensure clear passage around the stair in the low area so players can reach the stairs
+            # (addresses blocking in the only low row)
+            srow = mplan.get("stair_row") or (mplan["stairs"][0][1] if mplan.get("stairs") else 0)
+            scol = mplan["stair_col"]
+            for dx in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    nc = (scol + dx, srow + dz)
+                    if nc in command.cells_ix:
+                        mezz_blocked.add(nc)
+
+    for info in room_infos:
+        if info.role == "corridor":
+            continue
+        blocked = mezz_blocked if info.role == "command" else set()
+        furnish_ix = info.cells_ix - blocked
+        if not furnish_ix:
+            continue
+        cells_w = {_cell_world(c, world_at) for c in furnish_ix}
+        props = furnish_room(
+            info.role, cells_w, furnish_ix, corridor_ix, floor_ix, rng,
+            zone_lookup=zone_lookup, transition_ix=trans, synth_zones=synth_zones,
+            cell_at=cell_at,
+        )
+        for p in props:
+            if cell_at and zone_lookup and not _prop_allowed(
+                p, info, corridor_ix, trans, synth_zones, zone_lookup, cell_at,
+                blocked=blocked,
+            ):
+                continue
+            p["tags"] = ["synth_prop", "synth_interior", info.role, f"room_{info.room_id}"]
+            p["role"] = "prop"
+            if zone:
+                p["zone"] = zone
+            # Beds must sit ON the deck with an explicit Y so playtest sync cannot
+            # collapse them to substrate height when multiple pieces share a cell column.
+            if p["stem"].startswith(("bed-single", "bed-double")):
+                p["y"] = round(DECK_Y, 4)
+            else:
+                p.pop("y", None)  # ``_apply_zone_elevation`` sets deck height
+            pieces.append(p)
+            n += 1
+
+    # Mezzanine before balconies so elevated deck exists; balconies last + pruned to match rules.
+    pieces[:] = add_command_mezzanine(
+        pieces, room_infos, world_at=world_at, zone=zone, corridor_ix=corridor_ix,
+    )
+    pieces[:] = apply_perimeter_balconies(
+        pieces, floor_ix, corridor_ix, rng, world_at=world_at, walkable=walkable, zone=zone,
+        zone_lookup=zone_lookup, cell_at=cell_at, transition_cells=trans,
+    )
+    pieces[:] = prune_invalid_balconies(
+        pieces, floor_ix, corridor_ix, world_at=world_at, walkable=walkable, zone_lookup=zone_lookup,
+        cell_at=cell_at,
+    )
+    return n
 
 
 def world_bounds(cells_w: Iterable[CellW]) -> tuple[float, float, float, float]:
@@ -390,22 +649,115 @@ def room_dimensions(room_ix: set[CellIx]) -> tuple[int, int, int]:
     return len(room_ix), w, h
 
 
-def classify_room(room_ix: set[CellIx], corridor_ix: set[CellIx]) -> str:
+def touches_transition(room_ix: set[CellIx], transition_ix: set[CellIx]) -> bool:
+    if not transition_ix:
+        return False
+    for ix, iz in room_ix:
+        for dx, dz in ((0, -1), (0, 1), (1, 0), (-1, 0)):
+            if (ix + dx, iz + dz) in transition_ix:
+                return True
+    return False
+
+
+def opens_to_default(
+    cells_ix: set[CellIx],
+    zone_lookup: Callable[[CellIx], str | None],
+    synth_zones: frozenset[str] = frozenset({"prev", "next"}),
+) -> set[str]:
+    """Room faces that open onto non-synth walkable zones (industrial substrate seam)."""
+    faces: set[str] = set()
+    for ix, iz in cells_ix:
+        if (ix, iz - 1) not in cells_ix:
+            z = zone_lookup((ix, iz - 1))
+            if z is not None and z not in synth_zones:
+                faces.add("south")
+        if (ix, iz + 1) not in cells_ix:
+            z = zone_lookup((ix, iz + 1))
+            if z is not None and z not in synth_zones:
+                faces.add("north")
+        if (ix - 1, iz) not in cells_ix:
+            z = zone_lookup((ix - 1, iz))
+            if z is not None and z not in synth_zones:
+                faces.add("west")
+        if (ix + 1, iz) not in cells_ix:
+            z = zone_lookup((ix + 1, iz))
+            if z is not None and z not in synth_zones:
+                faces.add("east")
+    return faces
+
+
+def valid_quarters_room(
+    room_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    transition_ix: set[CellIx],
+) -> bool:
+    """Beds only in real rooms: not corridor, not transition-adjacent, single mouth, min 2×2."""
+    if room_ix & corridor_ix:
+        return False
+    if touches_transition(room_ix, transition_ix):
+        return False
+    if count_corridor_mouths(room_ix, corridor_ix) != 1:
+        return False
+    area, w, h = room_dimensions(room_ix)
+    return area >= 4 and w >= 2 and h >= 2
+
+
+def _pick_interior_wall(
+    cells_w: set[CellW],
+    cells_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    floor_ix: set[CellIx],
+    zone_lookup: Callable[[CellIx], str | None] | None,
+    synth_zones: frozenset[str],
+    *,
+    transition_ix: set[CellIx] | None = None,
+    cell_at: Callable[[float, float], CellIx] | None = None,
+    test_stem: str = "computer-system",
+) -> str | None:
+    """Wall face where a desk cluster fits entirely inside the room (bbox-checked)."""
+    trans = transition_ix or set()
+    corridor = opens_to_corridor(cells_ix, corridor_ix)
+    for face in ("south", "west", "north", "east"):
+        if face in corridor:
+            continue
+        test = _test_desk_on_wall(face, cells_w, cells_ix, floor_ix, test_stem)
+        if test is None:
+            continue
+        if cell_at is None or zone_lookup is None:
+            return face
+        if _prop_fits_room(test, cells_ix, corridor_ix, trans, synth_zones, zone_lookup, cell_at):
+            return face
+    return None
+
+
+def classify_room(
+    room_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    transition_ix: set[CellIx] | None = None,
+) -> str:
     area, w, h = room_dimensions(room_ix)
     mouths = count_corridor_mouths(room_ix, corridor_ix)
+    trans = transition_ix or set()
+    if touches_transition(room_ix, trans):
+        if area <= 6:
+            return "storage"
     if mouths <= 1 and area <= 4:
         return "storage"
-    if area <= 6 and w <= 3 and h <= 3:
+    if valid_quarters_room(room_ix, corridor_ix, trans):
         return "quarters"
     if area >= 16 and w >= 4 and h >= 3 and has_open_core(room_ix):
         return "mess"
     return "lab"
 
 
-def assign_roles(rooms: dict[int, set[CellIx]], corridor_ix: set[CellIx]) -> dict[int, str]:
+def assign_roles(
+    rooms: dict[int, set[CellIx]],
+    corridor_ix: set[CellIx],
+    transition_ix: set[CellIx] | None = None,
+) -> dict[int, str]:
     roles: dict[int, str] = {}
     for rid, cells in rooms.items():
-        roles[rid] = classify_room(cells, corridor_ix)
+        roles[rid] = classify_room(cells, corridor_ix, transition_ix)
     if not rooms:
         return roles
     largest = max(rooms, key=lambda r: len(rooms[r]))
@@ -515,85 +867,252 @@ def _lateral_clear_xs(cells_w: set[CellW], south: float, stem: str) -> list[floa
     return _south_desk_xs(cells_ix, floor_ix, stem)
 
 
+def _prop_fits_room(
+    p: dict,
+    cells_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    transition_ix: set[CellIx],
+    synth_zones: frozenset[str],
+    zone_lookup: Callable[[CellIx], str | None],
+    cell_at: Callable[[float, float], CellIx],
+) -> bool:
+    """True when a prop anchor + probed bbox stay inside this synth room."""
+    cell = cell_at(float(p["x"]), float(p["z"]))
+    if cell not in cells_ix or cell in corridor_ix or cell in transition_ix:
+        return False
+    if zone_lookup(cell) not in synth_zones:
+        return False
+    bb = world_bbox(p["stem"], p["x"], p["z"], p["yaw"], p.get("scale", SCALE))
+    for fc in _bbox_footprint_cells(bb, cell_at):
+        if fc in corridor_ix or fc in transition_ix or fc not in cells_ix:
+            return False
+        zc = zone_lookup(fc)
+        if zc is not None and zc not in synth_zones:
+            return False
+    return True
+
+
+def _bed_fits_room(
+    p: dict,
+    cells_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    transition_ix: set[CellIx],
+    synth_zones: frozenset[str],
+    zone_lookup: Callable[[CellIx], str | None],
+    cell_at: Callable[[float, float], CellIx],
+) -> bool:
+    return _prop_fits_room(
+        p, cells_ix, corridor_ix, transition_ix, synth_zones, zone_lookup, cell_at
+    )
+
+
+def _test_desk_on_wall(
+    wall: str,
+    cells_w: set[CellW],
+    cells_ix: set[CellIx],
+    floor_ix: set[CellIx],
+    stem: str = "computer-system",
+) -> dict | None:
+    west, east, south, north, mid_x, mid_z = _room_span(cells_w)
+    try:
+        if wall == "south":
+            xs = _south_desk_xs(cells_ix, floor_ix, stem)
+            if not xs:
+                return None
+            return flush_back_to_wall(stem, "south", xs[len(xs) // 2], 0.0, z=south)
+        yaw = {"west": HALF_PI, "east": -HALF_PI, "north": math.pi, "south": 0.0}[wall]
+        anchor = {"west": west, "east": east, "north": north, "south": south}[wall]
+        x = anchor if wall in ("west", "east") else mid_x
+        z = mid_z if wall in ("west", "east") else south
+        return flush_back_to_wall(stem, wall, x, yaw, z=z)
+    except ValueError:
+        return None
+
+
 def setup_quarters(
-    cells_w: set[CellW], cells_ix: set[CellIx], corridor_ix: set[CellIx], rng: random.Random
+    cells_w: set[CellW],
+    cells_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    rng: random.Random,
+    *,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    transition_ix: set[CellIx] | None = None,
+    synth_zones: frozenset[str] = frozenset({"prev", "next"}),
+    cell_at: Callable[[float, float], CellIx] | None = None,
 ) -> list[dict]:
-    """Bunk-verified bed pattern — matches ``bunk_furnished_c`` offsets exactly."""
+    """Bunk-verified bed pattern — matches ``bunk_furnished_c`` when the room has an interior corner."""
+    trans = transition_ix or set()
+    if not valid_quarters_room(cells_ix, corridor_ix, trans):
+        return []
     west, east, south, north, _, _ = _room_span(cells_w)
     area = len(cells_w)
     corridor = opens_to_corridor(cells_ix, corridor_ix)
-    west_bed_z = south + CELL  # bunk west bed at z=-2 when south=-6
+    default = opens_to_default(cells_ix, zone_lookup, synth_zones) if zone_lookup else set()
+    west_bed_z = south + CELL
     out: list[dict] = []
 
-    if "south" not in corridor:
-        out.append(bed_origin_at_wall("south", west, south, 0.0))
-    else:
-        out.append(bed_origin_at_wall("west", west, west_bed_z, HALF_PI))
+    def keep(bed: dict) -> bool:
+        if cell_at is None or zone_lookup is None:
+            return True
+        return _bed_fits_room(bed, cells_ix, corridor_ix, trans, synth_zones, zone_lookup, cell_at)
 
+    bunk: list[dict] = []
+    if "south" not in corridor and "south" not in default:
+        bunk.append(bed_origin_at_wall("south", west, south, 0.0))
+    if "west" not in corridor and "west" not in default:
+        bunk.append(bed_origin_at_wall("west", west, west_bed_z, HALF_PI))
     if area >= 8 and "south" not in corridor and "west" not in corridor:
-        out.append(bed_origin_at_wall("west", west, west_bed_z, HALF_PI))
-        out.append(bed_origin_at_wall("south", west, south, 0.0))
+        if "south" not in default and "west" not in default:
+            bunk = [
+                bed_origin_at_wall("west", west, west_bed_z, HALF_PI),
+                bed_origin_at_wall("south", west, south, 0.0),
+            ]
+    for bed in bunk:
+        if keep(bed):
+            out.append(bed)
+
+    if not out:
+        # Exterior rooms: pick any wall where the bunk bed bbox stays inside the room.
+        mid_x = (west + east) / 2.0
+        mid_z = (south + north) / 2.0
+        for face, x, z, yaw in (
+            ("south", west, south, 0.0),
+            ("west", west, west_bed_z, HALF_PI),
+            ("north", west, north, math.pi),
+            ("east", east, mid_z, -HALF_PI),
+        ):
+            if face in corridor:
+                continue
+            bed = bed_origin_at_wall(face, x, z, yaw)
+            if keep(bed):
+                out.append(bed)
+                break
 
     if area >= 4 and not (area <= 6 and "south" not in corridor):
         corner_stem = rng.choice(["container", "container-flat"])
-        if "south" not in corridor:
+        if "south" not in corridor and "south" not in default:
             c = flush_back_to_wall(corner_stem, "east", east, -HALF_PI, z=south)
             out.append(nudge_prop_to_room(c, west, east, south, north))
-        else:
+        elif "east" not in corridor:
             c = flush_back_to_wall(corner_stem, "east", east, -HALF_PI, z=north)
             out.append(nudge_prop_to_room(c, west, east, south, north))
     return out
 
 
 def setup_lab(
-    cells_w: set[CellW], cells_ix: set[CellIx], floor_ix: set[CellIx], rng: random.Random
+    cells_w: set[CellW],
+    cells_ix: set[CellIx],
+    floor_ix: set[CellIx],
+    rng: random.Random,
+    *,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    corridor_ix: set[CellIx] | None = None,
+    synth_zones: frozenset[str] = frozenset({"prev", "next"}),
+    transition_ix: set[CellIx] | None = None,
+    cell_at: Callable[[float, float], CellIx] | None = None,
 ) -> list[dict]:
     _, east, south, north, _, _ = _room_span(cells_w)
     depth = north - south
+    wall = _pick_interior_wall(
+        cells_w, cells_ix, corridor_ix or set(), floor_ix, zone_lookup, synth_zones,
+        transition_ix=transition_ix, cell_at=cell_at,
+    )
     out: list[dict] = []
     desk_stems = ["computer-screen", "computer-system", "computer-wide"]
     chair_stems = ["chair", "chair-armrest-headrest"]
-    xs_l = _south_desk_xs(cells_ix, floor_ix, desk_stems[0])
-    xs_r = _south_desk_xs(cells_ix, floor_ix, desk_stems[1])
-    xs = [x for x in xs_l if x in xs_r] or xs_l or xs_r
-    if len(xs) >= 2 and xs[-1] - xs[0] >= CELL * 2:
-        desk_l = flush_back_to_wall(desk_stems[0], "south", xs[0], 0.0, z=south)
-        desk_r = flush_back_to_wall(desk_stems[1], "south", xs[-1], 0.0, z=south)
-        out.extend(
-            [
-                desk_l,
-                desk_r,
-                chair_before_desk(chair_stems[0], desk_l, desk_stems[0]),
-                chair_before_desk(chair_stems[1], desk_r, desk_stems[1]),
-            ]
-        )
-    elif xs:
-        x = xs[len(xs) // 2]
+    if wall is None:
+        west, east, south, north, mid_x, mid_z = _room_span(cells_w)
+        desk = prop("computer-system", mid_x, mid_z, look=(mid_x, mid_z + CELL * 0.35))
+        out.extend([desk, chair_before_desk(rng.choice(chair_stems), desk, desk["stem"])])
+    elif wall == "south":
+        xs_l = _south_desk_xs(cells_ix, floor_ix, desk_stems[0])
+        xs_r = _south_desk_xs(cells_ix, floor_ix, desk_stems[1])
+        xs = [x for x in xs_l if x in xs_r] or xs_l or xs_r
+        if len(xs) >= 2 and xs[-1] - xs[0] >= CELL * 2:
+            desk_l = flush_back_to_wall(desk_stems[0], "south", xs[0], 0.0, z=south)
+            desk_r = flush_back_to_wall(desk_stems[1], "south", xs[-1], 0.0, z=south)
+            out.extend(
+                [
+                    desk_l,
+                    desk_r,
+                    chair_before_desk(chair_stems[0], desk_l, desk_stems[0]),
+                    chair_before_desk(chair_stems[1], desk_r, desk_stems[1]),
+                ]
+            )
+        elif xs:
+            x = xs[len(xs) // 2]
+            stem = rng.choice(desk_stems)
+            desk = flush_back_to_wall(stem, "south", x, 0.0, z=south)
+            out.extend([desk, chair_before_desk(rng.choice(chair_stems), desk, stem)])
+    else:
+        west, east, south, north, mid_x, mid_z = _room_span(cells_w)
+        yaw = {"west": HALF_PI, "east": -HALF_PI, "north": math.pi, "south": 0.0}[wall]
         stem = rng.choice(desk_stems)
-        desk = flush_back_to_wall(stem, "south", x, 0.0, z=south)
+        if wall in ("north", "south"):
+            desk = flush_back_to_wall(stem, wall, mid_x, yaw, z=north if wall == "north" else south)
+        else:
+            desk = flush_back_to_wall(stem, wall, west if wall == "west" else east, yaw, z=mid_z)
         out.extend([desk, chair_before_desk(rng.choice(chair_stems), desk, stem)])
-    if depth >= CELL * 4:
+    if depth >= CELL * 3 and wall != "east":
         c = flush_back_to_wall("container-tall", "east", east, -HALF_PI, z=north)
         out.append(nudge_prop_to_room(c, *(_room_span(cells_w)[:4])))
+    # extra filler to avoid mostly empty labs
+    if len(out) < 2 and len(cells_w) > 4:
+        try:
+            filler = prop("container", mid_x, mid_z)
+            out.append(nudge_prop_to_room(filler, *(_room_span(cells_w)[:4])))
+        except:
+            pass
     return out
 
 
 def setup_office(
-    cells_w: set[CellW], cells_ix: set[CellIx], floor_ix: set[CellIx], _: random.Random
+    cells_w: set[CellW],
+    cells_ix: set[CellIx],
+    floor_ix: set[CellIx],
+    _: random.Random,
+    *,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    corridor_ix: set[CellIx] | None = None,
+    synth_zones: frozenset[str] = frozenset({"prev", "next"}),
+    transition_ix: set[CellIx] | None = None,
+    cell_at: Callable[[float, float], CellIx] | None = None,
 ) -> list[dict]:
-    west, east, south, north, mid_x, _ = _room_span(cells_w)
+    west, east, south, north, mid_x, mid_z = _room_span(cells_w)
     depth = north - south
-    xs = _south_desk_xs(cells_ix, floor_ix, "computer-system")
-    desk_x = xs[len(xs) // 2] if xs else mid_x
-    desk = flush_back_to_wall("computer-system", "south", desk_x, 0.0, z=south)
+    wall = _pick_interior_wall(
+        cells_w, cells_ix, corridor_ix or set(), floor_ix, zone_lookup, synth_zones,
+        transition_ix=transition_ix, cell_at=cell_at,
+    )
+    if wall is None:
+        corridor = opens_to_corridor(cells_ix, corridor_ix or set())
+        look_z = mid_z + CELL if "south" in corridor else mid_z - CELL if "north" in corridor else mid_z + CELL * 0.35
+        look_x = mid_x + CELL if "west" in corridor else mid_x - CELL if "east" in corridor else mid_x
+        desk = prop(
+            "computer-system",
+            mid_x,
+            mid_z - CELL * 0.1 if "south" not in corridor else mid_z + CELL * 0.1,
+            look=(look_x, look_z),
+        )
+        return [desk, chair_before_desk("chair-armrest-headrest", desk)]
+    if wall == "south":
+        xs = _south_desk_xs(cells_ix, floor_ix, "computer-system")
+        desk_x = xs[len(xs) // 2] if xs else mid_x
+        desk = flush_back_to_wall("computer-system", "south", desk_x, 0.0, z=south)
+    else:
+        yaw = {"west": HALF_PI, "east": -HALF_PI, "north": math.pi, "south": 0.0}[wall]
+        if wall in ("north", "south"):
+            desk = flush_back_to_wall("computer-system", wall, mid_x, yaw, z=north if wall == "north" else south)
+        else:
+            desk = flush_back_to_wall("computer-system", wall, west if wall == "west" else east, yaw, z=mid_z)
     out = [
         desk,
         chair_before_desk("chair-armrest-headrest", desk),
     ]
-    if depth >= CELL * 4:
+    if depth >= CELL * 4 and wall != "east":
         c = flush_back_to_wall("container-tall", "east", east, -HALF_PI, z=north)
         out.append(nudge_prop_to_room(c, west, east, south, north))
-    elif depth >= CELL * 3:
+    elif depth >= CELL * 3 and wall != "west":
         c = flush_back_to_wall("container", "west", west, HALF_PI, z=south)
         out.append(nudge_prop_to_room(c, west, east, south, north))
     return out
@@ -611,7 +1130,13 @@ def setup_storage(cells_w: set[CellW], rng: random.Random) -> list[dict]:
         c = flush_back_to_wall(stem, "east", east, -HALF_PI, z=south)
     else:
         c = flush_back_to_wall(stem, "west", west, HALF_PI, z=south)
-    return [nudge_prop_to_room(c, west, east, south, north)]
+    out = [nudge_prop_to_room(c, west, east, south, north)]
+    # second for less empty storage rooms
+    if len(cells_w) > 5:
+        stem2 = rng.choice(["container-flat", "container"])
+        c2 = flush_back_to_wall(stem2, "east", east, -HALF_PI, z=south)
+        out.append(nudge_prop_to_room(c2, west, east, south, north))
+    return out
 
 
 def setup_mess(cells_w: set[CellW], rng: random.Random) -> list[dict]:
@@ -631,23 +1156,51 @@ def furnish_room(
     corridor_ix: set[CellIx],
     floor_ix: set[CellIx],
     rng: random.Random,
+    *,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    transition_ix: set[CellIx] | None = None,
+    synth_zones: frozenset[str] = frozenset({"prev", "next"}),
+    cell_at: Callable[[float, float], CellIx] | None = None,
 ) -> list[dict]:
+    trans = transition_ix or set()
     if role == "quarters":
-        return setup_quarters(cells_w, cells_ix, corridor_ix, rng)
+        if not valid_quarters_room(cells_ix, corridor_ix, trans):
+            return []
+        return setup_quarters(
+            cells_w, cells_ix, corridor_ix, rng,
+            zone_lookup=zone_lookup, transition_ix=trans, synth_zones=synth_zones,
+            cell_at=cell_at,
+        )
     if role == "lab":
-        return setup_lab(cells_w, cells_ix, floor_ix, rng)
+        return setup_lab(
+            cells_w, cells_ix, floor_ix, rng,
+            zone_lookup=zone_lookup, corridor_ix=corridor_ix, synth_zones=synth_zones,
+            transition_ix=trans, cell_at=cell_at,
+        )
     if role == "command":
         if len(cells_w) >= 20:
             return setup_mess(cells_w, rng)
-        return setup_office(cells_w, cells_ix, floor_ix, rng)
+        return setup_office(
+            cells_w, cells_ix, floor_ix, rng,
+            zone_lookup=zone_lookup, corridor_ix=corridor_ix, synth_zones=synth_zones,
+            transition_ix=trans, cell_at=cell_at,
+        )
     if role == "storage":
         return setup_storage(cells_w, rng)
     if role == "mess":
         return setup_mess(cells_w, rng)
-    return []
+    if not props and cells_w:
+        # fallback to ensure rooms have at least something
+        west, east, south, north, mid_x, mid_z = _room_span(cells_w)
+        try:
+            p = prop("container", mid_x, mid_z)
+            props = [nudge_prop_to_room(p, west, east, south, north)]
+        except:
+            props = []
+    return props
 
 
-def validate_props(pieces: list[dict], name: str) -> list[str]:
+def validate_props(pieces: list[dict], name: str, quiet: bool = False) -> list[str]:
     errors: list[str] = []
     props: list[dict] = []
     for p in pieces:
@@ -724,7 +1277,7 @@ def validate_props(pieces: list[dict], name: str) -> list[str]:
                 )
                 break
 
-    if errors:
+    if errors and not quiet:
         print(f"VALIDATION FAILED {name}:", file=sys.stderr)
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
@@ -923,22 +1476,91 @@ def _balcony_geometry() -> tuple[float, float, float]:
     return half_depth, offset, rail_offset
 
 
+def substrate_floor_cells(
+    pieces: list[dict],
+    zone_lookup: Callable[[CellIx], str | None],
+    *,
+    cell_at: Callable[[float, float], CellIx],
+) -> set[CellIx]:
+    """Industrial substrate cells that actually carry a floor GLB at y≈0 (not just walkable grid)."""
+    out: set[CellIx] = set()
+    for p in pieces:
+        if int(p.get("floor_level", 0)) != 0 or p.get("ceiling"):
+            continue
+        stem = str(p.get("stem", ""))
+        role = p.get("role", "")
+        if role not in ("floor", "deck") and not stem.startswith(
+            ("floor", "template-floor", "corridor", "room")
+        ):
+            continue
+        if float(p.get("y", 0.0)) > 0.05:
+            continue
+        c = cell_at(float(p["x"]), float(p["z"]))
+        if zone_lookup(c) == "default":
+            out.add(c)
+    return out
+
+
 def _room_exterior_faces(
-    floor_ix: set[CellIx], corridor_ix: set[CellIx]
+    floor_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    walkable: set[CellIx] | None = None,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    substrate_cells: set[CellIx] | None = None,
+    transition_cells: set[CellIx] | None = None,
 ) -> list[tuple[int, int, str]]:
-    """(ix, iz, face) for every room-cell face that borders a void cell."""
+    """(ix, iz, face) for room-cell faces that may get a balcony.
+
+    Balconies require the far-side cell to be a **real industrial map tile** outside this
+    synth footprint — never void, never another synth cell. Same intent as perimeter
+    windows (shuttered windows may face void; balconies may not).
+    """
+    if walkable is None:
+        return []
     faces: list[tuple[int, int, str]] = []
     for ix, iz in sorted(floor_ix):
         if (ix, iz) in corridor_ix:
             continue
         for face, (sx, sz) in FACE_STEPS.items():
-            if (ix + sx, iz + sz) not in floor_ix:
-                faces.append((ix, iz, face))
+            nb = (ix + sx, iz + sz)
+            if nb in floor_ix or nb not in walkable:
+                continue
+            if zone_lookup is not None and zone_lookup(nb) != "default":
+                continue
+            if substrate_cells is not None and nb not in substrate_cells:
+                continue
+            # Avoid placing balcony on or next to transition cells (stairs/doors) so rails don't block access
+            if transition_cells is not None:
+                trans = transition_cells
+                if (ix, iz) in trans:
+                    continue
+                is_near_trans = any( (ix + adx, iz + adz) in trans for adx, adz in ((0,0),(1,0),(-1,0),(0,1),(0,-1)) )
+                if is_near_trans:
+                    continue
+            # Require at least 2 cells of depth inward so balcony isn't crammed against opposite wall
+            # (addresses "balcony facing a wall, needs 2 tiles between windows and next wall")
+            id_x, id_z = -sx, -sz
+            depth_ok = True
+            for d in (1, 2):
+                cx, cz = ix + d * id_x, iz + d * id_z
+                if (cx, cz) not in floor_ix:
+                    depth_ok = False
+                    break
+            if not depth_ok:
+                continue
+            faces.append((ix, iz, face))
     return faces
 
 
 def expected_balcony_floors(
-    floor_ix: set[CellIx], corridor_ix: set[CellIx]
+    floor_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    *,
+    world_at: WorldAt | None = None,
+    walkable: set[CellIx] | None = None,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    substrate_cells: set[CellIx] | None = None,
+    transition_cells: set[CellIx] | None = None,
 ) -> dict[tuple[float, float], tuple[str, float]]:
     """Authoritative balcony floor layout: {(x, z): (stem, yaw)}.
 
@@ -946,17 +1568,19 @@ def expected_balcony_floors(
     audit guarantees the on-disk JSON matches this exact placement.
     """
     _, offset, _ = _balcony_geometry()
-    faces = _room_exterior_faces(floor_ix, corridor_ix)
+    faces = _room_exterior_faces(
+        floor_ix, corridor_ix, walkable, zone_lookup, substrate_cells, transition_cells,
+    )
     out: dict[tuple[float, float], tuple[str, float]] = {}
     cell_faces: dict[CellIx, set[str]] = {}
     for ix, iz, face in faces:
         cell_faces.setdefault((ix, iz), set()).add(face)
-        cx, cz = ix_to_world((ix, iz))
+        cx, cz = _cell_world((ix, iz), world_at)
         ox, oz = OUTWARD[face]
         key = (round(cx + ox * offset, 1), round(cz + oz * offset, 1))
         out.setdefault(key, ("balcony-floor-center", FLOOR_EDGE_YAW[face]))
     for (ix, iz), fset in cell_faces.items():
-        cx, cz = ix_to_world((ix, iz))
+        cx, cz = _cell_world((ix, iz), world_at)
         for fa, fb in (("n", "e"), ("n", "w"), ("s", "e"), ("s", "w")):
             if fa in fset and fb in fset:
                 oax, oaz = OUTWARD[fa]
@@ -980,7 +1604,14 @@ def _plan_rail_run(length: float) -> list[tuple[float, str]]:
 
 
 def expected_balcony_rails(
-    floor_ix: set[CellIx], corridor_ix: set[CellIx]
+    floor_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    *,
+    world_at: WorldAt | None = None,
+    walkable: set[CellIx] | None = None,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    substrate_cells: set[CellIx] | None = None,
+    transition_cells: set[CellIx] | None = None,
 ) -> list[tuple[float, float, float, str]]:
     """Authoritative balcony rail layout: list of (x, z, yaw, stem).
 
@@ -990,7 +1621,15 @@ def expected_balcony_rails(
     overshooting and crossing (the inner-corner bug). Single source of truth for the
     generator and verifier.
     """
-    ledge = expected_balcony_floors(floor_ix, corridor_ix)
+    ledge = expected_balcony_floors(
+        floor_ix,
+        corridor_ix,
+        world_at=world_at,
+        walkable=walkable,
+        zone_lookup=zone_lookup,
+        substrate_cells=substrate_cells,
+        transition_cells=transition_cells,
+    )
     if not ledge:
         return []
     res = 0.2
@@ -1009,7 +1648,7 @@ def expected_balcony_rails(
                 ledge_cells.add((gx, gz))
     build_cells: set[tuple[int, int]] = set()
     for cell in floor_ix:
-        cx, cz = ix_to_world(cell)
+        cx, cz = _cell_world(cell, world_at)
         gx0, gx1 = round((cx - FLOOR_HALF) / res), round((cx + FLOOR_HALF) / res)
         gz0, gz1 = round((cz - FLOOR_HALF) / res), round((cz + FLOOR_HALF) / res)
         for gx in range(gx0, gx1):
@@ -1091,6 +1730,62 @@ def _balcony_yaw(
     return "balcony-floor-center", (HALF_PI if bx >= mid_x else 3 * HALF_PI)
 
 
+def prune_invalid_balconies(
+    pieces: list[dict],
+    floor_ix: set[CellIx],
+    corridor_ix: set[CellIx],
+    *,
+    world_at: WorldAt | None = None,
+    walkable: set[CellIx] | None = None,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    cell_at: Callable[[float, float], CellIx] | None = None,
+) -> list[dict]:
+    """Drop balcony pieces that do not match the authoritative layout (stale / void-facing)."""
+    substrate = (
+        substrate_floor_cells(pieces, zone_lookup, cell_at=cell_at)
+        if zone_lookup is not None and cell_at is not None
+        else None
+    )
+    expected_f = expected_balcony_floors(
+        floor_ix,
+        corridor_ix,
+        world_at=world_at,
+        walkable=walkable,
+        zone_lookup=zone_lookup,
+        substrate_cells=substrate,
+    )
+    expected_r = {
+        (round(x, 4), round(z, 4), round(yaw, 4), stem)
+        for x, z, yaw, stem in expected_balcony_rails(
+            floor_ix,
+            corridor_ix,
+            world_at=world_at,
+            walkable=walkable,
+            zone_lookup=zone_lookup,
+            substrate_cells=substrate,
+        )
+    }
+    out: list[dict] = []
+    for p in pieces:
+        tags = p.get("tags") or []
+        if "synth_balcony" not in tags:
+            out.append(p)
+            continue
+        stem = str(p.get("stem", ""))
+        if stem.startswith("balcony-floor"):
+            key = (round(p["x"], 1), round(p["z"], 1))
+            if key in expected_f:
+                out.append(p)
+            continue
+        if "balcony_rail" in tags or stem in ("rail", "rail-narrow"):
+            key = (round(p["x"], 4), round(p["z"], 4), round(float(p.get("yaw", 0.0)), 4), stem)
+            if key in expected_r:
+                out.append(p)
+            continue
+        out.append(p)
+    return out
+
+
 def apply_perimeter_balconies(
     pieces: list[dict],
     floor_ix: set[CellIx],
@@ -1098,6 +1793,12 @@ def apply_perimeter_balconies(
     rng: random.Random,
     *,
     rate: float = 1.0,
+    world_at: WorldAt | None = None,
+    walkable: set[CellIx] | None = None,
+    zone: str | None = None,
+    zone_lookup: Callable[[CellIx], str | None] | None = None,
+    cell_at: Callable[[float, float], CellIx] | None = None,
+    transition_cells: set[CellIx] | None = None,
 ) -> list[dict]:
     """Balcony ledge abutting every exterior room edge: floor tiles + corners + outer rail.
 
@@ -1105,14 +1806,21 @@ def apply_perimeter_balconies(
     4 m wide on 4 m centres (touch each other), and the open outer edge gets a rail.
     """
     _ = rate
-    faces = _room_exterior_faces(floor_ix, corridor_ix)
+    substrate = (
+        substrate_floor_cells(pieces, zone_lookup, cell_at=cell_at)
+        if zone_lookup is not None and cell_at is not None
+        else None
+    )
+    faces = _room_exterior_faces(
+        floor_ix, corridor_ix, walkable, zone_lookup, substrate, transition_cells,
+    )
     if not faces:
-        return pieces
+        return list(pieces)
 
     # Drop exterior walls so each balcony edge reads as an open ledge.
     drop_walls: set[tuple[float, float, float]] = set()
     for ix, iz, face in faces:
-        cx, cz = ix_to_world((ix, iz))
+        cx, cz = _cell_world((ix, iz), world_at)
         sx, sz = FACE_STEPS[face]
         drop_walls.add(
             (round(cx + sx * FLOOR_HALF, 1), round(cz + sz * FLOOR_HALF, 1), round(wall_yaw(sx, sz), 4))
@@ -1126,45 +1834,124 @@ def apply_perimeter_balconies(
         out.append(p)
 
     deck_y = DECK_Y - bounds_scaled("balcony-floor-center")["y1"]  # origin so top == DECK_Y
-    for (bx, bz), (stem, yaw) in sorted(expected_balcony_floors(floor_ix, corridor_ix).items()):
-        out.append(
-            {
-                "stem": stem,
-                "x": bx,
-                "z": bz,
-                "yaw": yaw,
-                "floor_level": 0,
-                "scale": SCALE,
-                "kit": KIT,
-                "y": deck_y,
-                "role": "wall",
-                "tags": ["synth_balcony", "balcony_floor"],
-            }
-        )
+    for (bx, bz), (stem, yaw) in sorted(
+        expected_balcony_floors(
+            floor_ix,
+            corridor_ix,
+            world_at=world_at,
+            walkable=walkable,
+            zone_lookup=zone_lookup,
+            substrate_cells=substrate,
+            transition_cells=transition_cells,
+        ).items()
+    ):
+        piece = {
+            "stem": stem,
+            "x": bx,
+            "z": bz,
+            "yaw": yaw,
+            "floor_level": 0,
+            "scale": SCALE,
+            "kit": KIT,
+            "y": deck_y,
+            "role": "wall",
+            "tags": ["synth_balcony", "balcony_floor"],
+        }
+        if zone:
+            piece["zone"] = zone
+        out.append(piece)
 
     # Rails trace the outer boundary of the ledge union (see expected_balcony_rails):
     # perpendicular runs butt-join at corners instead of crossing.
-    for rx, rz, ryaw, rstem in expected_balcony_rails(floor_ix, corridor_ix):
-        out.append(
-            {
-                "stem": rstem,
-                "x": rx,
-                "z": rz,
-                "yaw": ryaw,
-                "floor_level": 0,
-                "scale": SCALE,
-                "kit": KIT,
-                "y": DECK_Y,
-                "role": "prop",
-                "tags": ["synth_balcony", "balcony_rail"],
-            }
-        )
+    for rx, rz, ryaw, rstem in expected_balcony_rails(
+        floor_ix,
+        corridor_ix,
+        world_at=world_at,
+        walkable=walkable,
+        zone_lookup=zone_lookup,
+        substrate_cells=substrate,
+    ):
+        rail = {
+            "stem": rstem,
+            "x": rx,
+            "z": rz,
+            "yaw": ryaw,
+            "floor_level": 0,
+            "scale": SCALE,
+            "kit": KIT,
+            "y": DECK_Y,
+            "role": "prop",
+            "tags": ["synth_balcony", "balcony_rail"],
+        }
+        if zone:
+            rail["zone"] = zone
+        out.append(rail)
     return out
 
 
-def _stair_piece(x: float, z: float, yaw: float, base_y: float) -> dict:
+MEZZ_STAIR_STEM = "stairs-small-center"
+WALL_YAW_INTO = {"south": 0.0, "north": math.pi, "east": -HALF_PI, "west": HALF_PI}
+
+
+def _mezz_stair_travel(stair_iz: int, deck_izs: list[int]) -> str:
+    """Compass direction from stair cell toward the deck (``transition_entrances.DELTA`` keys)."""
+    deck_center = sum(deck_izs) / len(deck_izs)
+    if stair_iz < deck_center - 1e-3:
+        return "S"
+    if stair_iz > deck_center + 1e-3:
+        return "N"
+    return "S"
+
+
+def _mezz_stair_yaw(stair_iz: int, deck_izs: list[int]) -> float:
+    import transition_entrances as te
+
+    travel = _mezz_stair_travel(stair_iz, deck_izs)
+    return te._stairs_yaw(travel, ascending=True)
+
+
+def _mezz_parapet(stair_iz: int, deck_izs: list[int]) -> tuple[str, int]:
+    """Outer deck row + wall face for loft props (parapet away from the stair approach)."""
+    deck_center = sum(deck_izs) / len(deck_izs)
+    if stair_iz < deck_center:
+        return "north", max(deck_izs)
+    return "south", min(deck_izs)
+
+
+def _deck_adjacent_corridor(deck_cells: list[CellIx], corridor_ix: set[CellIx]) -> bool:
+    for ix, iz in deck_cells:
+        for dx, dz in ((0, -1), (0, 1), (1, 0), (-1, 0)):
+            if (ix + dx, iz + dz) in corridor_ix:
+                return True
+    return False
+
+
+def _pick_mezz_stair_col(
+    cells: set[CellIx],
+    stair_row: int,
+    open_row: int,
+    corridor_faces: set[str],
+) -> int | None:
+    """Stair column flush against a side wall, preferring the wall away from the corridor.
+
+    Restricted to columns present in BOTH the stair row and the deck row it lands on so
+    the flight always connects ground -> deck.
+    """
+    cols = sorted(
+        {ix for ix, iz in cells if iz == stair_row}
+        & {ix for ix, iz in cells if iz == open_row}
+    )
+    if not cols:
+        return None
+    prefer_east = "west" in corridor_faces and "east" not in corridor_faces
+    if prefer_east:
+        return max(cols)
+    return min(cols)  # default + corridor-on-east -> hug the west wall
+
+
+def _mezz_stair_piece(x: float, z: float, yaw: float, base_y: float) -> dict:
     return {
-        "stem": "stairs",
+        "stem": MEZZ_STAIR_STEM,
         "x": round(x, 4),
         "z": round(z, 4),
         "yaw": yaw,
@@ -1177,15 +1964,17 @@ def _stair_piece(x: float, z: float, yaw: float, base_y: float) -> dict:
     }
 
 
-def mezzanine_plan(command: "RoomInfo") -> dict | None:
+def mezzanine_plan(
+    command: "RoomInfo",
+    corridor_ix: set[CellIx] | None = None,
+) -> dict | None:
     """Geometry for the command-hall mezzanine (shared by generator + verifier).
 
-    Returns dict with: flights, deck_top, deck_origin, deck_cells [(ix,iz)],
-    stairs [(ix,iz,base_y)], stair_col, rail_z, deck_rows. None if it won't fit.
-
-    Dressing ground surface is DECK_Y (1.2). Each flight rises one DECK_Y and advances
-    one cell toward -z; the top flight's high edge lands flush with the deck south edge.
+    Single-flight loft: one ``stairs-small-center`` cell + a 2-row deck at the end of
+    the hall farthest from corridor mouths. Returns None when the deck would touch a
+    corridor or the room is too small.
     """
+    corridor_ix = corridor_ix or set()
     cells = command.cells_ix
     ixs = [c[0] for c in cells]
     izs = [c[1] for c in cells]
@@ -1193,18 +1982,57 @@ def mezzanine_plan(command: "RoomInfo") -> dict | None:
     iz0, iz1 = min(izs), max(izs)
     rows = iz1 - iz0 + 1
     cols = ix1 - ix0 + 1
-    if rows < 4 or cols < 3:
+    if rows < 3 or cols < 3:
         return None
-    flights = max(1, min(2, rows - 2))  # deck takes 2 rows; stairs take `flights` rows
-    deck_top = DECK_Y * (flights + 1)  # walkable surface of the deck (world Y)
-    deck_origin = deck_top - DECK_Y  # floor block origin (block is DECK_Y tall)
-    stair_col = ix0 + 1
-    deck_rows = {iz0, iz0 + 1}
 
-    deck_cells = [(ix, iz) for ix, iz in cells if iz in deck_rows]
-    # Top flight at row iz0+2 (high edge meets deck south edge); each lower flight +1 row, -1 level.
-    stairs = [(stair_col, iz0 + 2 + j, DECK_Y * (flights - j)) for j in range(flights)]
-    rail_z = (iz0 + 1) * CELL + FLOOR_HALF  # deck south edge
+    flights = 1
+    deck_top = DECK_Y * (flights + 1)
+    deck_origin = deck_top - DECK_Y
+    corridor_faces = opens_to_corridor(cells, corridor_ix)
+
+    # (touch, deck_rows, stair_row, open_row, open_sign, stair_col, deck_cells)
+    candidates: list[tuple[int, set[int], int, int, int, int, list[CellIx]]] = []
+    for at_north in (True, False):
+        if at_north:
+            # Deck hugs the north end; you step on at its south (room-facing) edge.
+            deck_rows = {iz1 - 1, iz1}
+            stair_row = iz1 - 2
+            open_row = iz1 - 1
+            open_sign = -1
+        else:
+            deck_rows = {iz0, iz0 + 1}
+            stair_row = iz0 + 2
+            open_row = iz0 + 1
+            open_sign = 1
+        if stair_row < iz0 or stair_row > iz1:
+            continue
+        deck_cells = [(ix, iz) for ix, iz in cells if iz in deck_rows]
+        if len(deck_cells) < 2:
+            continue
+        stair_col = _pick_mezz_stair_col(cells, stair_row, open_row, corridor_faces)
+        if stair_col is None:
+            continue
+        touch = _deck_adjacent_corridor(deck_cells, corridor_ix)
+        if (stair_col, stair_row) in corridor_ix:
+            touch += 10
+        for dx, dz in ((0, -1), (0, 1), (1, 0), (-1, 0)):
+            if (stair_col + dx, stair_row + dz) in corridor_ix:
+                touch += 5
+        candidates.append((touch, deck_rows, stair_row, open_row, open_sign, stair_col, deck_cells))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda t: t[0])
+    touch, deck_rows, stair_row, open_row, open_sign, stair_col, deck_cells = candidates[0]
+    if touch > 0:
+        return None
+
+    deck_back_row = min(deck_rows)
+    deck_izs = sorted({iz for _, iz in deck_cells})
+    stair_iz = stair_row
+    parapet_wall, parapet_row = _mezz_parapet(stair_iz, deck_izs)
+    rail_z = open_row * CELL + open_sign * FLOOR_HALF
+    stairs = [(stair_col, stair_row, DECK_Y)]
     return {
         "flights": flights,
         "deck_top": deck_top,
@@ -1214,76 +2042,178 @@ def mezzanine_plan(command: "RoomInfo") -> dict | None:
         "stair_col": stair_col,
         "rail_z": rail_z,
         "deck_rows": sorted(deck_rows),
+        "deck_back_row": deck_back_row,
+        "open_row": open_row,
+        "open_sign": open_sign,
+        "parapet_wall": parapet_wall,
+        "parapet_row": parapet_row,
+        "stair_row": stair_row,
+        "stair_travel": _mezz_stair_travel(stair_iz, deck_izs),
         "ix0": ix0,
         "ix1": ix1,
         "iz0": iz0,
     }
 
 
+def _mezz_upper_walls(
+    command: RoomInfo,
+    plan: dict,
+    *,
+    world_at: WorldAt | None,
+    zone: str | None,
+    corridor_ix: set[CellIx],
+) -> list[dict]:
+    """Second wall tier on the command room exterior shell.
+
+    Stacked FLUSH on top of the base wall tier (zone deck 1.2 + 4 m wall =
+    5.2), never overlapping it: the old deck_top (2.4) start left 2.8 m of
+    coplanar double wall — z-fighting ("when you use double walls you should
+    not overlap them; use full height with the 2 walls")."""
+    out: list[dict] = []
+    y = DECK_Y + 4.0
+    cells = command.cells_ix
+    for ix, iz in sorted(cells):
+        x, z = _cell_world((ix, iz), world_at)
+        for dx, dz in ((0, -1), (0, 1), (1, 0), (-1, 0)):
+            nb = (ix + dx, iz + dz)
+            if nb in cells:
+                continue
+            if nb in corridor_ix:
+                continue
+            wx = x + dx * 2.0
+            wz = z + dz * 2.0
+            wall = structure_piece("wall", wx, wz, wall_yaw(dx, dz))
+            wall["y"] = y
+            wall["tags"] = ["synth_mezz", "mezz_wall_upper"]
+            if zone:
+                wall["zone"] = zone
+            out.append(wall)
+    return out
+
+
+def _mezz_loft_props(
+    plan: dict,
+    *,
+    world_at: WorldAt | None,
+    zone: str | None,
+) -> list[dict]:
+    """Console + storage on the outer deck row, flush to the parapet wall."""
+    wall = plan["parapet_wall"]
+    back_row = plan["parapet_row"]
+    yaw = WALL_YAW_INTO[wall]
+    back = sorted(c for c in plan["deck_cells"] if c[1] == back_row)
+    if len(back) < 2:
+        return []
+    # Nudge against the FULL 2-row deck footprint, not the single parapet row —
+    # a degenerate single-row span collapses the clamp and buries props in the wall.
+    deck_w = [_cell_world(c, world_at) for c in plan["deck_cells"]]
+    west = min(c[0] for c in deck_w)
+    east = max(c[0] for c in deck_w)
+    south = min(c[1] for c in deck_w)
+    north = max(c[1] for c in deck_w)
+    edge_z = _cell_world((back[0][0], back_row), world_at)[1]
+    cx = _cell_world(back[len(back) // 2 - 1], world_at)[0]
+    bx = _cell_world(back[len(back) // 2], world_at)[0]
+    deck_top = plan["deck_top"]
+    console = flush_back_to_wall("computer-screen", wall, cx, yaw, z=edge_z)
+    console["y"] = deck_top
+    console["tags"] = ["synth_mezz", "loft_ops"]
+    console = nudge_prop_to_room(console, west, east, south, north)
+    console["y"] = deck_top
+    # Symmetric ``container`` (asymmetric ``container-tall`` pokes through the parapet).
+    barrel = flush_back_to_wall("container", wall, bx, yaw, z=edge_z)
+    barrel["y"] = deck_top
+    barrel["tags"] = ["synth_mezz", "loft_storage"]
+    barrel = nudge_prop_to_room(barrel, west, east, south, north)
+    barrel["y"] = deck_top
+    if zone:
+        console["zone"] = zone
+        barrel["zone"] = zone
+    return [barrel, console]
+
+
 def add_command_mezzanine(
     pieces: list[dict],
     room_infos: list[RoomInfo],
+    *,
+    world_at: WorldAt | None = None,
+    zone: str | None = None,
+    corridor_ix: set[CellIx] | None = None,
 ) -> list[dict]:
-    """Elevated deck at the command hall's -z end, reached by a real advancing staircase."""
+    """Elevated loft at the command hall end farthest from corridors — short stairs only."""
     command = next((i for i in room_infos if i.role == "command"), None)
     if command is None:
-        return pieces
-    plan = mezzanine_plan(command)
+        return list(pieces)
+    corridor_ix = corridor_ix or set()
+    plan = mezzanine_plan(command, corridor_ix)
     if plan is None:
-        return pieces
+        return list(pieces)
 
     out = list(pieces)
     for ix, iz in plan["deck_cells"]:
-        x, z = ix_to_world((ix, iz))
+        x, z = _cell_world((ix, iz), world_at)
         deck = structure_piece("floor", x, z)
         deck["y"] = plan["deck_origin"]
+        deck["group_id"] = 50000 + (ix << 8) + iz
         deck["tags"] = ["synth_mezz", "mezz_floor"]
+        if zone:
+            deck["zone"] = zone
         out.append(deck)
 
     for ix, iz, base_y in plan["stairs"]:
-        sx, sz = ix_to_world((ix, iz))
-        out.append(_stair_piece(sx, sz, 0.0, base_y))  # yaw 0: climbs toward -z (the deck)
-        # Fill the column under an elevated flight with floor blocks so it reads as a
-        # solid staircase instead of a flight floating in mid-air.
-        fill = DECK_Y
-        while fill < base_y - 1e-3:
-            block = structure_piece("floor", sx, sz)
-            block["y"] = round(fill, 4)
-            block["tags"] = ["synth_mezz", "mezz_stair_fill"]
-            out.append(block)
-            fill += DECK_Y
+        import transition_entrances as te
+        import faction_profiles as fp
 
-    # Rail along the deck's open south edge, except the stair column (the opening).
+        cx, cz = _cell_world((ix, iz), world_at)
+        deck_izs = sorted({diz for _, diz in plan["deck_cells"]})
+        travel = _mezz_stair_travel(iz, deck_izs)
+        tdx, tdz = te.DELTA[travel]
+        # The short stair GLB is ~1.2 m deep, not a full cell: align its HIGH edge
+        # with the deck-cell boundary (like _place_stair_at_cell does at zone seams)
+        # instead of floating at the cell centre with a gap to the raised floor.
+        high_ext, _ = fp.stair_ramp_footprint_m(MEZZ_STAIR_STEM, SCALE, KIT)
+        sx = cx + tdx * (CELL * 0.5 - high_ext + te.STAIRS_SEAM_OVERLAP_M)
+        sz = cz + tdz * (CELL * 0.5 - high_ext + te.STAIRS_SEAM_OVERLAP_M)
+        yaw = _mezz_stair_yaw(iz, deck_izs)
+        stair = _mezz_stair_piece(sx, sz, yaw, base_y)
+        if zone:
+            stair["zone"] = zone
+        out.append(stair)
+
+    out.extend(_mezz_upper_walls(command, plan, world_at=world_at, zone=zone, corridor_ix=corridor_ix))
+
+    # Rail the open, room-facing deck edge (gap where the stair lands), not the
+    # exterior wall side which already carries the upper wall tier.
+    open_row = plan["open_row"]
+    deck_set = set(plan["deck_cells"])
+    _, rail_z = _cell_world((plan["stair_col"], open_row), world_at)
+    # Inset by the rail's half thickness so it sits fully ON the deck tile
+    # (centred on the edge leaves half the rail hanging over the open side).
+    mezz_rail_half = bounds_scaled("rail")["z1"]
+    rail_z = round(rail_z + plan["open_sign"] * (FLOOR_HALF - mezz_rail_half), 4)
     for ix in range(plan["ix0"], plan["ix1"] + 1):
         if ix == plan["stair_col"]:
             continue
-        rx = ix * CELL
-        out.append(
-            {
-                "stem": "rail",
-                "x": round(rx, 4),
-                "z": round(plan["rail_z"], 4),
-                "yaw": 0.0,
-                "floor_level": 0,
-                "scale": SCALE,
-                "kit": KIT,
-                "y": plan["deck_top"],
-                "role": "prop",
-                "tags": ["synth_mezz", "mezz_rail"],
-            }
-        )
+        if (ix, open_row) not in deck_set:
+            continue
+        rx, _ = _cell_world((ix, open_row), world_at)
+        rail = {
+            "stem": "rail",
+            "x": round(rx, 4),
+            "z": rail_z,
+            "yaw": 0.0,
+            "floor_level": 0,
+            "scale": SCALE,
+            "kit": KIT,
+            "y": plan["deck_top"],
+            "role": "prop",
+            "tags": ["synth_mezz", "mezz_rail"],
+        }
+        if zone:
+            rail["zone"] = zone
+        out.append(rail)
 
-    # Barrel + console on the back row of the deck (away from the stair column / edge).
-    back = sorted([c for c in plan["deck_cells"] if c[1] == plan["iz0"] and c[0] != plan["stair_col"]])
-    if len(back) >= 2:
-        bx, bz = ix_to_world(back[len(back) // 2])
-        cx, cz = ix_to_world(back[len(back) // 2 - 1])
-        out.append(
-            prop("container-tall", bx, bz, yaw=0.0, y=plan["deck_top"], tags=["synth_mezz", "loft_storage"])
-        )
-        out.append(
-            prop("computer-screen", cx, cz, yaw=0.0, y=plan["deck_top"], tags=["synth_mezz", "loft_ops"])
-        )
+    out.extend(_mezz_loft_props(plan, world_at=world_at, zone=zone))
     return out
 
 
@@ -1305,5 +2235,136 @@ def furnish_showcase_plan(
         pieces.extend(props)
 
     pieces = apply_perimeter_balconies(pieces, floor_ix, corridor_ix, rng)
-    pieces = add_command_mezzanine(pieces, room_infos)
+    pieces = add_command_mezzanine(pieces, room_infos, corridor_ix=corridor_ix)
     return pieces, room_infos, floor_ix, corridor_ix
+
+
+# --------------------------------------------------------------------------------------
+# Quality scoring + metrics for automatic evaluation sweeps (see Automation Plan)
+# These turn "looks good to human" into CPU-measurable numbers so we can sweep seeds,
+# try param variants, and adapt (pick better densities, gaps, pairing rules) without
+# asking for eyes on every trial.
+# --------------------------------------------------------------------------------------
+
+def count_workstation_pairs(pieces: list[dict], *, gap: float = PLACE_GAP) -> int:
+    """Count computer-like props that have a correctly-oriented chair 'in front' within reasonable distance.
+    This captures the desired relational cataloguing: screen + chair pair, yaw-correct, space-checked.
+    """
+    computers = [p for p in pieces if p.get("stem", "").startswith(("computer", "table-display"))]
+    chairs = [p for p in pieces if p.get("stem", "").startswith("chair")]
+    paired = 0
+    for desk in computers:
+        desk_bb = world_bbox(desk["stem"], desk["x"], desk["z"], desk["yaw"], desk.get("scale", SCALE))
+        fx = round(math.sin(desk["yaw"]))
+        fz = round(math.cos(desk["yaw"]))
+        for ch in chairs:
+            ch_bb = world_bbox(ch["stem"], ch["x"], ch["z"], ch["yaw"], ch.get("scale", SCALE))
+            # Same rough column or row as desk front
+            if fx != 0:
+                if abs(ch["z"] - desk["z"]) > 2.5: continue
+                expected_dir = 1 if fx > 0 else -1
+                if abs(ch["x"] - (desk["x"] + expected_dir * (desk_bb.x1 - desk_bb.x0 + gap))) > 1.5: continue
+            else:
+                if abs(ch["x"] - desk["x"]) > 2.5: continue
+                expected_dir = 1 if fz > 0 else -1
+                if abs(ch["z"] - (desk["z"] + expected_dir * (desk_bb.z1 - desk_bb.z0 + gap))) > 1.5: continue
+            # Yaw should face the desk (chair front toward desk)
+            if abs((ch["yaw"] - desk["yaw"]) % (2*math.pi) - math.pi) > 0.6: continue
+            paired += 1
+            break
+    return paired
+
+
+def estimate_free_walk_fraction(pieces: list[dict], floor_cells: set, *, margin: float = 0.6) -> float:
+    """Rough % of floor cells that remain reasonably clear of prop bboxes (player can walk).
+    Used to detect 'swamped' layouts. Higher is better; target not to drop too low.
+    """
+    if not floor_cells:
+        return 1.0
+    occupied = set()
+    for p in pieces:
+        if p.get("role") not in ("prop", None) or "synth_mezz" in (p.get("tags") or []):
+            continue
+        try:
+            bb = world_bbox(p["stem"], p["x"], p["z"], p["yaw"], p.get("scale", SCALE))
+        except Exception:
+            continue
+        # Mark nearby cells
+        cx, cz = p["x"], p["z"]
+        for dx in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                occupied.add((round(cx/4) + dx, round(cz/4) + dz))
+    free = len([c for c in floor_cells if c not in occupied])
+    return free / max(1, len(floor_cells))
+
+
+def _count_prop_overlaps(pieces: list[dict]) -> int:
+    """Lightweight overlap detector (modeled on validate_props) for use in sweep scoring.
+    Does not print or raise — just counts so sweep can apply heavy penalty and learn.
+    """
+    props: list[dict] = []
+    for p in pieces:
+        stem = p.get("stem", "")
+        if stem.startswith(("floor", "wall")):
+            continue
+        if p.get("role") in ("floor", "wall", "stairs", "deck"):
+            continue
+        if p.get("role") == "prop":
+            props.append(p)
+            continue
+        try:
+            if stem_info(stem)["class"] not in ("structure",):
+                props.append(p)
+        except KeyError:
+            if p.get("role") == "prop":
+                props.append(p)
+
+    boxes = [(p, world_bbox(p["stem"], p["x"], p["z"], p["yaw"], p.get("scale", SCALE))) for p in props]
+    count = 0
+    for i, (a, bb_a) in enumerate(boxes):
+        tags_a = a.get("tags") or []
+        if "synth_balcony" in tags_a or "synth_mezz" in tags_a:
+            continue
+        for b, bb_b in boxes[i + 1 :]:
+            tags_b = b.get("tags") or []
+            if "synth_balcony" in tags_b or "synth_mezz" in tags_b:
+                continue
+            if bb_a.padded(GAP_M).overlaps(bb_b.padded(GAP_M)):
+                count += 1
+    return count
+
+
+def compute_quality_metrics(pieces: list[dict], room_infos: list[RoomInfo] | None = None,
+                            floor_ix: set | None = None) -> dict:
+    """Composite numbers for the self-evaluation loop. Used across seeds to score and adapt.
+    Overlaps now produce heavy negative penalty so the search "sees" bad (too-small) gap choices.
+    """
+    pairs = count_workstation_pairs(pieces)
+    free_frac = estimate_free_walk_fraction(pieces, floor_ix or set()) if floor_ix else 0.5
+    n_props = sum(1 for p in pieces if p.get("role") == "prop")
+    n_beds = sum(1 for p in pieces if p.get("stem", "").startswith("bed"))
+    n_comps = sum(1 for p in pieces if p.get("stem", "").startswith("computer"))
+    overlap_cnt = _count_prop_overlaps(pieces)
+    # count filled rooms (non-empty) to encourage less "mostly empty"
+    room_prop_counts = {}
+    for p in pieces:
+        if p.get("role") != "prop": continue
+        for tag in p.get("tags", []):
+            if tag.startswith("room_"):
+                room_prop_counts[tag] = room_prop_counts.get(tag, 0) + 1
+                break
+    n_filled = sum(1 for c in room_prop_counts.values() if c > 0)
+    # Simple composite (weights can be tuned by the sweep or human policy)
+    score = (pairs * 2.0) + (free_frac * 10) + (n_props * 0.1) + (n_filled * 1.5) - (max(0, n_props - 25) * 0.5)
+    if overlap_cnt > 0:
+        score -= 500 * overlap_cnt   # heavy penalty as specified; lets optimizer learn to avoid overlaps
+    return {
+        "workstation_pairs": pairs,
+        "free_walk_fraction": round(free_frac, 3),
+        "num_props": n_props,
+        "num_beds": n_beds,
+        "num_computers": n_comps,
+        "overlap_count": overlap_cnt,
+        "num_filled_rooms": n_filled,
+        "composite_score": round(score, 2),
+    }

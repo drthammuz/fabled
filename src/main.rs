@@ -70,6 +70,7 @@ struct Cli {
 }
 
 fn main() {
+    install_panic_log();
     let cli = Cli::parse();
 
     if cli.server {
@@ -82,6 +83,40 @@ fn main() {
         eprintln!("error: specify one of --server, --client <ip>, --host, or --city");
         std::process::exit(2);
     }
+}
+
+/// Append every panic (message + location) to `logs/panic.log`, so crashes
+/// like "exited with code 101" are diagnosable after the window closes —
+/// especially under `windows_subsystem = "windows"` where there is no console.
+fn install_panic_log() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let msg = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "<non-string panic payload>".into());
+        let loc = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "<unknown location>".into());
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let _ = std::fs::create_dir_all("logs");
+        let line = format!("[{ts}] PANIC at {loc}: {msg}\n");
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("logs/panic.log")
+        {
+            let _ = f.write_all(line.as_bytes());
+        }
+        default_hook(info);
+    }));
 }
 
 /// Headless dedicated server: no windowing, no rendering, just the
@@ -104,9 +139,17 @@ fn run_server() {
 }
 
 /// Remote client: window + rendering, connects to the given address.
+/// Real-game sessions are fullscreen-only (borderless; windowed is editor/dev).
 fn run_client(address: String) {
-    client_app("fabled - client")
-        .insert_resource(ServerAddress(address))
+    let mut app = App::new();
+    build_client_app(
+        &mut app,
+        "fabled - client",
+        client::display_settings::window_mode_for(
+            shared::editor_settings::DisplayMode::BorderlessFullscreen,
+        ),
+    );
+    app.insert_resource(ServerAddress(address))
         .add_systems(Startup, connect_client)
         .run();
 }
@@ -132,7 +175,11 @@ fn run_host(cli: &Cli) {
     } else if cli.city {
         WindowMode::Windowed
     } else {
-        WindowMode::Windowed
+        // Plain `--host` is a real game session (serve + play): fullscreen,
+        // same as remote clients. Editor/test/dressing keep their prefs.
+        client::display_settings::window_mode_for(
+            shared::editor_settings::DisplayMode::BorderlessFullscreen,
+        )
     };
     let mut app = App::new();
     if cli.city {
@@ -166,12 +213,6 @@ fn run_host(cli: &Cli) {
     app.add_plugins(ServerCorePlugin)
         .add_systems(Startup, open_server);
     app.run();
-}
-
-fn client_app(title: &str) -> App {
-    let mut app = App::new();
-    build_client_app(&mut app, title, WindowMode::Windowed);
-    app
 }
 
 fn build_client_app(app: &mut App, title: &str, window_mode: WindowMode) {

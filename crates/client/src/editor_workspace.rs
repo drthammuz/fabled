@@ -88,6 +88,11 @@ pub struct EditorWorkspace {
     pub dressing_only: bool,
     /// Category filter for the dressing shell sidebar (`All` = show every stem).
     pub dressing_category: shared::editor_catalog::DressingCatFilter,
+    /// Faction button triggered generation.
+    pub pending_faction_generate: Option<String>,
+    pub generating_faction: Option<String>,
+    /// Shared for cross-thread result from gen.
+    pub faction_gen_result: std::sync::Arc<std::sync::Mutex<Option<std::path::PathBuf>>>,
 }
 
 impl Default for EditorWorkspace {
@@ -147,6 +152,9 @@ impl Default for EditorWorkspace {
             pre_gallery_workflow: None,
             dressing_only: false,
             dressing_category: shared::editor_catalog::DressingCatFilter::default(),
+            pending_faction_generate: None,
+            generating_faction: None,
+            faction_gen_result: std::sync::Arc::new(std::sync::Mutex::new(None)),
         }
     }
 }

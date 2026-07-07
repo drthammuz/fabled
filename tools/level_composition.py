@@ -225,7 +225,48 @@ def assign_zones_for_map(
     for cell in walkable:
         zones[cell] = zone_for_cell(cell, spine, comp)
     enforce_industrial_between_factions(walkable, zones)
+    _demote_disconnected_zone_pockets(spine, zones)
     return zones
+
+
+def _demote_disconnected_zone_pockets(spine: List[Cell], zones: Dict[Cell, Zone]) -> None:
+    """A faction zone must be ONE contiguous region.
+
+    Nearest-spine painting can strand pockets of prev/next deep inside the
+    default zone; a lone synth cell then becomes a bizarre mini-building with
+    envelope walls, stairs and an elevated door ("why is this synth wall
+    here?"), and ground-faction pockets paint stray floors into foreign rooms.
+    Keep the component holding the zone's spine anchor (spawn end for prev,
+    extraction end for next; largest component as fallback) and demote the
+    rest to default."""
+    for zone_id, anchor in (("prev", spine[0] if spine else None),
+                            ("next", spine[-1] if spine else None)):
+        cells = {c for c, z in zones.items() if z == zone_id}
+        if not cells:
+            continue
+        comps: List[Set[Cell]] = []
+        left = set(cells)
+        while left:
+            start = left.pop()
+            comp_cells = {start}
+            stack = [start]
+            while stack:
+                x, z = stack.pop()
+                for nb in ((x + 1, z), (x - 1, z), (x, z + 1), (x, z - 1)):
+                    if nb in left:
+                        left.remove(nb)
+                        comp_cells.add(nb)
+                        stack.append(nb)
+            comps.append(comp_cells)
+        if len(comps) <= 1:
+            continue
+        keep = next((cc for cc in comps if anchor in cc), None) if anchor else None
+        if keep is None:
+            keep = max(comps, key=len)
+        for cc in comps:
+            if cc is not keep:
+                for c in cc:
+                    zones[c] = "default"
 
 
 def _kit_for_zone(zone: Zone, comp: LevelComposition) -> Optional[str]:

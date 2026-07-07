@@ -23,7 +23,9 @@ python tools/audit_synth_scene.py userinput/synth_dressing/interior_showcase.jso
 ```
 
 Placement rules: `tools/synth_interior.py` (`expected_balcony_floors`, `expected_balcony_rails`, `mezzanine_plan`).
-Catalog: `assets/models/factions/synth/placement_catalog.json` (bounds + **orientation** per stem).
+Catalog: `assets/models/factions/synth/placement_catalog.json` (bounds + orientation + **void_facing_ok, window_type, short_stair/requires_support** seeds per Automation Plan). Regenerate probe after GLBs.
+
+See docs/synth-master-plan.md for the full rules (open vs shutter windows, floor-half stair support to avoid levitation, raised-floor supports, chair+screen space-conditional pairing, free-walk density, etc.). All must be script-catalogued.
 
 ## Hand-tuned reference vignettes
 

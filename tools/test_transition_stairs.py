@@ -90,6 +90,8 @@ def test_full_gen_seam_alignment() -> None:
     for s in [p for p in doc["pieces"] if p.get("role") == "stairs"]:
         if "crossing" in s.get("tags", []):
             continue  # corridor-crossing stair aligns to its own cell seam, not a boundary
+        if "synth_mezz" in (s.get("tags") or []):
+            continue  # indoor mezzanine flight — not a zone-boundary transition stair
         toward = None
         for b in boundaries:
             if "ascend" in s.get("tags", []) and b.kind == "enter_faction":

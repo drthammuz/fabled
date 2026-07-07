@@ -1,4 +1,5 @@
-//! Remote player character animations: Idle / Walk driven by position delta.
+//! Player character animations (remote AND own-player third-person model):
+//! Idle / Walk driven by position delta.
 //!
 //! The character GLBs export two NLA strips named "Idle_Root" and "Walk_Root".
 //! We build a per-class AnimationGraph once the GLTF is loaded, then wire it
@@ -12,7 +13,6 @@ use bevy::prelude::*;
 use shared::classes::{ClassKind, ALL_CLASSES};
 use shared::protocol::Player;
 
-use crate::netplay::OwnPlayer;
 
 pub struct CharacterAnimationPlugin;
 
@@ -23,9 +23,9 @@ impl Plugin for CharacterAnimationPlugin {
             // build_anim_graphs can stay in Update (mutates Assets, no entity commands).
             .add_systems(Update, build_anim_graphs)
             // Detection and wiring run in PostUpdate so that all Update command buffers
-            // (including remove_own_player_model's recursive despawn of the OwnPlayer rig)
-            // have been flushed before we query Added<AnimationPlayer>.  This prevents a
-            // panic when the rig entity is despawned and re-inserted in the same flush.
+            // (model despawn/respawn on class change) have been flushed before we query
+            // Added<AnimationPlayer>.  This prevents a panic when the rig entity is
+            // despawned and re-inserted in the same flush.
             .add_systems(PostUpdate, (
                 detect_new_rigs,
                 ApplyDeferred,
@@ -151,7 +151,7 @@ fn detect_new_rigs(
             if let Ok(link) = scene_links.get(current) {
                 // Class is determined from the player entity inside wire_pending_rigs.
                 // Use get_entity to silently skip if the rig was concurrently despawned
-                // (e.g. remove_own_player_model fires the same frame as Added<AnimationPlayer>).
+                // (e.g. a class change despawned the model the same frame as Added<AnimationPlayer>).
                 if let Ok(mut ec) = commands.get_entity(rig_entity) {
                     ec.insert(PendingRig { player_entity: link.0 });
                     warn!("ANIM: new rig {rig_entity:?} → player {:?}", link.0);
@@ -222,7 +222,7 @@ fn drive_player_animations(
     mut commands: Commands,
     mut players: Query<
         (Entity, &Transform, &PlayerRig, &PlayerAnimClass, &mut PlayerLastPos),
-        (With<Player>, Without<OwnPlayer>),
+        With<Player>,
     >,
     new_players: Query<(Entity, &Transform), (With<PlayerRig>, Without<PlayerLastPos>, With<Player>)>,
     mut rigs: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,

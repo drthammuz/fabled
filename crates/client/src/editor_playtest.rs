@@ -4,15 +4,15 @@ use bevy::camera::Exposure;
 use bevy::ecs::schedule::common_conditions::resource_exists;
 use bevy::input::mouse::MouseMotion;
 use bevy::prelude::*;
-use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
+use bevy::window::{CursorGrabMode, CursorOptions, MonitorSelection, PrimaryWindow, Window, WindowMode};
 use shared::kenney_pit;
 use shared::map_pool;
 use shared::{EditorMode, KenneyPlaytestGeneration, TestMapStyle, TestMode};
 
-use crate::editor_selection::EditorPlaced;
+use crate::editor_selection::{EditorPieceTags, EditorPlaced};
 use crate::kenney_editor::EditorModuleReady;
 use crate::test_showcase::{apply_room_shell_mesh_cutouts, KenneyModule};
-use crate::editor_workspace::{EditorMenuRoot, EditorSidebarRoot, EditorWorkspace, FloorSlab};
+use crate::editor_workspace::{EditorSidebarRoot, EditorToolbarRoot, EditorWorkspace, FloorSlab};
 use shared::editor_map::EditorWorkflow;
 use crate::fly_camera::FlyCamera;
 use crate::netplay::{LookAngles, OwnPlayer};
@@ -95,6 +95,7 @@ fn update_playtest_coords_hud(
     player: Query<&Transform, With<OwnPlayer>>,
     mut hud: Query<&mut Text, With<PlaytestCoordsHud>>,
     editor: Option<Res<EditorMode>>,
+    stream: Option<Res<shared::proc_stream::ProcStreamState>>,
 ) {
     let Ok(tf) = player.single() else {
         return;
@@ -107,9 +108,18 @@ fn update_playtest_coords_hud(
         .spawn_xz
         .map(|[x, z]| format!("spawn marker: ({x:.1}, {z:.1})"))
         .unwrap_or_else(|| "spawn marker: (not set)".to_string());
+    let stream_line = match stream {
+        Some(s) if !layout.hub_exits.is_empty() => format!(
+            "\nnext maps: {}/{} ready (chain → {})",
+            s.children.iter().filter(|c| c.colliders_spawned).count(),
+            layout.hub_exits.len().min(2),
+            if s.active_next_faction.is_empty() { "?" } else { &s.active_next_faction },
+        ),
+        _ => String::new(),
+    };
     let p = tf.translation;
     let next = format!(
-        "position: ({:.1}, {:.1}, {:.1})\n{spawn_line}\nmap centre: (0.0, 0.0)",
+        "position: ({:.1}, {:.1}, {:.1})\n{spawn_line}\nmap centre: (0.0, 0.0){stream_line}",
         p.x, p.y, p.z
     );
     if text.0 != next {
@@ -129,6 +139,7 @@ fn sync_playtest_patched_pieces(
         &mut Transform,
         &mut EditorPlaced,
         Option<&EditorModuleReady>,
+        Option<&EditorPieceTags>,
     )>,
 ) {
     // Dressing vignettes are NOT Kenney maps: this patches piece heights against the
@@ -159,7 +170,7 @@ fn sync_playtest_patched_pieces(
     // instead of despawning. The old code despawned ANY floor tile over a mask hole,
     // which permanently destroyed faction-zone pieces and made editor↔playtest toggles
     // lose whole zones. Visibility is restored on exit (exit_in_process_playtest).
-    for (entity, module, gt, _, ep, _) in &placed {
+    for (entity, module, gt, _, ep, _, _) in &placed {
         let pos = gt.translation();
         let at_extraction = extraction.is_some_and(|[ex, ez]| {
             (pos.x - ex).abs() < 3.0 && (pos.z - ez).abs() < 3.0
@@ -178,7 +189,7 @@ fn sync_playtest_patched_pieces(
         }
     }
 
-    for (entity, module, _, _, placed, ..) in &placed {
+    for (entity, module, _, _, placed, .., _) in &placed {
         if kenney_pit::is_room_shell(module.name)
             && matches!(placed.floor_level, 0 | -1 | -2)
             && extraction.is_some()
@@ -187,19 +198,50 @@ fn sync_playtest_patched_pieces(
         }
     }
 
-    for (_entity, module, gt, mut tf, mut ep, ..) in &mut placed {
+    for (_entity, module, gt, mut tf, mut ep, .., tag_comp) in &mut placed {
         if ep.ceiling {
             continue;
         }
         let pos = gt.translation();
-        let Some(piece) = patched.pieces.iter().find(|p| {
-            p.floor == module.floor
-                && !p.ceiling
-                && (p.x - pos.x).abs() < 0.05
-                && (p.z - pos.z).abs() < 0.05
+        let tags = tag_comp.map(|t| t.0.as_slice()).unwrap_or(&[]);
+        let group_id = ep.group_id.or(module.group_id);
+        let candidates: Vec<_> = patched
+            .pieces
+            .iter()
+            .filter(|p| {
+                p.floor == module.floor
+                    && !p.ceiling
+                    && p.stem == module.name
+                    && (p.x - pos.x).abs() < 0.05
+                    && (p.z - pos.z).abs() < 0.05
+                    && group_id.map_or(true, |gid| p.group_id == Some(gid))
+            })
+            .collect();
+        let Some(piece) = candidates.iter().min_by(|a, b| {
+            let score = |p: &&shared::kenney_layout::KenneyPlacement| {
+                (p.world_y() - pos.y).abs()
+                    + if tags.is_empty() {
+                        0.0
+                    } else if p
+                        .tags
+                        .iter()
+                        .any(|t| tags.iter().any(|u| u == t))
+                    {
+                        -0.5
+                    } else {
+                        0.5
+                    }
+            };
+            score(a)
+                .partial_cmp(&score(b))
+                .unwrap_or(std::cmp::Ordering::Equal)
         }) else {
             continue;
         };
+        let piece = *piece;
+        if (piece.world_y() - pos.y).abs() > 0.2 {
+            continue;
+        }
         ep.floor_level = piece.floor;
         let yaw = shared::kenney_catalog::quantize_yaw(piece.yaw);
         tf.translation = Vec3::new(piece.x, piece.world_y(), piece.z);
@@ -259,7 +301,7 @@ fn sync_playtest_mesh_cutouts(
 pub fn enter_in_process_playtest(
     mut commands: Commands,
     editor_cam: Query<Entity, Or<(With<crate::kenney_editor::EditorCamera>, With<EditorPlaytestCamera>)>>,
-    menu: Query<Entity, With<EditorMenuRoot>>,
+    menu: Query<Entity, With<EditorToolbarRoot>>,
     sidebar: Query<Entity, With<EditorSidebarRoot>>,
     ghosts: Query<Entity, With<crate::kenney_editor::EditorGhost>>,
     toast: Query<Entity, With<crate::kenney_editor::SaveToastText>>,
@@ -267,8 +309,9 @@ pub fn enter_in_process_playtest(
     module_entities: Vec<Entity>,
     mut test_mode: ResMut<TestMode>,
     mut generation: ResMut<KenneyPlaytestGeneration>,
-    mut window: Single<&mut CursorOptions, With<PrimaryWindow>>,
+    window: Single<(&mut CursorOptions, &mut Window), With<PrimaryWindow>>,
 ) {
+    let (mut window, mut win_mode) = window.into_inner();
     commands.insert_resource(EditorPlaytestActive);
     test_mode.style = TestMapStyle::Kenney;
     shared::level::set_test_map_style(TestMapStyle::Kenney);
@@ -318,6 +361,9 @@ pub fn enter_in_process_playtest(
 
     window.grab_mode = CursorGrabMode::Locked;
     window.visible = false;
+    // Borderless fullscreen: with a locked cursor a windowed title bar is a trap
+    // (clicking it re-grabs the mouse mid-drag, so the window can't be moved).
+    win_mode.mode = WindowMode::BorderlessFullscreen(MonitorSelection::Current);
 
     info!("in-process playtest — G return · WASD move · R respawn · mouse look");
 }
@@ -326,11 +372,12 @@ pub fn exit_in_process_playtest(
     commands: &mut Commands,
     mut test_mode: ResMut<TestMode>,
     mut generation: ResMut<KenneyPlaytestGeneration>,
-    mut window: Single<&mut CursorOptions, With<PrimaryWindow>>,
+    window: Single<(&mut CursorOptions, &mut Window), With<PrimaryWindow>>,
     mut player_vis: Query<&mut Visibility, With<OwnPlayer>>,
     playtest_cam: Query<Entity, With<EditorPlaytestCamera>>,
     coords_hud: Query<Entity, With<PlaytestCoordsHud>>,
 ) {
+    let (mut window, mut win_mode) = window.into_inner();
     commands.remove_resource::<EditorPlaytestActive>();
     test_mode.style = TestMapStyle::Rusty;
     shared::level::set_test_map_style(TestMapStyle::Rusty);
@@ -342,6 +389,7 @@ pub fn exit_in_process_playtest(
 
     window.grab_mode = CursorGrabMode::None;
     window.visible = true;
+    win_mode.mode = WindowMode::Windowed;
     for mut vis in &mut player_vis {
         *vis = Visibility::Hidden;
     }
@@ -379,10 +427,11 @@ fn editor_playtest_look(
     }
 }
 
-fn editor_playtest_camera(
+pub(crate) fn editor_playtest_camera(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     look: Res<LookAngles>,
+    third_person: Res<crate::fly_camera::ThirdPersonMode>,
     mut eye_height: Local<f32>,
     player: Query<&Transform, (With<OwnPlayer>, Without<EditorPlaytestCamera>)>,
     mut camera: Query<&mut Transform, (With<EditorPlaytestCamera>, Without<OwnPlayer>)>,
@@ -394,6 +443,14 @@ fn editor_playtest_camera(
         cam.rotation = Quat::from_euler(EulerRot::YXZ, look.yaw, look.pitch, 0.0);
         return;
     };
+    if third_person.0 {
+        *cam = crate::fly_camera::third_person_transform(
+            player.translation,
+            look.yaw,
+            look.pitch,
+        );
+        return;
+    }
     let crouching =
         keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight);
     let target = if crouching {
@@ -408,9 +465,16 @@ fn editor_playtest_camera(
 }
 
 fn sync_playtest_player_visibility(
-    mut q: Query<&mut Visibility, With<OwnPlayer>>,
+    mut q: Query<(&mut Visibility, Option<&shared::protocol::PlayerAlive>), With<OwnPlayer>>,
 ) {
-    for mut vis in &mut q {
-        *vis = Visibility::Inherited;
+    for (mut vis, alive) in &mut q {
+        // Respect death: darkness.rs::hide_dead_players hides dead players the
+        // same frame — forcing Inherited here regardless would fight it and
+        // flicker the third-person model while dead.
+        *vis = if alive.is_none_or(|a| a.0) {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
     }
 }

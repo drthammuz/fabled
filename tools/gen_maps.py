@@ -1622,6 +1622,7 @@ def export_kenney_layout(doc: dict) -> None:
                 **({"tint": p["tint"]} if p.get("tint") else {}),
                 **({"y": p["y"]} if p.get("y") is not None else {}),
                 **({"zone": p["zone"]} if p.get("zone") else {}),
+                **({"tags": p["tags"]} if p.get("tags") else {}),
             }
             for p in doc["pieces"]
         ],
@@ -1631,6 +1632,10 @@ def export_kenney_layout(doc: dict) -> None:
         "hub_exits": doc.get("hub_exits"),
         "branch_levels": doc.get("branch_levels"),
         "hub_model": doc.get("hub_model"),
+        "enemy_spawns": doc.get("enemy_spawns", []),
+        "npc_spawns": doc.get("npc_spawns", []),
+        "enemy_patrols": doc.get("enemy_patrols", []),
+        **({"nav": doc["nav"]} if doc.get("nav") else {}),
     }
     LAYOUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     LAYOUT_PATH.write_text(json.dumps(layout, indent=2) + "\n", encoding='utf-8')
@@ -1933,6 +1938,9 @@ def generate_map_report(
     prev_fraction: float = 0.25,
     default_fraction: float = 0.50,
     next_fraction: float = 0.25,
+    num_enemies: int = 5,
+    num_npcs: int = 3,
+    hall_rooms: int = 2,
 ) -> dict:
     """Generate one map; return a JSON-serializable report for the editor.
 
@@ -1964,6 +1972,9 @@ def generate_map_report(
         prev_fraction=prev_fraction,
         default_fraction=default_fraction,
         next_fraction=next_fraction,
+        num_enemies=num_enemies,
+        num_npcs=num_npcs,
+        hall_rooms=hall_rooms,
     )
 
 
@@ -2001,6 +2012,8 @@ def main() -> None:
     ap.add_argument('--prev-fraction', type=float, default=0.25)
     ap.add_argument('--default-fraction', type=float, default=0.50)
     ap.add_argument('--next-fraction', type=float, default=0.25)
+    ap.add_argument('--num-enemies', type=int, default=5, help='Number of enemies to place for base enemy system')
+    ap.add_argument('--num-npcs', type=int, default=3, help='Number of friendly NPCs to place')
     ap.add_argument('--preview', action='store_true',
                     help='Editor mode: write map and print JSON report on stdout')
     ap.add_argument('--no-layout-export', action='store_true',
@@ -2045,6 +2058,8 @@ def main() -> None:
         prev_fraction=args.prev_fraction,
         default_fraction=args.default_fraction,
         next_fraction=args.next_fraction,
+        num_enemies=args.num_enemies,
+        num_npcs=args.num_npcs,
     )
 
     if args.preview:
