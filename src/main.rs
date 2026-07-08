@@ -181,17 +181,11 @@ fn run_server() {
 }
 
 /// Remote client: window + rendering, connects to the given address.
-/// Real-game sessions are fullscreen-only (borderless; windowed is editor/dev).
+/// Starts WINDOWED so Alt-Tab works out of the box; F11 toggles fullscreen.
 fn run_client(address: String) {
     let mut app = App::new();
     enable_real_game_pool_mode(&mut app);
-    build_client_app(
-        &mut app,
-        "fabled - client",
-        client::display_settings::window_mode_for(
-            shared::editor_settings::DisplayMode::BorderlessFullscreen,
-        ),
-    );
+    build_client_app(&mut app, "fabled - client", WindowMode::Windowed);
     // kenney_editor::editor_startup (and friends) require this resource on every
     // client app; only run_host inserted it before → --client exited 101.
     app.insert_resource(shared::editor_settings::UserEditorPrefs::load());
@@ -236,11 +230,11 @@ fn run_host(cli: &Cli) {
     } else if cli.city {
         WindowMode::Windowed
     } else {
-        // Plain `--host` is a real game session (serve + play): fullscreen,
-        // same as remote clients. Editor/test/dressing keep their prefs.
-        client::display_settings::window_mode_for(
-            shared::editor_settings::DisplayMode::BorderlessFullscreen,
-        )
+        // Plain `--host` is a real game session (serve + play). Start WINDOWED
+        // so Alt-Tab works; F11 toggles fullscreen (BorderlessFullscreen locked
+        // the window "always on top" and blocked Alt-Tab). Editor/test/dressing
+        // keep their saved prefs.
+        WindowMode::Windowed
     };
     let mut app = App::new();
     if cli.city {

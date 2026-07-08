@@ -12,7 +12,9 @@ use bevy::prelude::*;
 use bevy::render::view::Hdr;
 use bevy::light::VolumetricFog;
 use bevy::pbr::{DistanceFog, FogFalloff};
-use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
+use bevy::window::{
+    CursorGrabMode, CursorOptions, MonitorSelection, PrimaryWindow, Window, WindowMode,
+};
 use bevy::ecs::schedule::common_conditions::{any_with_component, not, resource_exists};
 use shared::config;
 use shared::EditorMode;
@@ -64,6 +66,7 @@ impl Plugin for FlyCameraPlugin {
                 (
                     toggle_cursor_grab.run_if(not(resource_exists::<EditorMode>)),
                     release_cursor_on_focus_loss,
+                    toggle_fullscreen.run_if(not(resource_exists::<EditorMode>)),
                     // Third person also works during editor playtest (the
                     // editor's middle-mouse orbit is gated off while playing).
                     toggle_third_person.run_if(
@@ -359,6 +362,20 @@ fn toggle_third_person(
 ) {
     if mouse.just_pressed(MouseButton::Middle) {
         mode.0 = !mode.0;
+    }
+}
+
+/// F11 toggles borderless fullscreen. The game starts windowed so Alt-Tab
+/// works; press F11 for an immersive fullscreen pass, F11 again to go back.
+fn toggle_fullscreen(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut window: Single<&mut Window, With<PrimaryWindow>>,
+) {
+    if keys.just_pressed(KeyCode::F11) {
+        window.mode = match window.mode {
+            WindowMode::Windowed => WindowMode::BorderlessFullscreen(MonitorSelection::Primary),
+            _ => WindowMode::Windowed,
+        };
     }
 }
 

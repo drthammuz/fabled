@@ -2,8 +2,6 @@
 //! death banner, and a damage vignette. Styled via `ui_theme` (Pass C).
 
 use bevy::prelude::*;
-use shared::kenney_hub;
-use shared::kenney_layout::KenneyLayout;
 use shared::run::{RunPhase, RunState};
 use shared::EditorMode;
 
@@ -192,7 +190,6 @@ fn sync_hud_visibility(
 
 fn update_status_text(
     run: Query<&RunState>,
-    player: Query<&Transform, With<crate::netplay::OwnPlayer>>,
     mut status: Query<&mut Text, (With<StatusText>, Without<ContextText>)>,
     mut context: Query<&mut Text, (With<ContextText>, Without<StatusText>)>,
 ) {
@@ -209,7 +206,6 @@ fn update_status_text(
         return;
     };
 
-    let layout = KenneyLayout::load_from_disk();
     let phase = match state.phase {
         RunPhase::InStretch => "IN STRETCH".to_string(),
         RunPhase::InHub => state
@@ -246,22 +242,15 @@ fn update_status_text(
             } else {
                 lines.push("All operators must reach the same exit".to_string());
             }
-        } else {
-            lines.push("Exits: centre pit | west corridor | west gate".to_string());
-            if !state.map_stream.candidates.is_empty() {
-                for (exit, id) in &state.map_stream.candidates {
-                    lines.push(format!("  exit {exit}: {id} mounted below"));
-                }
+        } else if !state.map_stream.candidates.is_empty() {
+            // Real pool game: next sectors are mounted under the exit holes.
+            lines.push("Drop through an exit hole to the next sector".to_string());
+            for (exit, id) in &state.map_stream.candidates {
+                lines.push(format!("  exit {exit}: {id} mounted below"));
             }
         }
-        if let Ok(tf) = player.single() {
-            for (key, branch) in &layout.branch_levels {
-                if kenney_hub::in_branch_destination(tf.translation, branch) {
-                    lines.push(format!("Inside branch L{key}: {}", branch.label));
-                }
-            }
-        }
-        lines.push("Shop: 1=Flashlight 2=Bat 3=Map".to_string());
+        // Legacy stretch-graph routes (keys 7+) — only the old sewer game
+        // populates `route_options`; the pool game leaves it empty.
         if state.hub_commit.chosen_exit.is_none() {
             for (i, route) in state.route_options.iter().enumerate() {
                 lines.push(format!("  {} — {} ({}c)", i + 7, route.label, route.cost));

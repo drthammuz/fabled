@@ -8,36 +8,56 @@ add newly discovered ones, keep priorities honest.
 given (mechanical, well-scoped, verifiable by a script/test); `[F]` = needs Fable-level
 debugging/design judgment. Anything with a listed verification gate is safer to delegate.
 
-## ✅ STATUS — read this first (updated 2026-07-08, gameplay/classes pass)
+## ✅ STATUS — read this first (updated 2026-07-08, end of session; cache about to be cleared)
 
-**Done since last playtest** (all compiled + committed on `freeform/ceiling-roofs`):
-- Lighting: real MP now matches editor+G (camera `CAMERA_EV100_REAL_GAME` in
-  fly_camera.rs). Extraction drop → hub fires at y<-1.5 (run.rs). Buy-from-vendor
-  works (per-class inventory).
-- Classes: `ClassDef.starting_items` (per-class loadout). **Everyone: 5 slots + a
-  locked "Melee" weapon in slot 0** (can't buy/sell/drop; replaced the bat).
-  Soldier +Blaster +armor equip (40% DR, `combat::PlayerArmor`); Medic LMB-heal
-  self/aimed ally (+50%); Tech terminal `hack` → +credits +Data Shard (Tech-only,
-  honest client-side feedback now). Melee: 1 swing/click + faster anim.
-- Keeper NPCs (bandages + lore) in hidden rooms; metal shack (roof+poles, roof at
-  y=4). UI restyle (rounded, palette, fonts). Always-on center dot (crosshair.rs).
-- Alt-tab fixed (release cursor on focus loss, fly_camera.rs). Starting credits
-  bumped to 500 in dev/playtest so buying is testable (run.rs) — credits are the
-  shop currency; Scrap is the separate crafting material.
-- MP packaging: **`pack_client.bat`** builds `fabled_client.zip` (exe + only the
-  runtime assets + `PLAY.bat`) and uploads it to the GitHub "playtest" release if
-  `gh` is installed. Friends need NO repo/Rust. Guide: **docs/playtest-online-2026-07-07.md**.
+**ONE binary, one codebase — NOT separate versions.** "dev / playtest / editor /
+city / real-MP" are runtime MODES chosen by CLI flags + resources
+(`TestMode`, `RealGameRun`, `EditorMode`, `CityViewMode`). Real MP (`--host` /
+`--client`) rides on `TestMode` + `RealGameRun`. There WAS a real divergence — two
+level loaders (see the CONVERGENCE section below) — which is being merged, but it
+is not "different versions of the game."
 
-**Next (prioritised):**
-- **Scout Tagger** (only class mechanic still stubbed): aim→tag enemy, team-visible
-  outline ~7s, **tagged enemies take +30% damage** (user 2026-07-08), Tech can
-  disable tagged robots. Then un-stub the "coming soon" text.
-- **Medic revive** needs a real DOWNED state (dev auto-respawn currently masks
-  death; decide the MP death model first). Then wire revive→1HP + friendly UI.
-- **Audio** (skipped so far): footstep on foot-DOWN (needs anim events), melee/
-  ranged/enemy-attack SFX, subtle enemy-movement metal clack.
-- Tech: real hacking (locked caches/doors) beyond the credit-drip stub.
-- Verify list below (streaming/hub edge cases) still applies.
+**Confirmed working by the user (2026-07-08):** extraction drop → next level;
+buying from NPC vendors incl. Body Armor; Medic heal; (earlier rounds: floors,
+doors, enemies, materials, lighting).
+
+**Fixed THIS pass — needs user re-verify next session (unplaytested by agent):**
+- **Alt-tab**: real game now starts **WINDOWED (1600×900)**; **F11 toggles
+  fullscreen**. (An earlier focus-release fix alone did NOT work — the borderless
+  fullscreen window was the cause. main.rs run_client/run_host → Windowed;
+  `fly_camera::toggle_fullscreen`.)
+- **Legacy shop remnant removed**: the "Shop: 1=Flashlight 2=Bat 3=Map" HUD line
+  (run_ui.rs) is gone, and the legacy `hub_shop` server system is now gated off
+  for the pool game (run.rs) — number keys 1/2/3 (also hotbar-select) were
+  silently buying legacy items in the pool hub.
+- **Credits for testing = 500** (dev/test/real-playtest, run.rs). Credits are the
+  SHOP currency; **Scrap** is the separate crafting material. Armor 60c.
+- **5 inventory slots for everyone**; locked **Melee** weapon in slot 1 (can't
+  buy/sell/drop; `items::MELEE`); bat removed from loadouts/stock.
+- **Always-on center dot** crosshair (crosshair.rs) for pickups even with no gun.
+- **Tech `hack` honest feedback** (client-side class gate: Tech "access granted",
+  others "access denied"). winget→cli.github.com install note fixed (user had no winget).
+
+**STILL BROKEN / NOT BUILT (priority order):**
+1. **Scout Tagger** — only class mechanic still stubbed. Spec: aim → tag enemy,
+   team-visible outline ~7 s, **tagged enemies take +30% damage** (user
+   2026-07-08), Tech can disable tagged robots. Un-stub the class-desc "coming
+   soon" when done. (Tagger item already granted, inert.)
+2. **Medic revive** — NOT built, and NOT what the user assumed. TODAY death =
+   `PlayerAlive=false` → model HIDDEN (`client::darkness::hide_dead_players`) +
+   dev auto-respawn after 3 s (`server::players::test_respawn`). There IS a
+   "Death" anim clip but the body is hidden, not left as a corpse. Revive needs a
+   real **DOWNED state**: play death/downed anim, LEAVE the body in place, NO
+   auto-respawn in real MP, bleed-out timer, Medic interact within window →
+   revive to 1 HP, else fully dead. **Decide the MP death model first.**
+3. **Audio** (skipped every round so far): footstep on foot-DOWN (needs anim
+   events, not cadence), melee/ranged/enemy-attack SFX, subtle enemy-movement clack.
+4. **Tech real hacking** (locked caches/doors) beyond the credit-drip stub.
+5. **Shack roof height** (set to y=4) — user has NOT confirmed it renders right.
+
+**Class mechanics status:** Soldier armor ✅(user-confirmed buy) · Medic heal
+✅(user-confirmed) / revive ❌(see #2) · Tech terminal-hack ✅(feedback fixed) /
+real hacking ❌ · Scout tagger ❌(#1).
 
 ---
 

@@ -52,10 +52,13 @@ do **not** need the code, GitHub, or Rust.
 Two ways to get the zip to them:
 
 - **Automatic (best): upload to GitHub Releases.** Do this **once**, ever:
-  ```
-  winget install --id GitHub.cli
-  gh auth login
-  ```
+  1. Install the GitHub CLI. Easiest: download the installer from
+     **https://cli.github.com** (click "Download for Windows", run it). *(If you
+     have `winget`, `winget install --id GitHub.cli` also works — but many PCs
+     don't have `winget`, so the download is the safe route.)*
+  2. Open a new cmd.exe and run `gh auth login` (choose GitHub.com → HTTPS →
+     login in browser).
+
   After that, every time you run `pack_client.bat` it uploads the zip to your
   repo's **Releases → "playtest"** and prints the link. Friends always grab the
   newest from that one page — no re-sending files.

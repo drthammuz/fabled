@@ -44,10 +44,14 @@ if errorlevel 1 (
     echo -------------------------------------------------------------------
     echo The zip is ready but was NOT uploaded (GitHub CLI 'gh' not found).
     echo   The file is here:  %CD%\fabled_client.zip
-    echo   Send that to your friends, OR set up one-command uploads ONCE:
-    echo       winget install --id GitHub.cli
-    echo       gh auth login
-    echo   Then re-run pack_client.bat and it will upload automatically.
+    echo   Send that to your friends however you like (Discord/WeTransfer/USB).
+    echo.
+    echo   To enable one-command uploads to GitHub later, install the GitHub CLI
+    echo   ONCE (pick whichever works on your PC):
+    echo       - Download the installer: https://cli.github.com  (click Download for Windows)
+    echo       - OR in PowerShell:  winget install --id GitHub.cli
+    echo   Then run:  gh auth login
+    echo   After that, re-run pack_client.bat and it uploads automatically.
     echo -------------------------------------------------------------------
     pause
     exit /b 0

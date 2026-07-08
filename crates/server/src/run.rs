@@ -361,6 +361,12 @@ fn hub_shop(
     if run.phase != RunPhase::InHub {
         return;
     }
+    // Legacy sewer/stretch-graph camp shop only. The pool game buys from NPC
+    // vendors (server::npc); leaving this on meant number keys (1/2/3 also select
+    // hotbar slots) silently bought a flashlight/bat/map in the pool hub.
+    if PoolIndex::load_from_disk().is_some() {
+        return;
+    }
     let camp = run.hub_id.as_deref()
         .and_then(run::node)
         .map(|n| n.camp)
