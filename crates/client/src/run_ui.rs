@@ -99,15 +99,19 @@ fn spawn_hud(mut commands: Commands) {
                 row.spawn(theme::heading("HP"));
                 row.spawn((HealthBarText, theme::label("--")));
             });
-        // Bar track + fill.
+        // Bar track + fill (rounded, so the bar reads as a modern meter).
         panel
             .spawn((
                 Node {
                     width: Val::Percent(100.0),
-                    height: Val::Px(10.0),
+                    height: Val::Px(14.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    border_radius: BorderRadius::all(Val::Px(7.0)),
+                    overflow: Overflow::clip(),
                     ..default()
                 },
-                BackgroundColor(Color::srgba(0.10, 0.12, 0.15, 0.9)),
+                BackgroundColor(Color::srgba(0.06, 0.08, 0.11, 0.95)),
+                BorderColor::all(theme::ACCENT_DIM),
             ))
             .with_children(|track| {
                 track.spawn((
@@ -115,6 +119,7 @@ fn spawn_hud(mut commands: Commands) {
                     Node {
                         width: Val::Percent(100.0),
                         height: Val::Percent(100.0),
+                        border_radius: BorderRadius::all(Val::Px(6.0)),
                         ..default()
                     },
                     BackgroundColor(theme::GOOD),

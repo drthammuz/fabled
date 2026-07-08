@@ -150,11 +150,22 @@ pub fn glb_asset_path(stem: &str) -> String {
 }
 
 /// Asset path for a stem in a specific Kenney kit folder.
+///
+/// Falls back to the `space` kit when the kit-specific GLB does not exist on
+/// disk: generators tag structural template pieces (e.g. `template-floor-hole`)
+/// with their faction kit, but the geometry only ships in `models/space/`.
 pub fn glb_asset_path_in_kit(stem: &str, kit: &str) -> String {
     if kit == "space" && kenney_catalog::piece(stem).is_some() {
-        format!("models/space/{stem}.glb")
+        return format!("models/space/{stem}.glb");
+    }
+    let rel = format!("models/{kit}/{stem}.glb");
+    let abs = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets")
+        .join(&rel);
+    if abs.exists() {
+        rel
     } else {
-        format!("models/{kit}/{stem}.glb")
+        format!("models/space/{stem}.glb")
     }
 }
 

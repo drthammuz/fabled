@@ -67,11 +67,30 @@ struct Cli {
     /// Walk `assets/models/misc/cyberpunk_city.glb` with collision + daylight. Implies `--host`.
     #[arg(long, conflicts_with_all = ["server", "client", "test", "editor"])]
     city: bool,
+
+    /// Real-game sessions (--server/--host/--client): start from this pool
+    /// map instead of `index.json`'s own `start_id`. Pass a map id (e.g.
+    /// `map_002`) or the word `random` to pick one at launch — useful for
+    /// checking whether a symptom is specific to one generated map. Only
+    /// meaningful for `--host` (single process); a two-process `--server` +
+    /// `--client` pair must both pass the SAME explicit id, not `random`
+    /// (each process would otherwise roll its own and land on different maps).
+    #[arg(long, value_name = "ID")]
+    start_map: Option<String>,
 }
 
 fn main() {
     install_panic_log();
     let cli = Cli::parse();
+    if let Some(id) = cli.start_map.clone() {
+        let resolved = if id.eq_ignore_ascii_case("random") {
+            pick_random_map_id().unwrap_or(id)
+        } else {
+            id
+        };
+        eprintln!("start map override: {resolved}");
+        shared::map_pool::set_start_map_override(resolved);
+    }
 
     if cli.server {
         run_server();
@@ -83,6 +102,20 @@ fn main() {
         eprintln!("error: specify one of --server, --client <ip>, --host, or --city");
         std::process::exit(2);
     }
+}
+
+/// Pick a uniformly random pool map id for `--start-map random`.
+fn pick_random_map_id() -> Option<String> {
+    let pool = shared::map_pool::PoolIndex::load_from_disk()?;
+    if pool.maps.is_empty() {
+        return None;
+    }
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    let idx = nanos as usize % pool.maps.len();
+    Some(pool.maps[idx].id.clone())
 }
 
 /// Append every panic (message + location) to `logs/panic.log`, so crashes
@@ -121,19 +154,28 @@ fn install_panic_log() {
 
 /// Headless dedicated server: no windowing, no rendering, just the
 /// schedule runner driving the fixed-tick gameplay core.
+///
+/// Real-game sessions (`--host`, `--client`) load the kenney pool game via
+/// `enable_real_game_pool_mode`; this used to be skipped here, so a plain
+/// `--server` silently played the legacy sewer game instead. It's wired in
+/// too now — `crates/server/src/headless_gltf.rs` bakes the pool's GLB
+/// colliders via raw glTF parsing, since this app has no AssetServer/render
+/// app to load them through Bevy's normal pipeline.
 fn run_server() {
-    App::new()
-        .add_plugins((
-            MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(
-                1.0 / config::SERVER_LOOP_HZ,
-            ))),
-            LogPlugin::default(),
-            // Not part of MinimalPlugins, but required by physics/replicon.
-            bevy::transform::TransformPlugin,
-            StatesPlugin,
-        ))
-        .add_plugins((RepliconPlugins, RepliconRenetPlugins, ProtocolPlugin))
-        .add_plugins(ServerCorePlugin)
+    let mut app = App::new();
+    app.add_plugins((
+        MinimalPlugins.set(ScheduleRunnerPlugin::run_loop(Duration::from_secs_f64(
+            1.0 / config::SERVER_LOOP_HZ,
+        ))),
+        LogPlugin::default(),
+        // Not part of MinimalPlugins, but required by physics/replicon.
+        bevy::transform::TransformPlugin,
+        StatesPlugin,
+    ))
+    .add_plugins((RepliconPlugins, RepliconRenetPlugins, ProtocolPlugin));
+    enable_real_game_pool_mode(&mut app);
+    app.insert_resource(shared::HeadlessServer);
+    app.add_plugins(ServerCorePlugin)
         .add_systems(Startup, open_server)
         .run();
 }
@@ -142,6 +184,7 @@ fn run_server() {
 /// Real-game sessions are fullscreen-only (borderless; windowed is editor/dev).
 fn run_client(address: String) {
     let mut app = App::new();
+    enable_real_game_pool_mode(&mut app);
     build_client_app(
         &mut app,
         "fabled - client",
@@ -149,9 +192,27 @@ fn run_client(address: String) {
             shared::editor_settings::DisplayMode::BorderlessFullscreen,
         ),
     );
+    // kenney_editor::editor_startup (and friends) require this resource on every
+    // client app; only run_host inserted it before → --client exited 101.
+    app.insert_resource(shared::editor_settings::UserEditorPrefs::load());
     app.insert_resource(ServerAddress(address))
         .add_systems(Startup, connect_client)
         .run();
+}
+
+/// Real game sessions (plain `--host`, `--client`) play the kenney pool game —
+/// the same maps/systems as the editor playtest — when the pre-generated map
+/// pool exists on disk. Falls back to the legacy sewer game without a pool.
+fn enable_real_game_pool_mode(app: &mut App) {
+    if shared::map_pool::PoolIndex::load_from_disk().is_none() {
+        warn!("map pool missing (userinput/maps/pool/index.json) — legacy sewer game");
+        return;
+    }
+    shared::level::set_test_map_style(shared::TestMapStyle::Kenney);
+    app.insert_resource(shared::TestMode {
+        style: shared::TestMapStyle::Kenney,
+    });
+    app.insert_resource(shared::RealGameRun);
 }
 
 /// Listen server: full client app plus the server core in one process.
@@ -207,6 +268,9 @@ fn run_host(cli: &Cli) {
         };
         shared::level::set_test_map_style(style);
         app.insert_resource(shared::TestMode { style });
+    } else {
+        // Plain `--host` (serve_and_play.bat): the real game.
+        enable_real_game_pool_mode(&mut app);
     }
     build_client_app(&mut app, title, window_mode);
     app.insert_resource(settings);

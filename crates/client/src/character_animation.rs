@@ -11,7 +11,7 @@ use std::time::Duration;
 use bevy::gltf::Gltf;
 use bevy::prelude::*;
 use shared::classes::{ClassKind, ALL_CLASSES};
-use shared::protocol::Player;
+use shared::protocol::{Player, PlayerAlive, PlayerAttackAnim, PlayerHeldKind};
 
 
 pub struct CharacterAnimationPlugin;
@@ -43,7 +43,14 @@ struct ClassAnimEntry {
     gltf:  Handle<Gltf>,
     graph: Option<Handle<AnimationGraph>>,
     idle:  AnimationNodeIndex,
+    idle_gun: AnimationNodeIndex,
+    idle_sword: AnimationNodeIndex,
     walk:  AnimationNodeIndex,
+    run:   AnimationNodeIndex,
+    gun_shoot: AnimationNodeIndex,
+    run_shoot: AnimationNodeIndex,
+    melee: AnimationNodeIndex,
+    death: AnimationNodeIndex,
 }
 
 #[derive(Resource, Default)]
@@ -55,7 +62,14 @@ fn preload_anim_assets(asset_server: Res<AssetServer>, mut lib: ResMut<Character
             gltf:  asset_server.load(def.model_path),
             graph: None,
             idle:  AnimationNodeIndex::default(),
+            idle_gun: AnimationNodeIndex::default(),
+            idle_sword: AnimationNodeIndex::default(),
             walk:  AnimationNodeIndex::default(),
+            run:   AnimationNodeIndex::default(),
+            gun_shoot: AnimationNodeIndex::default(),
+            run_shoot: AnimationNodeIndex::default(),
+            melee: AnimationNodeIndex::default(),
+            death: AnimationNodeIndex::default(),
         });
     }
 }
@@ -84,14 +98,13 @@ fn build_anim_graphs(
                 .find(|(name, _)| name.to_lowercase().contains(&n))
                 .map(|(_, clip)| clip.clone())
         };
-        // KayKit idle = "Idle"; fall back to anything containing "idle".
-        let Some(idle_clip) = exact("Idle").or_else(|| contains("idle")) else {
+        // Quaternius cyberpunk Character clip names (exact first, loose fallback).
+        let Some(idle_clip) = exact("Idle_Neutral").or_else(|| contains("idle")) else {
             warn!("{kind:?}: no idle clip; available: {:?}",
                   gltf.named_animations.keys().collect::<Vec<_>>());
             continue;
         };
-        // KayKit walk = "Walking_A"; then any walk, then any run.
-        let Some(walk_clip) = exact("Walking_A")
+        let Some(walk_clip) = exact("Walk")
             .or_else(|| contains("walk"))
             .or_else(|| contains("run"))
         else {
@@ -99,11 +112,27 @@ fn build_anim_graphs(
                   gltf.named_animations.keys().collect::<Vec<_>>());
             continue;
         };
+        let run_clip = exact("Run").unwrap_or_else(|| walk_clip.clone());
+        let idle_gun = exact("Idle_Gun_Pointing").unwrap_or_else(|| idle_clip.clone());
+        let idle_sword = exact("Idle_Sword").unwrap_or_else(|| idle_clip.clone());
+        let gun_shoot = exact("Gun_Shoot").unwrap_or_else(|| idle_gun.clone());
+        let run_shoot = exact("Run_Shoot").unwrap_or_else(|| gun_shoot.clone());
+        let melee = exact("Sword_Slash")
+            .or_else(|| exact("Punch_Right"))
+            .unwrap_or_else(|| idle_clip.clone());
+        let death = exact("Death").unwrap_or_else(|| idle_clip.clone());
 
         let mut graph = AnimationGraph::new();
         let root = graph.root;
         entry.idle  = graph.add_clip(idle_clip, 1.0, root);
+        entry.idle_gun = graph.add_clip(idle_gun, 1.0, root);
+        entry.idle_sword = graph.add_clip(idle_sword, 1.0, root);
         entry.walk  = graph.add_clip(walk_clip, 1.0, root);
+        entry.run   = graph.add_clip(run_clip, 1.0, root);
+        entry.gun_shoot = graph.add_clip(gun_shoot, 1.0, root);
+        entry.run_shoot = graph.add_clip(run_shoot, 1.0, root);
+        entry.melee = graph.add_clip(melee, 1.0, root);
+        entry.death = graph.add_clip(death, 1.0, root);
         entry.graph = Some(graphs.add(graph));
         info!("{kind:?}: animation graph ready (all clips: {:?})",
               gltf.named_animations.keys().collect::<Vec<_>>());
@@ -220,8 +249,18 @@ fn wire_pending_rigs(
 
 fn drive_player_animations(
     mut commands: Commands,
+    time: Res<Time>,
     mut players: Query<
-        (Entity, &Transform, &PlayerRig, &PlayerAnimClass, &mut PlayerLastPos),
+        (
+            Entity,
+            &Transform,
+            &PlayerRig,
+            &PlayerAnimClass,
+            &mut PlayerLastPos,
+            Option<&PlayerAlive>,
+            Option<&PlayerHeldKind>,
+            Option<&PlayerAttackAnim>,
+        ),
         With<Player>,
     >,
     new_players: Query<(Entity, &Transform), (With<PlayerRig>, Without<PlayerLastPos>, With<Player>)>,
@@ -230,28 +269,109 @@ fn drive_player_animations(
 ) {
     // Seed LastPos on newly rigged players.
     for (entity, transform) in &new_players {
-        commands.entity(entity).insert(PlayerLastPos(transform.translation, false));
+        commands.entity(entity).insert(PlayerLastPos {
+            pos: transform.translation,
+            speed: 0.0,
+            current: None,
+            attack_seq: None,
+            attack_until: 0.0,
+            attack_kind: 0,
+        });
     }
 
-    for (_entity, transform, rig, anim_class, mut last_pos) in &mut players {
-        let delta = transform.translation.distance_squared(last_pos.0);
-        let is_walking = delta > 0.0001; // ~1 cm moved per frame
-        last_pos.0 = transform.translation;
+    let dt = time.delta_secs().max(1e-6);
+    let now = time.elapsed_secs();
+    for (_entity, transform, rig, anim_class, mut st, alive, held, attack) in &mut players {
+        let inst = (transform.translation - st.pos).length() / dt;
+        st.pos = transform.translation;
+        // Light smoothing so interpolation hiccups don't flicker clips.
+        st.speed = st.speed * 0.8 + inst.min(12.0) * 0.2;
 
-        // Only switch when state changes to avoid restarting the clip every frame.
-        if is_walking == last_pos.1 { continue; }
-        last_pos.1 = is_walking;
+        // One-shot attack overlay: seq bump starts a short window. Melee is sped
+        // up so a swing is snappy/viable; Soldier swings a touch faster still.
+        let soldier = anim_class.0 == ClassKind::Soldier;
+        if let Some(a) = attack {
+            if st.attack_seq != Some(a.seq) {
+                let started = st.attack_seq.is_some();
+                st.attack_seq = Some(a.seq);
+                if started {
+                    let window = match a.kind {
+                        2 => if soldier { 0.27 } else { 0.33 }, // melee swing
+                        _ => 0.38,                              // ranged recoil
+                    };
+                    st.attack_until = now + window;
+                    st.attack_kind = a.kind;
+                }
+            }
+        }
 
         let Some(entry) = lib.0.get(&anim_class.0) else { continue };
-        let Ok((mut player, mut transitions)) = rigs.get_mut(rig.0) else { continue };
+        let dead = alive.is_some_and(|a| !a.0);
+        let moving = st.speed > 0.4;
+        let held_kind = held.map(|h| h.0).unwrap_or(0);
+        // Base walk speed is 8.4 and sprint 12.6, so split walk vs run near their
+        // midpoint; crouch (4.5) rides the walk clip, slowed by the speed scaling.
+        let sprinting = st.speed > 10.5;
 
-        let target = if is_walking { entry.walk } else { entry.idle };
-        transitions
-            .play(&mut player, target, Duration::from_millis(200))
-            .repeat();
+        let (target, repeat) = if dead {
+            (entry.death, false)
+        } else if now < st.attack_until {
+            match st.attack_kind {
+                2 => (entry.melee, false),
+                _ if moving => (entry.run_shoot, false),
+                _ => (entry.gun_shoot, false),
+            }
+        } else if sprinting {
+            (entry.run, true)
+        } else if moving {
+            (entry.walk, true)
+        } else {
+            match held_kind {
+                1 => (entry.idle_gun, true),
+                2 => (entry.idle_sword, true),
+                _ => (entry.idle, true),
+            }
+        };
+
+        // Clip playback speed: melee/attack sped up for snap; walk & run scaled to
+        // the player's ACTUAL speed so footfalls read as crouch / walk / sprint.
+        const WALK_REF: f32 = 8.4; // config::PLAYER_MOVE_SPEED
+        const RUN_REF: f32 = 12.6; // config::PLAYER_SPRINT_SPEED
+        let clip_speed = if now < st.attack_until {
+            match st.attack_kind {
+                2 => if soldier { 1.75 } else { 1.45 },
+                _ => 1.3,
+            }
+        } else if target == entry.run {
+            (st.speed / RUN_REF).clamp(0.7, 1.5)
+        } else if target == entry.walk {
+            (st.speed / WALK_REF).clamp(0.5, 1.6)
+        } else {
+            1.0
+        };
+
+        let Ok((mut player, mut transitions)) = rigs.get_mut(rig.0) else { continue };
+        if st.current != Some(target) {
+            st.current = Some(target);
+            let active = transitions.play(&mut player, target, Duration::from_millis(120));
+            active.set_speed(clip_speed);
+            if repeat {
+                active.repeat();
+            }
+        } else if let Some(active) = player.animation_mut(target) {
+            // Same clip still playing — keep speed synced as movement changes.
+            active.set_speed(clip_speed);
+        }
     }
 }
 
-/// Cached last-frame position and walking state for movement detection.
+/// Per-player animation driver state (movement + attack overlay tracking).
 #[derive(Component)]
-struct PlayerLastPos(Vec3, bool);
+struct PlayerLastPos {
+    pos: Vec3,
+    speed: f32,
+    current: Option<AnimationNodeIndex>,
+    attack_seq: Option<u32>,
+    attack_until: f32,
+    attack_kind: u8,
+}

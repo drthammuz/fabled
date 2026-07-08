@@ -87,9 +87,10 @@ fn setup_hotbar(mut commands: Commands) {
                 row.spawn((
                     HotbarSlot(i),
                     Node {
-                        width: Val::Px(64.0),
-                        height: Val::Px(64.0),
-                        border: UiRect::all(Val::Px(1.0)),
+                        width: Val::Px(66.0),
+                        height: Val::Px(66.0),
+                        border: UiRect::all(Val::Px(2.0)),
+                        border_radius: BorderRadius::all(theme::RADIUS_SM),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
                         flex_direction: FlexDirection::Column,
@@ -97,8 +98,8 @@ fn setup_hotbar(mut commands: Commands) {
                         overflow: Overflow::clip(),
                         ..default()
                     },
-                    BackgroundColor(theme::PANEL_BG),
-                    BorderColor::all(theme::PANEL_BORDER),
+                    BackgroundColor(theme::SURFACE),
+                    BorderColor::all(theme::ACCENT_DIM),
                 ))
                 .with_children(|slot| {
                     // Key hint, pinned to the slot corner.
@@ -155,7 +156,8 @@ fn select_slot(
         KeyCode::Digit4,
     ];
     for (i, key) in SLOT_KEYS.iter().enumerate().take(config::INVENTORY_SLOTS) {
-        if keys.just_pressed(*key) {
+        // Only slots the class actually has are selectable.
+        if keys.just_pressed(*key) && i < inventory.slots.len() {
             inventory.selected = i;
         }
     }
@@ -163,20 +165,27 @@ fn select_slot(
 
 fn refresh_hotbar(
     inventory: Res<OwnInventory>,
-    mut slots: Query<(&HotbarSlot, &mut BorderColor, &mut BackgroundColor)>,
+    mut slots: Query<(&HotbarSlot, &mut BorderColor, &mut BackgroundColor, &mut Node)>,
     mut tags: Query<(&HotbarSlotTag, &mut Text, &mut TextColor), Without<HotbarSlotName>>,
     mut names: Query<(&HotbarSlotName, &mut Text), Without<HotbarSlotTag>>,
 ) {
     if !inventory.is_changed() {
         return;
     }
-    for (slot, mut border, mut bg) in &mut slots {
-        let selected = slot.0 == inventory.selected;
-        *border = BorderColor::all(if selected { theme::ACCENT } else { theme::PANEL_BORDER });
-        bg.0 = if selected {
-            Color::srgba(0.06, 0.12, 0.15, 0.9)
+    for (slot, mut border, mut bg, mut node) in &mut slots {
+        // Classes carry different slot counts — drop the ones this class lacks
+        // out of layout entirely (not just hidden) so the row stays tight.
+        node.display = if slot.0 < inventory.slots.len() {
+            Display::Flex
         } else {
-            theme::PANEL_BG
+            Display::None
+        };
+        let selected = slot.0 == inventory.selected;
+        *border = BorderColor::all(if selected { theme::ACCENT } else { theme::ACCENT_DIM });
+        bg.0 = if selected {
+            Color::srgba(0.10, 0.22, 0.28, 0.95)
+        } else {
+            theme::SURFACE
         };
     }
     for (tag, mut text, mut color) in &mut tags {

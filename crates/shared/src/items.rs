@@ -10,6 +10,10 @@ pub const SCRAP: u32 = 14;
 pub const MEDICAL_BAG: u32 = 15;
 pub const HACKER_DEVICE: u32 = 16;
 pub const SCRAP_PISTOL: u32 = 17;
+pub const BANDAGE: u32 = 18;
+pub const TAGGER: u32 = 19;
+pub const ARMOR: u32 = 20;
+pub const DATA_SHARD: u32 = 21;
 
 pub fn flashlight() -> Item {
     Item {
@@ -81,6 +85,73 @@ pub fn scrap_pistol() -> Item {
         weight: 1.8,
         value: 60,
     }
+}
+
+pub fn bandage() -> Item {
+    Item {
+        id: BANDAGE,
+        name: "Bandage".into(),
+        weight: 0.1,
+        value: 8,
+    }
+}
+
+pub fn tagger() -> Item {
+    Item {
+        id: TAGGER,
+        name: "Tagger".into(),
+        weight: 0.5,
+        value: 0,
+    }
+}
+
+pub fn armor() -> Item {
+    Item {
+        id: ARMOR,
+        name: "Body Armor".into(),
+        weight: 4.0,
+        value: 50,
+    }
+}
+
+pub fn data_shard() -> Item {
+    Item {
+        id: DATA_SHARD,
+        name: "Data Shard".into(),
+        weight: 0.1,
+        value: 35,
+    }
+}
+
+/// Build an item from its id (spawn loadouts, shop grants, hack rewards).
+pub fn by_id(id: u32) -> Option<Item> {
+    Some(match id {
+        FLASHLIGHT => flashlight(),
+        MAP => map(),
+        PIPE_BAT => pipe_bat(),
+        MEDICAL_BAG => medical_bag(),
+        HACKER_DEVICE => hacker_device(),
+        SCRAP_PISTOL => scrap_pistol(),
+        BANDAGE => bandage(),
+        TAGGER => tagger(),
+        ARMOR => armor(),
+        DATA_SHARD => data_shard(),
+        _ => return None,
+    })
+}
+
+/// A consumable that restores health when used, and how much (base, before
+/// class efficiency bonuses).
+pub fn heal_amount(item: &Item) -> Option<f32> {
+    match item.id {
+        BANDAGE => Some(30.0),
+        MEDICAL_BAG => Some(70.0),
+        _ => None,
+    }
+}
+
+pub fn is_armor(item: &Item) -> bool {
+    item.id == ARMOR
 }
 
 /// What an NPC pays for an item — half list value, never zero. Lives in

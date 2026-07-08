@@ -11,6 +11,10 @@ bevy.workspace = true
 avian3d.workspace = true
 bevy_replicon.workspace = true
 shared.workspace = true
+# Raw glTF geometry parsing for the headless dedicated server (`--server`),
+# which has no AssetServer/render app to load .glb through Bevy's normal
+# pipeline. Same version bevy_gltf already resolves, so no extra download.
+gltf = "1.4"
 sim = { path = "../sim", optional = true }
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }

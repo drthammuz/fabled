@@ -18,6 +18,19 @@ fn repo_relative(path: &str) -> PathBuf {
         .join(path)
 }
 
+/// `--start-map <id>` override (`main.rs`), so a real-game session can start
+/// from any pool map instead of always `index.json`'s own `start_id` — lets
+/// you check whether a symptom is specific to one generated map/seed.
+static START_MAP_OVERRIDE: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+pub fn set_start_map_override(id: String) {
+    let _ = START_MAP_OVERRIDE.set(id);
+}
+
+pub fn start_map_override() -> Option<&'static str> {
+    START_MAP_OVERRIDE.get().map(|s| s.as_str())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PoolMapEntry {
     pub id: String,
@@ -27,6 +40,13 @@ pub struct PoolMapEntry {
     pub extraction_xz: Option<[f32; 2]>,
     #[serde(default)]
     pub hub_exits: HashMap<String, HubExit>,
+    /// Faction the map transitions FROM (its entry zone). Chain rule: a child
+    /// mounted under an exit should have prev_faction == parent's next_faction.
+    #[serde(default)]
+    pub prev_faction: Option<String>,
+    /// Faction the map transitions TO (its exit zone) — seeds the next round.
+    #[serde(default)]
+    pub next_faction: Option<String>,
     #[serde(default = "default_modules")]
     pub modules_x: u32,
     #[serde(default = "default_modules")]
@@ -66,6 +86,9 @@ impl PoolIndex {
     }
 
     pub fn start_id(&self) -> Option<&str> {
+        if let Some(id) = start_map_override() {
+            return Some(id);
+        }
         self.start_id
             .as_deref()
             .or_else(|| self.maps.first().map(|m| m.id.as_str()))
@@ -272,9 +295,16 @@ impl MountedMap {
     }
 
     pub fn piece_translation(&self, p: &KenneyPlacement) -> Vec3 {
+        // MUST honour the piece's per-cell height (`world_y()` = `p.y`), NOT
+        // `floor * MOD_H`. The old `floor * MOD_H` formula discarded `p.y`
+        // entirely, so anything raised WITHIN a floor — the synth deck (1.2 m),
+        // props/rails/computers/doors placed on it (y = 1.2 / 2.4) — rendered
+        // and collided at floor level, i.e. sunk INTO the raised floor instead
+        // of sitting on top of it. The editor path (`placements_from_layout`)
+        // always used `world_y()`; this is what makes the two paths agree.
         Vec3::new(
             p.x + self.offset.x,
-            p.floor as f32 * MOD_H + self.offset.y + 0.002,
+            p.world_y() + self.offset.y,
             p.z + self.offset.z,
         )
     }

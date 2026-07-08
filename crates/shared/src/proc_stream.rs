@@ -51,7 +51,7 @@ impl Default for GenKnobs {
             attempts: 30,
             organicness: 0.0,
             corridor_width: 1.0,
-            hidden: 0.0,
+            hidden: 1.0,
             prev_fraction: 15.0 / 110.0,
             default_fraction: 60.0 / 110.0,
             next_fraction: 35.0 / 110.0,

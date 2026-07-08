@@ -43,6 +43,9 @@ pub struct Shell {
     pub input: String,
     cols: usize,
     rows: usize,
+    /// Set when the user runs `hack`; the client picks it up and asks the server
+    /// to apply the reward (Tech-only). Cleared by `take_hack_request`.
+    hack_requested: bool,
 }
 
 /// Per-faction hostname + login banner so a synth box doesn't greet like a
@@ -69,6 +72,7 @@ impl Shell {
             input: String::new(),
             cols,
             rows,
+            hack_requested: false,
         };
         sh.push_line(banner.to_string());
         sh.push_line(format!("{} tty1", sh.hostname));
@@ -91,6 +95,11 @@ impl Shell {
         self.input.pop();
     }
 
+    /// True once after a `hack` command; consumed so it fires a single request.
+    pub fn take_hack_request(&mut self) -> bool {
+        std::mem::take(&mut self.hack_requested)
+    }
+
     pub fn submit(&mut self) {
         let line = std::mem::take(&mut self.input);
         let prompt = self.prompt();
@@ -101,7 +110,13 @@ impl Shell {
         match cmd {
             "help" => {
                 self.push_line("ls cd cat pwd echo clear help".to_string());
-                self.push_line("whoami hostname uname exit(Esc)".to_string());
+                self.push_line("whoami hostname uname hack exit(Esc)".to_string());
+            }
+            "hack" => {
+                self.hack_requested = true;
+                self.push_line("breaching sector node...".to_string());
+                self.push_line("[####______] siphoning credits".to_string());
+                self.push_line("(requires Tech clearance to complete)".to_string());
             }
             "ls" => self.cmd_ls(args.first().copied()),
             "cd" => self.cmd_cd(args.first().copied().unwrap_or("/")),

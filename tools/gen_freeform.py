@@ -485,7 +485,11 @@ def place_hidden_rooms(
     doors: List[Tuple[float, float, float]] = []
     meta: List[SecretDoorMeta] = []
     occupied = room_cells | corridor_cells | wide_cells
-    for _ in range(n_target * 10):
+    # Dense 25-cell maps rarely have a free 3x3+halo pocket, so most attempts
+    # fail the `halo & occupied` test — with only n_target*10 tries the pool was
+    # getting 0-1 hidden rooms even at prevalence 1.0 (target 4). Try much harder
+    # to actually deliver the requested count. Still capped at n_target placements.
+    for _ in range(max(n_target * 80, 400)):
         if len(hidden) >= n_target:
             break
         w = rng.randint(room_min, room_min + 1)
@@ -2140,10 +2144,15 @@ def _dress_hub_and_hidden(pieces: List[dict], fm: "FreeformMap", gx: int, gz: in
         yaw_in = math.atan2(-dx, -dz)
         off = (wall_off_for_cell((cx, cz)) if wall_off_for_cell else 0.0)
         w_face = HALF - float(off)
-        awn_out = w_face - _MM_BACK["detail-awning-small"] * S - GAP
         disp_out = w_face - _MM_BACK["display-fruit"] * MS - GAP
-        pieces.append(prop("detail-awning-small", wx + dx * awn_out, wz + dz * awn_out,
-                           yaw_in, 0, "hidden_shack", y_lift=2.3))
+        # A real little shack over the keeper: a metal roof on its pole frame.
+        # Both are retro_urban pieces that share an origin and are authored to
+        # stack, so the same transform assembles them into a standing structure
+        # on the floor — replacing the old wall-mounted awning that floated in
+        # mid-air. (If the roof height needs a nudge, adjust y_lift here.)
+        pieces.append(prop("roof-metal-poles", wx, wz, yaw_in, 0, "hidden_shack"))
+        # Roof panel sits one storey (4 m) up on top of the poles.
+        pieces.append(prop("roof-metal-type-b", wx, wz, yaw_in, 0, "hidden_shack", y_lift=4.0))
         pieces.append(prop("display-fruit", wx + dx * disp_out + dz * 1.2,
                            wz + dz * disp_out - dx * 1.2, yaw_in, 0, "hidden_shack",
                            MARKET, MS))

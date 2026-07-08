@@ -28,6 +28,7 @@ impl Plugin for RunPlugin {
                 FixedUpdate,
                 (
                     check_extraction,
+                    check_pool_extraction,
                     hub_physical_commit,
                     hub_shop,
                     hub_routing,
@@ -143,6 +144,11 @@ fn check_extraction(
 ) {
     let Ok(mut run) = run_q.single_mut() else { return };
     if run.phase != RunPhase::InStretch { return }
+    // Real Kenney pool games use `check_pool_extraction` instead: this legacy
+    // check's fixed "y < -1.5 anywhere" trigger has no XZ gate at all, so it
+    // fires the moment a player falls for any reason, dumping them into the
+    // OLD stretch-graph hub_medbay menu instead of the actual pool map.
+    if PoolIndex::load_from_disk().is_some() { return }
 
     let def = shared_level::level_by_id(&run.level_id, run.run_seed);
     if def.extraction.is_none() { return }
@@ -168,6 +174,50 @@ fn check_extraction(
     run.hub_id        = Some(hub_id.to_string());
     run.route_options = routes;
     run.hub_commit    = Default::default();
+}
+
+/// Real Kenney pool games: player falls through the active map's own
+/// extraction shaft into hub-floor territory. Mirrors `check_extraction`'s
+/// job but uses the map's actual `extraction_xz` (via `KenneyStreamWorld`)
+/// instead of a bare "any y < -1.5" check, and the pool's own faction chain
+/// (`mount_hub_candidates`/`stream_hub_commit`) instead of the legacy node
+/// graph.
+fn check_pool_extraction(
+    mut run_q: Query<&mut RunState, With<RunEntity>>,
+    stream: Option<Res<crate::map_stream::KenneyStreamWorld>>,
+    players: Query<(&Transform, &PlayerAlive), With<Player>>,
+) {
+    let Some(world) = stream else { return };
+    let Ok(mut run) = run_q.single_mut() else { return };
+    if run.phase != RunPhase::InStretch { return }
+
+    let Some([ex, ez]) = world.active.world_extraction() else { return };
+
+    let any_alive = players.iter().any(|(_, a)| a.0);
+    if !any_alive { return }
+
+    // Fire as soon as a player has dropped BELOW the floor-0 walk plane while
+    // still over the extraction hole — NOT only once they sink past the old
+    // `PIT_SHAFT_BOTTOM_Y` (-4.85). Freeform pool maps land the player on a
+    // SOLID floor -1 hub slab at y≈-4.3, which is ABOVE -4.85, so the old gate
+    // never triggered: the run stayed InStretch, hub candidates never mounted,
+    // and dropping through a hub exit fell into empty space → the -12 dev
+    // respawn dumped the player back at the map spawn ("teleported to start").
+    const HUB_DROP_ENTRY_Y: f32 = -1.5;
+    let all_in_hub = players.iter().filter(|(_, a)| a.0).all(|(t, _)| {
+        let p = t.translation;
+        p.y < HUB_DROP_ENTRY_Y
+            && shared::kenney_pit::in_extraction_drop_zone(p.x, p.z, ex, ez)
+    });
+    if !all_in_hub { return }
+
+    info!(
+        "party entered hub via pool extraction (active map {})",
+        run.map_stream.active_pool_id
+    );
+    run.phase      = RunPhase::InHub;
+    run.hub_id     = Some(run.map_stream.active_pool_id.clone());
+    run.hub_commit = Default::default();
 }
 
 fn extraction_module_slots(layout: &KenneyLayout) -> Option<((u32, u32), (u32, u32))> {

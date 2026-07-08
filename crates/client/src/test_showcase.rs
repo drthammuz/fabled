@@ -10,13 +10,11 @@ use bevy::image::{ImageAddressMode, ImageLoaderSettings, ImageSampler, ImageSamp
 use bevy::math::{Affine2, Vec2};
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::*;
-use shared::editor_catalog::glb_asset_path;
-use shared::kenney_catalog::{self, quantize_yaw};
 use shared::kenney_hub;
 use shared::kenney_layout::KenneyLayout;
 use shared::kenney_pit;
-use shared::level::{kenney_stairs_placement, MOD_H};
-use shared::map_pool::{instances_from_stream_state, MountedMap, PoolIndex};
+use shared::level::MOD_H;
+use shared::map_pool::{instances_from_stream_state, PoolIndex};
 use shared::run::RunState;
 use shared::{TestMapStyle, TestMode};
 use shared::EditorMode;
@@ -76,6 +74,8 @@ pub struct SynthMaterial {
 pub fn uses_space_cyber_materials(kit: Option<&str>) -> bool {
     kit.is_none() || kit == Some("space")
 }
+
+use shared::kenney_placement;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum KenneyMaterialSlot {
@@ -147,6 +147,11 @@ pub fn kenney_material_slot(
     if ceiling {
         return KenneyMaterialSlot::Ceiling;
     }
+    // Default-kit walls: the industrial zone's own structure (not a faction
+    // atlas) — weathered steel instead of the flat space-kit colormap.
+    if stem.starts_with("template-wall") {
+        return KenneyMaterialSlot::SpaceIndustrial;
+    }
     KenneyMaterialSlot::SpaceCyber
 }
 
@@ -213,19 +218,30 @@ pub fn init_editor_kenney_materials(
         emissive: LinearRgba::rgb(0.2, 0.2, 0.22),
         ..default()
     });
+    // Industrial-zone walls: the same weathered/rusted steel PBR material
+    // (ambientCG MetalPlates013) the legacy sewer game uses, not a tinted
+    // copy of the generic space-kit colormap — replaces the "muddy brown
+    // substrate (placeholder until sewer procgen)" look.
+    let wall_color = asset_server.load_with_settings(
+        "textures/cyberpunk/wall_color.jpg",
+        |s: &mut ImageLoaderSettings| s.is_srgb = true,
+    );
+    let wall_normal = asset_server.load_with_settings(
+        "textures/cyberpunk/wall_normal.jpg",
+        |s: &mut ImageLoaderSettings| s.is_srgb = false,
+    );
+    let wall_orm = asset_server.load_with_settings(
+        "textures/cyberpunk/wall_orm.png",
+        |s: &mut ImageLoaderSettings| s.is_srgb = false,
+    );
     let industrial = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.68, 0.55, 0.42),
-        base_color_texture: Some(base.clone()),
-        metallic_roughness_texture: Some(mr.clone()),
-        metallic: 0.10,
-        perceptual_roughness: 0.82,
-        emissive_texture: Some(emissive.clone()),
-        emissive: LinearRgba::rgb(0.12, 0.10, 0.08),
-        uv_transform: Affine2::from_scale_angle_translation(
-            Vec2::splat(2.2),
-            0.0,
-            Vec2::new(0.42, 0.58),
-        ),
+        base_color: Color::WHITE,
+        base_color_texture: Some(wall_color),
+        normal_map_texture: Some(wall_normal),
+        metallic_roughness_texture: Some(wall_orm),
+        metallic: 1.0,
+        perceptual_roughness: 1.0,
+        uv_transform: Affine2::from_scale(Vec2::splat(0.6)),
         ..default()
     });
     let cyber_lasers = materials.add(StandardMaterial {
@@ -392,178 +408,6 @@ fn spawn_branch_beacons(
     }
 }
 
-struct Placement {
-    stem: &'static str,
-    pos: Vec3,
-    yaw: f32,
-    scale: f32,
-    scale_y: Option<f32>,
-    collide: bool,
-    mesh_cutouts: kenney_pit::KenneyMeshCutouts,
-    group_id: Option<u32>,
-    floor: i32,
-    ceiling: bool,
-}
-
-fn m(
-    stem: &'static str,
-    pos: Vec3,
-    yaw: f32,
-    scale: f32,
-    collide: bool,
-    mesh_cutouts: kenney_pit::KenneyMeshCutouts,
-    group_id: Option<u32>,
-    floor: i32,
-    ceiling: bool,
-) -> Placement {
-    Placement {
-        stem,
-        pos,
-        yaw,
-        scale,
-        scale_y: None,
-        collide,
-        mesh_cutouts,
-        group_id,
-        floor,
-        ceiling,
-    }
-}
-
-fn placements(style: TestMapStyle) -> Vec<Placement> {
-    match style {
-        TestMapStyle::Rusty => vec![],
-        TestMapStyle::Kenney => kenney_placements(),
-    }
-}
-
-fn kenney_placements() -> Vec<Placement> {
-    if let Some(pool) = PoolIndex::load_from_disk() {
-        let state = shared::run::MapStreamState {
-            active_pool_id: pool.start_id().unwrap_or("map_001").to_string(),
-            ..Default::default()
-        };
-        if let Some((active, candidates)) = instances_from_stream_state(&state, &pool) {
-            return placements_from_instances(&active, &candidates);
-        }
-    }
-    placements_from_layout(&shared::map_pool::test_play_layout())
-}
-
-fn placements_from_layout(layout: &KenneyLayout) -> Vec<Placement> {
-    let mut out: Vec<Placement> = Vec::new();
-    let (ex_def, ez_def) = layout
-        .extraction_xz
-        .map(|[a, b]| (a, b))
-        .unwrap_or((f32::INFINITY, f32::INFINITY));
-    for p in &layout.pieces {
-        let mask = layout.floors.get(&p.floor);
-        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask, p.ceiling) {
-            continue;
-        }
-        let mut collide = kenney_catalog::piece(&p.stem)
-            .map(|x| x.collide_default)
-            .unwrap_or(false);
-        if kenney_pit::skip_hub_passage_collider(&p.stem, p.floor, p.x, p.z, ex_def, ez_def, mask) {
-            collide = false;
-        }
-        let mesh_cutouts = kenney_pit::mesh_cutouts_for_piece(
-            &p.stem,
-            p.floor,
-            p.x,
-            p.z,
-            p.yaw,
-            layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
-            mask,
-            p.ceiling,
-        );
-        out.push(m(
-            leak_stem(&p.stem),
-            Vec3::new(p.x, p.world_y(), p.z),
-            quantize_yaw(p.yaw),
-            p.scale.max(0.01),
-            collide,
-            mesh_cutouts,
-            p.group_id,
-            p.floor,
-            p.ceiling,
-        ));
-    }
-
-    if !out.iter().any(|p| p.stem == "stairs") {
-        if let Some((pos, yaw)) = kenney_stairs_placement() {
-            let collide = kenney_catalog::piece("stairs")
-                .map(|p| p.collide_default)
-                .unwrap_or(true);
-            out.push(m(
-                "stairs",
-                pos,
-                yaw,
-                1.0,
-                collide,
-                kenney_pit::KenneyMeshCutouts::default(),
-                None,
-                0,
-                false,
-            ));
-        }
-    }
-    out
-}
-
-fn placements_from_instances(active: &MountedMap, candidates: &[MountedMap]) -> Vec<Placement> {
-    let mut out = placements_from_mounted(active);
-    for c in candidates {
-        out.extend(placements_from_mounted(c));
-    }
-    out
-}
-
-fn placements_from_mounted(inst: &MountedMap) -> Vec<Placement> {
-    let mut out: Vec<Placement> = Vec::new();
-    let (ex_def, ez_def) = inst
-        .layout
-        .extraction_xz
-        .map(|[a, b]| (a, b))
-        .unwrap_or((f32::INFINITY, f32::INFINITY));
-    for p in &inst.layout.pieces {
-        // All hub decisions run in the instance-local frame (mask is origin-centred).
-        let mask = inst.layout.floors.get(&p.floor);
-        if kenney_pit::hide_extraction_hatch_piece(&p.stem, p.floor, p.x, p.z, mask, p.ceiling) {
-            continue;
-        }
-        let mut collide = kenney_catalog::piece(&p.stem)
-            .map(|x| x.collide_default)
-            .unwrap_or(false);
-        if kenney_pit::skip_hub_passage_collider(&p.stem, p.floor, p.x, p.z, ex_def, ez_def, mask) {
-            collide = false;
-        }
-        let mesh_cutouts = kenney_pit::mesh_cutouts_for_piece(
-            &p.stem,
-            p.floor,
-            p.x,
-            p.z,
-            p.yaw,
-            inst.layout.extraction_xz.map(|[ex, ez]| Vec2::new(ex, ez)),
-            mask,
-            p.ceiling,
-        )
-        .translated(inst.offset.x, inst.offset.z);
-        out.push(m(
-            leak_stem(&p.stem),
-            inst.piece_translation(p),
-            quantize_yaw(p.yaw),
-            p.scale.max(0.01),
-            collide,
-            mesh_cutouts,
-            p.group_id,
-            p.floor,
-            p.ceiling,
-        ));
-    }
-    out
-}
-
 fn sync_stream_showcase(
     mut commands: Commands,
     test: Option<Res<TestMode>>,
@@ -597,12 +441,12 @@ fn sync_stream_showcase(
     for e in modules.iter().chain(beacons.iter()) {
         commands.entity(e).despawn();
     }
-    let list = placements_from_instances(&active, &candidates);
+    let list = kenney_placement::placements_from_instances(&active, &candidates);
     let layout = active.to_world_layout();
     for p in &list {
         commands.spawn((
             SceneRoot(asset_server.load_with_settings(
-                GltfAssetLabel::Scene(0).from_asset(glb_asset_path(p.stem)),
+                GltfAssetLabel::Scene(0).from_asset(shared::editor_catalog::glb_asset_path_in_kit(p.stem, p.kit.unwrap_or("space"))),
                 |s: &mut GltfLoaderSettings| s.load_meshes = RenderAssetUsages::all(),
             )),
             Transform::from_translation(p.pos)
@@ -618,7 +462,7 @@ fn sync_stream_showcase(
                 group_id: p.group_id,
                 floor: p.floor,
                 ceiling: p.ceiling,
-                kit: None,
+                kit: p.kit,
             },
         ));
     }
@@ -628,10 +472,6 @@ fn sync_stream_showcase(
         state.map_stream.epoch,
         list.len()
     );
-}
-
-fn leak_stem(stem: &str) -> &'static str {
-    Box::leak(stem.to_string().into_boxed_str())
 }
 
 fn spawn_showcase(
@@ -658,12 +498,12 @@ fn spawn_showcase(
     commands.insert_resource(priesthood);
     commands.insert_resource(synth);
 
-    let list = placements(test.style);
+    let list = kenney_placement::placements(test.style);
     let layout = shared::map_pool::test_play_layout();
     for p in &list {
         commands.spawn((
             SceneRoot(asset_server.load_with_settings(
-                GltfAssetLabel::Scene(0).from_asset(glb_asset_path(p.stem)),
+                GltfAssetLabel::Scene(0).from_asset(shared::editor_catalog::glb_asset_path_in_kit(p.stem, p.kit.unwrap_or("space"))),
                 |s: &mut GltfLoaderSettings| s.load_meshes = RenderAssetUsages::all(),
             )),
             Transform::from_translation(p.pos)
@@ -679,7 +519,7 @@ fn spawn_showcase(
                 group_id: p.group_id,
                 floor: p.floor,
                 ceiling: p.ceiling,
-                kit: None,
+                kit: p.kit,
             },
         ));
     }
@@ -719,7 +559,11 @@ fn build_modules(
     editor: Option<Res<EditorMode>>,
     cyber: Option<Res<CyberMaterial>>,
     cyber_ceiling: Option<Res<CyberMaterialCeiling>>,
+    pink_ceiling: Option<Res<CyberMaterialPinkCeiling>>,
+    cyber_industrial: Option<Res<CyberMaterialIndustrial>>,
     cyber_lasers: Option<Res<CyberLaserMaterial>>,
+    priesthood: Option<Res<PriesthoodMaterial>>,
+    synth: Option<Res<SynthMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     modules: Query<(Entity, &KenneyModule), Without<ModuleReady>>,
     children_q: Query<&Children>,
@@ -745,15 +589,61 @@ fn build_modules(
             continue;
         }
 
-        let mat = if module.name == "gate-lasers" {
-            let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
-            cyber_lasers.0.clone()
-        } else if module.ceiling {
-            let Some(cyber_ceiling) = cyber_ceiling.as_ref() else { continue };
-            cyber_ceiling.0.clone()
-        } else {
-            let Some(cyber) = cyber.as_ref() else { continue };
-            cyber.0.clone()
+        // Faction-correct material per piece (kit + stem), matching the editor's
+        // `editor_apply_materials`. Previously every non-laser/non-ceiling piece
+        // got the plain space-cyber atlas regardless of its actual faction kit —
+        // industrial/priesthood/synth maps all looked like the same grey space kit.
+        let slot = kenney_material_slot(module.kit, None, false, module.ceiling, module.name);
+        let mat = match slot {
+            KenneyMaterialSlot::NativeGlb => {
+                // Keep the embedded GLB material — don't insert MeshMaterial3d.
+                commands.entity(root).insert(ModuleReady);
+                continue;
+            }
+            KenneyMaterialSlot::Priesthood => {
+                let Some(priesthood) = priesthood.as_ref() else { continue };
+                priesthood.0.clone()
+            }
+            KenneyMaterialSlot::SynthDeck => {
+                let Some(synth) = synth.as_ref() else { continue };
+                synth.deck.clone()
+            }
+            KenneyMaterialSlot::SynthFloor => {
+                let Some(synth) = synth.as_ref() else { continue };
+                synth.floor.clone()
+            }
+            KenneyMaterialSlot::SynthRail => {
+                let Some(synth) = synth.as_ref() else { continue };
+                synth.rail.clone()
+            }
+            KenneyMaterialSlot::SynthProp => {
+                let Some(synth) = synth.as_ref() else { continue };
+                synth.prop.clone()
+            }
+            KenneyMaterialSlot::Synth => {
+                let Some(synth) = synth.as_ref() else { continue };
+                synth.base.clone()
+            }
+            KenneyMaterialSlot::Lasers => {
+                let Some(cyber_lasers) = cyber_lasers.as_ref() else { continue };
+                cyber_lasers.0.clone()
+            }
+            KenneyMaterialSlot::Ceiling => {
+                let Some(cyber_ceiling) = cyber_ceiling.as_ref() else { continue };
+                cyber_ceiling.0.clone()
+            }
+            KenneyMaterialSlot::CeilingPink => {
+                let Some(pink_ceiling) = pink_ceiling.as_ref() else { continue };
+                pink_ceiling.0.clone()
+            }
+            KenneyMaterialSlot::SpaceIndustrial => {
+                let Some(cyber_industrial) = cyber_industrial.as_ref() else { continue };
+                cyber_industrial.0.clone()
+            }
+            KenneyMaterialSlot::SpaceCyber => {
+                let Some(cyber) = cyber.as_ref() else { continue };
+                cyber.0.clone()
+            }
         };
 
         for e in &mesh_ents {

@@ -10,8 +10,9 @@ use avian3d::{math::AdjustPrecision, prelude::*};
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use shared::config;
+use shared::classes::ClassKind;
 use shared::items::{self, FLASHLIGHT, MAP, MEDICAL_BAG, PIPE_BAT, SCRAP_PISTOL};
-use shared::protocol::{Npc, NpcDialogue, Player, PlayerAlive, PlayerName, ShopEntry};
+use shared::protocol::{Npc, NpcDialogue, Player, PlayerAlive, PlayerClass, PlayerName, ShopEntry};
 
 use crate::character::CharacterSystems;
 use crate::items::Inventory;
@@ -28,7 +29,7 @@ impl Plugin for ServerNpcPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            (npc_interact, npc_trade)
+            (npc_interact, npc_trade, tech_terminal_hack)
                 .chain()
                 .after(CharacterSystems)
                 // npc_interact must see `interact` BEFORE pickup_items
@@ -46,6 +47,9 @@ pub struct NpcProfile {
     pub name: &'static str,
     pub greeting: &'static str,
     pub rumor: &'static str,
+    /// Hidden-room keeper: a reclusive vendor behind a secret door. Sells only
+    /// bandages and trades in deeper lore instead of street rumors.
+    pub keeper: bool,
 }
 
 const NAMES: [&str; 10] = [
@@ -81,30 +85,62 @@ pub fn profile_for(idx: usize, pos: Vec3) -> NpcProfile {
         name: NAMES[idx % NAMES.len()],
         greeting: GREETINGS[(idx + h) % GREETINGS.len()],
         rumor: RUMORS[(idx * 3 + h / 5) % RUMORS.len()],
+        keeper: false,
     }
 }
 
-/// What every trade NPC sells (id, cost, display name). Flat catalog v1;
-/// per-faction stock differentiation is later material.
-fn npc_stock() -> [(u32, u32, &'static str); 5] {
-    [
-        (PIPE_BAT, 10, "Pipe Bat"),
-        (FLASHLIGHT, 12, "Flashlight"),
-        (SCRAP_PISTOL, 45, "Scrap Pistol"),
-        (MEDICAL_BAG, 30, "Medical Bag"),
-        (MAP, 20, "Sector Map"),
-    ]
+/// Hidden-room keepers: hermits who found the secret rooms first and stayed.
+const KEEPER_NAMES: [&str; 6] = [
+    "The Hermit", "Old Wick", "Sister Ash", "The Cartographer", "Grim", "Mother Kell",
+];
+
+const KEEPER_GREETINGS: [&str; 4] = [
+    "You found the door. Few do. Sit — but keep your hands where I can see them.",
+    "A visitor. It's been... I've stopped counting. What do you need?",
+    "Quiet, out there. Quieter in here. That's how I like it.",
+    "You've got the look of someone still counting on getting out. Cute.",
+];
+
+/// Deeper lore, revealed via "Ask around". Keepers know the old story.
+const KEEPER_LORE: [&str; 6] = [
+    "This whole sector was a shelter once. Then the shelter needed shelter from what it kept.",
+    "The factions up top are children fighting over a corpse's pockets. The body's still warm below.",
+    "Every hidden room connects, if you know the old maintenance codes. I've walked the whole ring.",
+    "The machines didn't wake. They were never asleep. We just stopped being worth their attention.",
+    "There's a floor they sealed with people still on it. On some nights, the seals still knock.",
+    "Extraction isn't up. Never was. They just point you at the light so you stop digging.",
+];
+
+pub fn keeper_profile(idx: usize, pos: Vec3) -> NpcProfile {
+    let h = (pos.x * 51.0).abs() as usize + (pos.z * 89.0).abs() as usize;
+    NpcProfile {
+        name: KEEPER_NAMES[idx % KEEPER_NAMES.len()],
+        greeting: KEEPER_GREETINGS[(idx + h) % KEEPER_GREETINGS.len()],
+        rumor: KEEPER_LORE[(idx + h / 3) % KEEPER_LORE.len()],
+        keeper: true,
+    }
+}
+
+/// Vendor stock (id, cost, display name) for an NPC. Hub traders carry the flat
+/// gear catalog; hidden-room keepers deal only in bandages (their real value is
+/// lore, not loot).
+fn stock_for(keeper: bool) -> Vec<(u32, u32, &'static str)> {
+    if keeper {
+        vec![(items::BANDAGE, 6, "Bandage")]
+    } else {
+        vec![
+            (PIPE_BAT, 10, "Pipe Bat"),
+            (FLASHLIGHT, 12, "Flashlight"),
+            (SCRAP_PISTOL, 45, "Scrap Pistol"),
+            (MEDICAL_BAG, 30, "Medical Bag"),
+            (items::ARMOR, 60, "Body Armor"),
+            (MAP, 20, "Sector Map"),
+        ]
+    }
 }
 
 fn stock_item(id: u32) -> Option<shared::protocol::Item> {
-    Some(match id {
-        FLASHLIGHT => items::flashlight(),
-        MAP => items::map(),
-        PIPE_BAT => items::pipe_bat(),
-        SCRAP_PISTOL => items::scrap_pistol(),
-        MEDICAL_BAG => items::medical_bag(),
-        _ => return None,
-    })
+    items::by_id(id)
 }
 
 /// E on an NPC in view → open the dialogue on that client. Consumes the
@@ -150,7 +186,7 @@ fn npc_interact(
                 npc_name: p.name.to_string(),
                 greeting: p.greeting.to_string(),
                 rumor: p.rumor.to_string(),
-                stock: npc_stock()
+                stock: stock_for(p.keeper)
                     .iter()
                     .map(|(id, cost, name)| ShopEntry {
                         item_id: *id,
@@ -166,7 +202,7 @@ fn npc_interact(
 /// Apply buy/sell requests from players standing near an NPC. Credits are the
 /// party wallet on `RunState` (same as the hub shop and credit pickups).
 fn npc_trade(
-    npcs: Query<&Transform, With<Npc>>,
+    npcs: Query<(&Transform, &NpcProfile), With<Npc>>,
     mut run_q: Query<&mut shared::run::RunState, With<RunEntity>>,
     mut players: Query<
         (&Transform, &mut LatestInput, &mut Inventory, &PlayerOwner, &PlayerName, &PlayerAlive),
@@ -183,16 +219,20 @@ fn npc_trade(
         if (buy.is_none() && sell.is_none()) || !alive.0 {
             continue;
         }
-        let near_npc = npcs
+        // Validate against the NEAREST in-range NPC's own stock, so a buy index
+        // resolves against exactly what that NPC's dialogue showed (keeper vs hub).
+        let nearest = npcs
             .iter()
-            .any(|npc| npc.translation.distance(transform.translation) < NPC_TRADE_RANGE);
-        if !near_npc {
+            .map(|(npc, prof)| (npc.translation.distance(transform.translation), prof))
+            .filter(|(d, _)| *d < NPC_TRADE_RANGE)
+            .min_by(|a, b| a.0.total_cmp(&b.0));
+        let Some((_, prof)) = nearest else {
             continue;
-        }
+        };
         let mut changed = false;
 
         if let Some(idx) = buy {
-            let stock = npc_stock();
+            let stock = stock_for(prof.keeper);
             if let Some((id, cost, label)) = stock.get(idx as usize) {
                 let map_taken = *id == MAP && run.map_holder.is_some();
                 let free = inventory.0.iter().position(Option::is_none);
@@ -236,6 +276,56 @@ fn npc_trade(
                 },
             });
         }
+    }
+}
+
+/// Per-Tech cooldown so `hack` can't be spammed for infinite credits.
+#[derive(Component, Default)]
+pub struct HackCooldown(pub f32);
+
+const HACK_REWARD_CREDITS: u32 = 40;
+const HACK_COOLDOWN_SECS: f32 = 20.0;
+
+/// Tech-only terminal perk: running `hack` in a terminal grants party credits
+/// (and a Data Shard to sell) on a cooldown. Purely for the "Tech feels useful"
+/// loop — no real hacking logic yet. Non-Tech requests are ignored.
+fn tech_terminal_hack(
+    time: Res<Time>,
+    mut run_q: Query<&mut shared::run::RunState, With<RunEntity>>,
+    mut players: Query<
+        (
+            &mut LatestInput,
+            &PlayerClass,
+            &mut Inventory,
+            &PlayerOwner,
+            &mut HackCooldown,
+            &PlayerAlive,
+        ),
+        With<Player>,
+    >,
+    mut inv_writer: MessageWriter<ToClients<shared::protocol::InventoryUpdate>>,
+) {
+    let Ok(mut run) = run_q.single_mut() else {
+        return;
+    };
+    let dt = time.delta_secs();
+    for (mut input, class, mut inv, owner, mut cd, alive) in &mut players {
+        cd.0 = (cd.0 - dt).max(0.0);
+        let requested = std::mem::take(&mut input.0.terminal_hack);
+        if !requested || !alive.0 || class.0 != ClassKind::Tech || cd.0 > 0.0 {
+            continue;
+        }
+        cd.0 = HACK_COOLDOWN_SECS;
+        run.credits += HACK_REWARD_CREDITS;
+        // Drop a Data Shard (sellable) if there's a free slot.
+        if let Some(slot) = inv.0.iter().position(Option::is_none) {
+            inv.0[slot] = Some(items::data_shard());
+            inv_writer.write(ToClients {
+                targets: SendTargets::Single(owner.0),
+                message: shared::protocol::InventoryUpdate { slots: inv.0.clone() },
+            });
+        }
+        info!("tech hack: +{HACK_REWARD_CREDITS}c + data shard");
     }
 }
 

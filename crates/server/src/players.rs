@@ -50,7 +50,8 @@ impl Plugin for ServerPlayersPlugin {
                 PostStartup,
                 spawn_local_player
                     .after(LevelReady)
-                    .run_if(not(resource_exists::<EditorMode>)),
+                    .run_if(not(resource_exists::<EditorMode>))
+                    .run_if(not(resource_exists::<shared::HeadlessServer>)),
             )
             .add_systems(
                 FixedUpdate,
@@ -237,6 +238,8 @@ fn spawn_player(
                 LinearVelocity::default(),
             ),
             (
+                shared::protocol::PlayerHeldKind::default(),
+                shared::protocol::PlayerAttackAnim::default(),
                 NetTransform {
                     translation: spawn_pos,
                     rotation: Quat::IDENTITY,
@@ -253,6 +256,9 @@ fn spawn_player(
             CrouchState::default(),
             GroundContact::default(),
             CoyoteTime(config::PLAYER_COYOTE_TIME),
+            crate::combat::AttackCooldown::default(),
+            crate::combat::PlayerArmor::default(),
+            crate::npc::HackCooldown::default(),
             // Dev loadout so every spawn path (editor playtest included, which
             // never goes through class pick) can fight: bat + scrap pistol.
             // handle_class_pick rebuilds the inventory with the class loadout.
@@ -299,33 +305,19 @@ fn handle_class_pick(
             speed.0 = def.speed_mult;
             health.max = def.max_hp;
             health.current = def.max_hp;
-            // Resize inventory to class limit; grant starting item in slot 0.
-            inv.0 = vec![None; def.inventory_slots];
-            if let Some(item_id) = def.starting_item_id {
-                let item = match item_id {
-                    items::PIPE_BAT => Some(items::pipe_bat()),
-                    items::MEDICAL_BAG => Some(items::medical_bag()),
-                    items::HACKER_DEVICE => Some(items::hacker_device()),
-                    _ => None,
-                };
-                if let Some(item) = item {
-                    inv.0[0] = Some(item);
-                }
-            }
-            // Every class carries a Scrap Pistol so ranged combat is testable
-            // (plan3 item 4). Goes in the first free slot after the class item.
-            if let Some(slot) = inv.0.iter_mut().find(|s| s.is_none()) {
-                *slot = Some(items::scrap_pistol());
-            }
-            // Pad to config::INVENTORY_SLOTS so the client hotbar always
-            // receives a full-length update.
-            let mut padded = inv.0.clone();
-            while padded.len() < config::INVENTORY_SLOTS {
-                padded.push(None);
+            // Per-class inventory (option-1 loadout): size to the class's own
+            // slot count and grant ONLY its own starter — no universal scrap
+            // pistol. That leaves a free slot so the player can always buy from a
+            // vendor (the earlier "can't buy until you sell" bug was the pistol
+            // filling the last slot). The real per-class length is sent as-is;
+            // the client hotbar hides slots beyond it.
+            inv.0 = vec![None; def.inventory_slots.max(def.starting_items.len())];
+            for (slot, &item_id) in def.starting_items.iter().enumerate() {
+                inv.0[slot] = items::by_id(item_id);
             }
             writer.write(ToClients {
                 targets: SendTargets::Single(owner.0),
-                message: InventoryUpdate { slots: padded },
+                message: InventoryUpdate { slots: inv.0.clone() },
             });
             info!("player {:?} chose {:?}", client_id, kind);
         }

@@ -1,112 +1,120 @@
-# Online playtest guide — hosting from your home PC (2026-07-07)
+# How to play online together
 
-The game is one binary. Networking: server listens on **UDP port 5000**
-(`shared/config.rs::DEFAULT_PORT`), up to **8 players** (`MAX_CLIENTS`),
-renet/netcode over UDP, "unsecure" auth (fine for friends). Everyone must run
-**the same git commit** — the wire protocol has no version negotiation beyond
-`PROTOCOL_ID`; mismatched builds mean weird bugs, not clean errors.
+Two roles: **the host** (you — one person runs the game world) and **the
+friends** (everyone else, who join it). Follow the part that is you.
 
-Real game sessions (`--host` and `--client`) are now **fullscreen-only**
-(borderless). Windowed remains for the editor/dev modes only.
+The game talks over the internet on **UDP port 5000**. Up to **8 players**.
 
 ---
 
-## Part 1 — You (the host)
+## PART 1 — YOU, THE HOST (do this on your PC)
 
-### One-time setup
+**A. First time only**
 
-1. **Build in release** (debug works but release keeps the tick rate and your
-   GPU happy once 3+ players connect). In **cmd.exe** (not Git Bash — its
-   `link.exe` shadows MSVC's):
-
+1. Open **cmd.exe** (the black Command Prompt window — *not* Git Bash), and go
+   to the game folder:
    ```
    cd C:\Users\Benji\fabled
-   cargo build --release
    ```
+2. Let your friends reach you. Pick ONE:
+   - **Easy way (recommended): Tailscale.** Everyone (you + friends) installs
+     **Tailscale** (free, https://tailscale.com), makes an account, and you
+     invite them to your network. No router settings at all. Your address is
+     the `100.x.y.z` number Tailscale shows you.
+   - **Hard way: port forwarding.** In your router, forward **UDP port 5000** to
+     your PC. Your address is your public IP (google "what is my ip"). This
+     often doesn't work on home internet (CGNAT) — if in doubt, use Tailscale.
+3. The first time the game opens, Windows asks to "allow access" through the
+   firewall. Tick **both** boxes and allow.
 
-2. **Windows Firewall**: first launch, Windows shows the "allow access"
-   dialog — tick *both* private and public and allow. If you missed it:
-   Windows Security → Firewall → Allow an app → add
-   `target\release\fabled.exe`, or an inbound rule for **UDP 5000**.
+**B. Every time you want to play**
 
-3. **Router port forward**: forward external **UDP 5000** → this PC's LAN IP
-   (find it with `ipconfig` → IPv4 Address, e.g. `192.168.1.23`). Give the PC
-   a static/reserved LAN IP in the router if possible, so the forward
-   doesn't rot.
+1. In cmd.exe, in the game folder, double-click or run:
+   ```
+   serve_and_play_random.bat
+   ```
+   This builds the game, hosts it, AND drops you into a random level. (Use
+   `serve_and_play.bat` if you want the fixed starting map instead.)
+2. Tell your friends your address (your Tailscale `100.x.y.z`, or your public
+   IP if you used port forwarding).
+3. Pick your class and play. Friends can join at any time.
 
-4. **Your public IP**: google "what is my ip". That's what friends type.
-   ⚠ If your ISP gives you CGNAT (public IP in `100.64.x.x`, or router WAN IP
-   differs from what google shows), port forwarding won't work — use the
-   Tailscale fallback in Part 3.
+**C. Give your friends the game (so they DON'T need to install anything)**
 
-### Every session
-
-Serve and play in one process (recommended — this is the proven path):
-
+Run this once in cmd.exe:
 ```
-serve_and_play.bat        (= target\release\fabled.exe --host)
+pack_client.bat
 ```
+It makes a folder called **`client_dist`**. Right-click it → *Send to* →
+*Compressed (zipped) folder*, and send that `.zip` to your friends (Discord,
+WeTransfer, a USB stick — whatever). That's the whole "client". They do **not**
+need the code, GitHub, or Rust.
 
-Or the two-prompt setup you described (dedicated server + join yourself):
-
-```
-prompt 1:  target\release\fabled.exe --server
-prompt 2:  join.bat            (= --client 127.0.0.1)
-```
-
-Both listen on UDP 5000. Note the headless `--server` path has had less
-soak-testing than `--host`; if anything's odd tonight, fall back to `--host`.
+> Re-run `pack_client.bat` and re-send the zip whenever you change the game, so
+> everyone is on the same version. Mismatched versions cause weird glitches.
 
 ---
 
-## Part 2 — Your friends
+## PART 2 — YOUR FRIENDS (the easy way — no installing)
 
-They build from source (no binary distribution set up yet).
+You'll get a **zip file** from the host.
 
-1. **Install prerequisites** (one-time, ~20 min):
-   - **Rust**: https://rustup.rs → default MSVC toolchain.
-   - When rustup asks, let it install **Visual Studio Build Tools (C++)** —
-     needed for the linker. (Linux friends: `clang`/`lld` + ALSA/udev dev
-     packages per bevy docs.)
-   - **Git**.
+1. **Unzip it** anywhere (Desktop is fine). You get a folder with `fabled.exe`,
+   an `assets` folder, and **`PLAY.bat`**.
+2. **Double-click `PLAY.bat`.**
+3. It asks for the host's address — type the number the host gave you (their
+   Tailscale `100.x.y.z`, or their public IP) and press **Enter**.
+4. Pick your class. You're in!
 
-2. **Clone your repo** (they need your GitHub access if it's private):
+If you used Tailscale, install it first (https://tailscale.com) and accept the
+host's invite, so their `100.x.y.z` address works.
 
+That's everything. No code, no GitHub, no Rust. Just unzip and play.
+
+---
+
+## PART 2 (alternative) — friends who'd rather build from source
+
+Only needed if the host would rather share the code than a zip.
+
+1. Install **Rust** (https://rustup.rs, default MSVC toolchain — let it install
+   the Visual Studio C++ Build Tools when asked) and **Git**.
+2. Clone the repo and switch to the play branch:
    ```
    git clone https://github.com/drthammuz/fabled.git fabled
    cd fabled
    git checkout freeform/ceiling-roofs
    ```
-
-   (The playtest build lives on the `freeform/ceiling-roofs` branch, not
-   `master` — don't skip the checkout.)
-
-3. **Build + join** (first build is 10–20 min; later ones seconds). In
-   **cmd.exe**:
-
+3. In **cmd.exe** (not Git Bash), join:
    ```
-   join.bat <your-public-ip>
+   join.bat <host-address>
    ```
-
-   (equivalent to `cargo run --release -- --client <ip>`; `join.bat` builds
-   first if needed.)
-
-4. In game: class select screen → pick 1–4 → you're in the hub together.
-
-**Before the session**: everyone `git pull` and confirm the same
-`git rev-parse --short HEAD`.
+   First build takes 10–20 min; after that it's seconds.
 
 ---
 
-## Part 3 — Most probable errors
+## If something goes wrong
 
-| Symptom | Cause / fix |
+| What you see | What it means / fix |
 |---|---|
-| Client hangs at "connecting to …" forever | UDP 5000 not reaching the server: port forward wrong, firewall blocked it, or wrong IP. Test locally first: friend runs `--client <your-LAN-ip>` from the same house/VPN, or you run `join.bat` on the host machine (127.0.0.1) — if local works, it's router/firewall. |
-| Local connect works, internet doesn't, forwarding looks right | CGNAT. Fastest workaround: everyone installs **Tailscale** (free), you share your tailnet, friends use your Tailscale `100.x.y.z` IP instead. No router config at all — honestly a good Plan A if your router is annoying. |
-| `error: linker link.exe failed` on friend's build | They built from Git Bash — its `link.exe` shadows MSVC's. Build from cmd.exe/PowerShell, or install VS Build Tools if missing entirely. |
-| Weird desync / entities missing / instant disconnect | Commit mismatch. Everyone `git pull`, rebuild, retry. |
-| Friend sees black/empty world after connect | Assets missing → they cloned without LFS?? (repo doesn't use LFS — more likely they run the exe from outside the repo; run via `join.bat`/`cargo run` from the repo root so `assets/` resolves). |
-| Host PC hitches when friends join | You're on the debug build — use release. |
+| Stuck on "connecting…" forever | The host's address is wrong, or UDP 5000 isn't getting through. Try Tailscale (Part 1-A). Test on the same house first with the host's LAN IP. |
+| Works at home, not over internet | Your internet uses CGNAT — port forwarding can't work. Use **Tailscale**. |
+| Friend sees a black/empty world | They ran `fabled.exe` on its own. They must run **PLAY.bat** from inside the unzipped folder (so `assets` and `userinput` sit next to the exe). |
+| Weird desync / players missing | Someone's on a different version. Host re-runs `pack_client.bat`, re-sends the zip, everyone uses the new one. |
+| `link.exe failed` while building from source | They built from Git Bash. Use cmd.exe instead. |
 
-No in-game voice/text chat — use Discord.
+No in-game voice or text chat — use Discord.
+
+---
+
+### Quick reference (technical)
+
+- One binary, three modes: `--host` (host + play), `--server` (dedicated, no
+  window), `--client <ip>` (join). Port `5000` = `shared/config.rs::DEFAULT_PORT`.
+- Bats: `serve_and_play_random.bat` (host, random map), `serve_and_play.bat`
+  (host, fixed map), `join.bat <ip>` (build + join from source),
+  `pack_client.bat` (build the shareable client zip).
+- The client reads `assets/` and `userinput/` from its working directory — that
+  is why the shared folder must contain both next to `fabled.exe`.
+- Real game (`--host`/`--client`) is fullscreen. Everyone must run the same
+  build (no protocol version negotiation).

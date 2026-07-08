@@ -20,8 +20,10 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use shared::config;
 use shared::items;
+use shared::classes::ClassKind;
 use shared::protocol::{
-    Enemy, EnemyAiMode, NetTransform, Npc, Player, PlayerAlive, PlayerHealth, PlayerName,
+    Enemy, EnemyAiMode, EnemyFireAnim, EnemyKind, InventoryUpdate, NetTransform, Npc, Player,
+    PlayerAlive, PlayerAttackAnim, PlayerClass, PlayerHealth, PlayerHeldKind, PlayerName,
     Projectile,
 };
 
@@ -29,7 +31,7 @@ use crate::character::CharacterSystems;
 use crate::items::Inventory;
 use crate::level::LevelEntity;
 use crate::nav::EnemyNav;
-use crate::players::LatestInput;
+use crate::players::{LatestInput, PlayerOwner};
 use crate::run::RunEntity;
 
 pub struct CombatPlugin;
@@ -41,6 +43,8 @@ impl Plugin for CombatPlugin {
             .add_systems(
                 FixedUpdate,
                 (
+                    sync_player_held_kind,
+                    player_use_items,
                     player_attacks,
                     projectile_sim,
                     enemy_perceive_and_think,
@@ -778,21 +782,40 @@ fn spawn_projectile(
     ));
 }
 
+/// Model-space muzzle position of an enemy kind's `Gun` node, matching the
+/// client visual (model scale + feet offset in prop_render::spawn_agent_model)
+/// plus a short barrel-length push forward (+Z is the model's facing).
+fn enemy_muzzle_local(kind: u8) -> Vec3 {
+    match kind {
+        // Enemy_Large_Gun: Gun node at (0, 1.04, -0.14), scale 1.4, feet -0.85.
+        1 => Vec3::new(0.0, 1.04 * 1.4 - 0.85, (-0.14 + 0.45) * 1.4),
+        // Enemy_2Legs_Gun: Gun node at (0, 0.65, 0.0), scale 1.5, feet -0.85.
+        _ => Vec3::new(0.0, 0.65 * 1.5 - 0.85, 0.45 * 1.5),
+    }
+}
+
 /// Enemies in Combat with line of sight fire tracers at their target.
 fn enemy_fire(
     mut commands: Commands,
     time: Res<Time>,
     mut noises: ResMut<PendingNoises>,
-    mut enemies: Query<(Entity, &Transform, &mut EnemyBrain), With<Enemy>>,
+    mut enemies: Query<
+        (Entity, &Transform, &mut EnemyBrain, Option<&EnemyKind>, Option<&mut EnemyFireAnim>),
+        With<Enemy>,
+    >,
 ) {
     let dt = time.delta_secs();
-    for (entity, transform, mut brain) in &mut enemies {
+    for (entity, transform, mut brain, kind, fire_anim) in &mut enemies {
         brain.fire_cd = (brain.fire_cd - dt).max(0.0);
         if brain.mode != AiMode::Combat || !brain.sees_target || brain.fire_cd > 0.0 {
             continue;
         }
         let Some(target) = brain.last_known else { continue };
-        let muzzle = transform.translation + Vec3::Y * (brain.half_h * 0.6);
+        // Muzzle = the model's Gun node (model-space, matches the client-side
+        // cyberpunk model + its scale/offset in prop_render::spawn_agent_model),
+        // rotated by the enemy's facing so bolts leave the actual barrel.
+        let local = enemy_muzzle_local(kind.map(|k| k.0).unwrap_or(0));
+        let muzzle = transform.translation + transform.rotation * local;
         let aim_point = target + Vec3::Y * 0.3;
         let to = aim_point - muzzle;
         if to.length() > ENEMY_FIRE_RANGE {
@@ -816,6 +839,9 @@ fn enemy_fire(
         );
         brain.fire_cd = ENEMY_FIRE_COOLDOWN
             + pseudo_rand(seed.wrapping_add(31)) * ENEMY_FIRE_COOLDOWN * 0.5;
+        if let Some(mut fa) = fire_anim {
+            fa.0 = fa.0.wrapping_add(1);
+        }
         // Gunfire is loud: allies converge even through walls.
         noises.0.push((transform.translation, GUNSHOT_NOISE));
     }
@@ -842,7 +868,7 @@ fn projectile_sim(
     npc_ids: Query<Entity, With<Npc>>,
     player_ids: Query<Entity, With<Player>>,
     mut players: Query<
-        (&mut Health, &mut PlayerAlive, &PlayerName),
+        (&mut Health, &mut PlayerAlive, &PlayerName, Option<&PlayerArmor>),
         (With<Player>, Without<Enemy>),
     >,
 ) {
@@ -900,8 +926,8 @@ fn projectile_sim(
                 }
             }
             noises.0.push((impact, 12.0));
-        } else if let Ok((mut health, mut alive, name)) = players.get_mut(body) {
-            health.current -= sim.damage;
+        } else if let Ok((mut health, mut alive, name, armor)) = players.get_mut(body) {
+            health.current -= sim.damage * (1.0 - armor.map_or(0.0, |a| a.0));
             if health.current <= 0.0 && alive.0 {
                 alive.0 = false;
                 info!("player {} died (shot)", name.0);
@@ -911,18 +937,204 @@ fn projectile_sim(
     }
 }
 
+/// Mirror the selected hotbar slot's weapon category into the replicated
+/// `PlayerHeldKind` so every client can pose/animate the character correctly.
+fn sync_player_held_kind(
+    mut players: Query<(&LatestInput, &Inventory, &mut PlayerHeldKind), With<Player>>,
+) {
+    for (input, inventory, mut held) in &mut players {
+        let slot = inventory
+            .0
+            .get(input.0.selected_slot as usize)
+            .and_then(|s| s.as_ref());
+        let kind = if slot.is_some_and(items::is_gun) {
+            1
+        } else if slot.is_some_and(items::is_bat) {
+            2
+        } else {
+            0
+        };
+        if held.0 != kind {
+            held.0 = kind;
+        }
+    }
+}
+
+/// Per-player melee recovery: one press = one swing. Rapid clicks during the
+/// swing are ignored (not queued), so melee can't be spammed faster than the
+/// swing. Ticks down each FixedUpdate.
+#[derive(Component, Default)]
+pub struct AttackCooldown(pub f32);
+
+/// Seconds between melee swings (roughly the sped-up swing duration).
+const MELEE_COOLDOWN: f32 = 0.45;
+
+/// Fraction of incoming damage blocked by equipped armor (0.0 = none). Only the
+/// Soldier can equip armor, so this stays 0.0 for everyone else.
+#[derive(Component, Default)]
+pub struct PlayerArmor(pub f32);
+
+/// Damage reduction granted by a piece of Body Armor (40%).
+const ARMOR_REDUCTION: f32 = 0.4;
+/// Recovery after using a consumable, so one click = one use.
+const USE_ITEM_COOLDOWN: f32 = 0.6;
+
+/// Left-click use of a NON-weapon selected item: heal consumables (Medic heals
+/// +50%, can heal an aimed ally; anyone can patch themselves) and Body Armor
+/// (Soldier-only). Runs BEFORE `player_attacks` and only eats the click when it
+/// actually uses an item, so guns/bats still fall through to `player_attacks`.
+fn player_use_items(
+    spatial: SpatialQuery,
+    colliders: Query<&ColliderOf>,
+    mut writer: MessageWriter<ToClients<InventoryUpdate>>,
+    mut players: Query<
+        (
+            Entity,
+            &Transform,
+            &mut LatestInput,
+            &mut Inventory,
+            &mut Health,
+            &PlayerClass,
+            &mut AttackCooldown,
+            &mut PlayerArmor,
+            &PlayerOwner,
+            &PlayerAlive,
+        ),
+        With<Player>,
+    >,
+) {
+    // Collect (entity, aim ray) up front so we can heal a *different* player
+    // without holding a second mutable borrow of the query.
+    let aims: Vec<(Entity, Vec3, Vec3, bool)> = players
+        .iter()
+        .map(|(e, t, input, _, _, _, _, _, _, alive)| {
+            let eye = t.translation + Vec3::Y * config::PLAYER_EYE_HEIGHT;
+            let look = Quat::from_euler(EulerRot::YXZ, input.0.yaw, input.0.pitch, 0.0);
+            (e, eye, look * -Vec3::Z, input.0.attack && alive.0)
+        })
+        .collect();
+    let player_set: Vec<Entity> = aims.iter().map(|(e, ..)| *e).collect();
+
+    // First pass: figure out each acting player's intent (self vs. heal-target,
+    // amount, armor) reading immutably; apply mutations after.
+    struct Act {
+        actor: Entity,
+        slot: usize,
+        heal_target: Option<Entity>,
+        heal: f32,
+        equip_armor: bool,
+    }
+    let mut acts: Vec<Act> = Vec::new();
+    for (e, _eye, dir, attacking) in aims.iter().copied() {
+        if !attacking {
+            continue;
+        }
+        let Ok((_, _t, input, inv, _h, class, cd, _armor, _owner, _alive)) = players.get(e) else {
+            continue;
+        };
+        if cd.0 > 0.0 {
+            continue;
+        }
+        let slot = input.0.selected_slot as usize;
+        let Some(item) = inv.0.get(slot).and_then(|s| s.as_ref()) else {
+            continue;
+        };
+        if let Some(base) = items::heal_amount(item) {
+            let heal = base * if class.0 == ClassKind::Medic { 1.5 } else { 1.0 };
+            // Medic can heal an ally in their crosshair; anyone can patch self.
+            // Only accept the ray hit if it actually landed on another player.
+            let target = if class.0 == ClassKind::Medic {
+                aimed_ally(&spatial, &colliders, e, _eye, dir)
+                    .filter(|b| player_set.contains(b))
+            } else {
+                None
+            }
+            .unwrap_or(e);
+            acts.push(Act { actor: e, slot, heal_target: Some(target), heal, equip_armor: false });
+        } else if items::is_armor(item) {
+            acts.push(Act {
+                actor: e,
+                slot,
+                heal_target: None,
+                heal: 0.0,
+                equip_armor: class.0 == ClassKind::Soldier,
+            });
+        }
+    }
+
+    // Second pass: apply. Each act consumes the item + eats the click.
+    for act in acts {
+        // Heal the target first (may be someone else).
+        if let Some(target) = act.heal_target {
+            if let Ok((_, _, _, _, mut th, _, _, _, _, talive)) = players.get_mut(target) {
+                if talive.0 {
+                    th.current = (th.current + act.heal).min(th.max);
+                }
+            }
+        }
+        // Then update the actor: consume item, set cooldown, maybe equip armor.
+        if let Ok((_, _, mut input, mut inv, _, _, mut cd, mut armor, owner, _)) =
+            players.get_mut(act.actor)
+        {
+            if act.equip_armor {
+                armor.0 = ARMOR_REDUCTION;
+            }
+            inv.0[act.slot] = None;
+            cd.0 = USE_ITEM_COOLDOWN;
+            input.0.attack = false; // consumed — don't also swing/fire
+            writer.write(ToClients {
+                targets: SendTargets::Single(owner.0),
+                message: InventoryUpdate { slots: inv.0.clone() },
+            });
+        }
+    }
+}
+
+/// Ray from `eye` along `dir`: returns another Player entity if the crosshair
+/// is on one within reach (for Medic ally heals).
+fn aimed_ally(
+    spatial: &SpatialQuery,
+    colliders: &Query<&ColliderOf>,
+    self_entity: Entity,
+    eye: Vec3,
+    dir: Vec3,
+) -> Option<Entity> {
+    let dir = Dir3::new(dir).ok()?;
+    let hit = spatial.cast_ray(
+        eye.adjust_precision(),
+        dir,
+        6.0,
+        true,
+        &SpatialQueryFilter::from_excluded_entities([self_entity]),
+    )?;
+    let body = colliders.get(hit.entity).map(|c| c.body).unwrap_or(hit.entity);
+    Some(body)
+}
+
 fn player_attacks(
     mut commands: Commands,
+    time: Res<Time>,
     spatial: SpatialQuery,
     mut noises: ResMut<PendingNoises>,
     colliders: Query<&ColliderOf>,
     mut enemies: Query<(Entity, &mut Health, &Transform)>,
     mut players: Query<
-        (Entity, &Transform, &mut LatestInput, &Inventory, &PlayerAlive, &PlayerName),
+        (
+            Entity,
+            &Transform,
+            &mut LatestInput,
+            &Inventory,
+            &PlayerAlive,
+            &PlayerName,
+            &mut AttackCooldown,
+            Option<&mut PlayerAttackAnim>,
+        ),
         With<Player>,
     >,
 ) {
-    for (player, transform, mut input, inventory, alive, _) in &mut players {
+    let dt = time.delta_secs();
+    for (player, transform, mut input, inventory, alive, _, mut cooldown, attack_anim) in &mut players {
+        cooldown.0 = (cooldown.0 - dt).max(0.0);
         // Consume the press even when dead, so a latched attack can't fire on respawn.
         if !input.0.attack {
             continue;
@@ -950,6 +1162,10 @@ fn player_attacks(
             .get(input.0.selected_slot as usize)
             .and_then(|slot| slot.as_ref());
         if held.is_some_and(items::is_gun) {
+            if let Some(mut aa) = attack_anim {
+                aa.seq = aa.seq.wrapping_add(1);
+                aa.kind = 1;
+            }
             spawn_projectile(
                 &mut commands,
                 muzzle,
@@ -965,6 +1181,15 @@ fn player_attacks(
 
         if !held.is_some_and(items::is_bat) {
             continue;
+        }
+        // One swing per press: ignore attacks while still recovering.
+        if cooldown.0 > 0.0 {
+            continue;
+        }
+        cooldown.0 = MELEE_COOLDOWN;
+        if let Some(mut aa) = attack_anim {
+            aa.seq = aa.seq.wrapping_add(1);
+            aa.kind = 2;
         }
         let dir = Dir3::new(dir_v).unwrap_or(Dir3::NEG_Z);
         let Some(hit) = spatial.cast_ray(
@@ -996,7 +1221,7 @@ fn enemy_damage_players(
     time: Res<Time>,
     run: Query<&shared::run::RunState, With<RunEntity>>,
     mut players: Query<
-        (Entity, &Transform, &mut Health, &mut PlayerAlive, &PlayerName),
+        (Entity, &Transform, &mut Health, &mut PlayerAlive, &PlayerName, Option<&PlayerArmor>),
         With<Player>,
     >,
     enemies: Query<(&Transform, &EnemyBrain), With<Enemy>>,
@@ -1008,17 +1233,18 @@ fn enemy_damage_players(
         return;
     }
     let dt = time.delta_secs();
-    for (_player, transform, mut health, mut alive, name) in &mut players {
+    for (_player, transform, mut health, mut alive, name, armor) in &mut players {
         if !alive.0 {
             continue;
         }
+        let reduction = 1.0 - armor.map_or(0.0, |a| a.0);
         for (etransform, brain) in &enemies {
             if brain.mode != AiMode::Combat {
                 continue;
             }
             let dist = transform.translation.distance(etransform.translation);
             if dist < 1.2 {
-                health.current -= 30.0 * dt;
+                health.current -= 30.0 * dt * reduction;
             }
         }
         if health.current <= 0.0 && alive.0 {

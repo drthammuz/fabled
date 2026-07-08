@@ -6,6 +6,7 @@ pub mod character;
 pub mod combat;
 pub mod nav;
 pub mod grab;
+pub mod headless_gltf;
 pub mod items;
 pub mod map_stream;
 pub mod level;
@@ -45,6 +46,7 @@ impl Plugin for ServerCorePlugin {
                 run::RunPlugin,
             ))
             .init_resource::<ServerTick>()
+            .init_resource::<headless_gltf::GlbGeometryCache>()
             .add_systems(Startup, log_startup)
             .add_systems(FixedUpdate, advance_tick);
     }

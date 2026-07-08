@@ -430,7 +430,14 @@ fn editor_startup(
     );
 }
 
-fn set_editor_window_title(ws: Res<EditorWorkspace>, mut windows: Query<&mut Window, With<PrimaryWindow>>) {
+fn set_editor_window_title(
+    editor: Option<Res<EditorMode>>,
+    ws: Res<EditorWorkspace>,
+    mut windows: Query<&mut Window, With<PrimaryWindow>>,
+) {
+    if editor.is_none() {
+        return;
+    }
     let Ok(mut window) = windows.single_mut() else {
         return;
     };

@@ -466,6 +466,7 @@ fn terminal_keys(
     mut focus: ResMut<TerminalFocus>,
     assets: Res<TerminalAssets>,
     mut commands: Commands,
+    mut hack: ResMut<crate::netplay::TerminalHackPending>,
     mut cams: Query<&mut Camera, With<TerminalCamera>>,
     mut text: Query<&mut Text2d, With<TerminalText>>,
 ) {
@@ -501,6 +502,9 @@ fn terminal_keys(
             }
             Key::Enter => {
                 session.shell.submit();
+                if session.shell.take_hack_request() {
+                    hack.0 = true;
+                }
                 session.dirty = true;
             }
             _ => {}

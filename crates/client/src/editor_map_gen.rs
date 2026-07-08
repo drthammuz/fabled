@@ -58,7 +58,7 @@ impl Default for MapGenSettings {
             loops: 3,
             organicness: 0.0,
             corridor_width: 1.0,
-            hidden: 0.0,
+            hidden: 1.0,
             mix_mode: "transition".into(),
             faction_profile: "industrial_default".into(),
             // Zone order spawn→extraction: prev=start, default=middle, next=end.

@@ -7,7 +7,7 @@ use shared::kenney_catalog::{self, quantize_yaw};
 use shared::kenney_layout::KenneyLayout;
 use shared::level::MOD_H;
 use shared::map_pool::{mount_offset_world, MountedMap, PoolIndex, PoolMapDocument};
-use shared::protocol::{Player, PlayerAlive, PlayerName};
+use shared::protocol::{Enemy, Npc, Player, PlayerAlive, PlayerName};
 use shared::run::{RunPhase, RunState};
 use shared::{TestMapStyle, TestMode, EditorMode};
 
@@ -73,7 +73,8 @@ impl Plugin for KenneyStreamPlugin {
 /// which also despawns these instance-tagged colliders.
 fn spawn_proc_child_colliders(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    asset_server: Option<Res<AssetServer>>,
+    mut glb_cache: ResMut<crate::headless_gltf::GlbGeometryCache>,
     state: Option<ResMut<shared::proc_stream::ProcStreamState>>,
 ) {
     let Some(mut state) = state else {
@@ -88,7 +89,7 @@ fn spawn_proc_child_colliders(
             child.offset,
             exit,
         );
-        spawn_instance_pieces(&mut commands, &asset_server, &mounted);
+        spawn_instance_pieces(&mut commands, asset_server.as_deref(), &mut glb_cache, &mounted);
         spawn_instance_floors(&mut commands, &mounted);
         child.colliders_spawned = true;
         info!(
@@ -154,7 +155,8 @@ fn mount_hub_candidates(
     test: Option<Res<TestMode>>,
     stream: Option<ResMut<KenneyStreamWorld>>,
     mut run_q: Query<&mut RunState>,
-    asset_server: Res<AssetServer>,
+    asset_server: Option<Res<AssetServer>>,
+    mut glb_cache: ResMut<crate::headless_gltf::GlbGeometryCache>,
     scenes: Query<Entity, With<KenneyColliderScene>>,
     floors: Query<Entity, With<KenneyFloorCell>>,
     hatches: Query<Entity, With<KenneyMountHatch>>,
@@ -174,21 +176,38 @@ fn mount_hub_candidates(
 
     let mut used = run.map_stream.used_pool_ids.clone();
     used.push(run.map_stream.active_pool_id.clone());
-    let available = world.pool.unused(&used);
+    let mut available = world.pool.unused(&used);
     if available.is_empty() {
         return;
     }
+    // Faction chain: prefer candidates whose entry (prev) faction matches the
+    // active map's exit (next) faction, so transitions read continuously.
+    let active_next = world
+        .pool
+        .entry(&run.map_stream.active_pool_id)
+        .and_then(|e| e.next_faction.clone());
+    if let Some(next) = active_next {
+        available.sort_by_key(|e| e.prev_faction.as_deref() != Some(next.as_str()));
+    }
 
-    let exits: [u8; 3] = [3, 4, 2];
-    let pick_n = available.len().min(3).max(1);
     let active_exits = world.active.world_hub_exits();
+    // Mount one candidate per actual exit of the active map (legacy hub uses
+    // keys 2/3/4; freeform generated maps use 0/1). Drop/trap exits first.
+    let mut exit_keys: Vec<u8> = active_exits.keys().filter_map(|k| k.parse().ok()).collect();
+    exit_keys.sort_by_key(|k| {
+        let kind = active_exits.get(&k.to_string()).map(|e| e.kind.clone()).unwrap_or_default();
+        (kind == "walk", *k)
+    });
+    let pick_n = available.len().min(exit_keys.len()).max(1);
 
     let mut next_id = world.active.instance_id + 1;
     let mut candidates = Vec::new();
     let mut candidate_map = std::collections::HashMap::new();
 
     for (i, entry) in available.iter().take(pick_n).enumerate() {
-        let exit = exits[i];
+        let Some(exit) = exit_keys.get(i).copied() else {
+            break;
+        };
         let key = exit.to_string();
         let Some(exit_spec) = active_exits.get(&key) else {
             continue;
@@ -216,7 +235,7 @@ fn mount_hub_candidates(
     run.map_stream.epoch += 1;
     world.epoch = run.map_stream.epoch;
 
-    spawn_stream_geometries(&mut commands, &asset_server, &world);
+    spawn_stream_geometries(&mut commands, asset_server.as_deref(), &mut glb_cache, &world);
     info!(
         "mounted {} hub candidates (epoch {})",
         world.candidates.len(),
@@ -234,7 +253,9 @@ fn stream_hub_commit(
     scenes: Query<Entity, With<KenneyColliderScene>>,
     floors: Query<Entity, With<KenneyFloorCell>>,
     hatches: Query<Entity, With<KenneyMountHatch>>,
-    asset_server: Res<AssetServer>,
+    agents: Query<Entity, Or<(With<Enemy>, With<Npc>)>>,
+    asset_server: Option<Res<AssetServer>>,
+    mut glb_cache: ResMut<crate::headless_gltf::GlbGeometryCache>,
 ) {
     if !stream_enabled(test.as_deref()) {
         return;
@@ -328,46 +349,62 @@ fn stream_hub_commit(
     world.candidates.clear();
     world.epoch = run.map_stream.epoch;
 
-    for e in scenes.iter().chain(floors.iter()).chain(hatches.iter()) {
+    for e in scenes.iter().chain(floors.iter()).chain(hatches.iter()).chain(agents.iter()) {
         commands.entity(e).despawn();
     }
 
     layout_cache.0 = world.active.to_world_layout();
-    spawn_stream_geometries(&mut commands, &asset_server, &world);
+    spawn_stream_geometries(&mut commands, asset_server.as_deref(), &mut glb_cache, &world);
+    // Respawn the new active map's enemies/NPCs + nav grid (matches the editor
+    // path's per-transition agent rebuild).
+    crate::level::spawn_stream_gameplay(&mut commands, &layout_cache.0);
     info!("stream transition → active {chosen_id} (epoch {})", world.epoch);
 }
 
 pub fn spawn_stream_geometries(
     commands: &mut Commands,
-    asset_server: &AssetServer,
+    asset_server: Option<&AssetServer>,
+    glb_cache: &mut crate::headless_gltf::GlbGeometryCache,
     world: &KenneyStreamWorld,
 ) {
     for inst in world.all_instances() {
-        spawn_instance_pieces(commands, asset_server, inst);
+        spawn_instance_pieces(commands, asset_server, glb_cache, inst);
         spawn_instance_floors(commands, inst);
+        crate::level::spawn_instance_door_seals(commands, inst, world.epoch);
         if inst.exit.is_some() {
             spawn_mount_hatch(commands, inst);
         }
     }
 }
 
-pub fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer, inst: &MountedMap) {
+/// `asset_server` is absent on the headless dedicated server (`--server`),
+/// which has no render app to load GLBs through Bevy's asset pipeline —
+/// `glb_cache` bakes the same colliders directly from the .glb files instead.
+pub fn spawn_instance_pieces(
+    commands: &mut Commands,
+    asset_server: Option<&AssetServer>,
+    glb_cache: &mut crate::headless_gltf::GlbGeometryCache,
+    inst: &MountedMap,
+) {
+    let mut headless_pieces = 0u32;
+    let mut headless_colliders = 0u32;
     for p in &inst.layout.pieces {
         let collide = kenney_catalog::piece(&p.stem)
             .map(|x| x.collide_default)
             .unwrap_or(true);
         // Decide skip in the instance-local frame (the mask is origin-centred, pre-offset).
+        // NOTE: template-floor pieces are NOT skipped here (unlike
+        // `uses_floor_cell_collider` callers elsewhere) — `kenney_mesh_covers_cell`
+        // assumes every collidable piece bakes its own flush trimesh (see the
+        // matching fix in `level::spawn_kenney_piece_scenes`, b611031) and skips
+        // spawning a KenneyFloorCell cuboid wherever one already exists. Skipping
+        // the trimesh bake here left floor tiles in real pool-game maps with no
+        // collider at all — cuboid coverage was assumed but never spawned.
         if !collide || kenney_skip_piece_collider(p, &inst.layout) {
             continue;
         }
-        if shared::kenney_layout::uses_floor_cell_collider(p) {
-            continue;
-        }
         let yaw = quantize_yaw(p.yaw);
-        let path = shared::editor_catalog::glb_asset_path_in_kit(
-            &p.stem,
-            p.kit.as_deref().unwrap_or("space"),
-        );
+        let kit = p.kit.as_deref().unwrap_or("space");
         let scale = p.scale.max(0.01);
         let scale_y = p.scale_y.unwrap_or(p.scale).max(0.01);
         // Compute cutouts in the local frame (local mask + local extraction), then translate
@@ -383,26 +420,65 @@ pub fn spawn_instance_pieces(commands: &mut Commands, asset_server: &AssetServer
             p.ceiling,
         )
         .translated(inst.offset.x, inst.offset.z);
-        commands.spawn((
-            LevelEntity,
-            KenneyInstanceTag {
-                instance_id: inst.instance_id,
-            },
-            KenneyColliderScene {
-                stem: p.stem.clone(),
-                mesh_cutouts,
-                group_id: p.group_id,
-                floor: p.floor,
-            },
-            KenneyPieceMeta {
-                group_id: p.group_id,
-                floor: p.floor,
-            },
-            SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
-            Transform::from_translation(inst.piece_translation(p))
-                .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
-                .with_scale(Vec3::new(scale, scale_y, scale)),
-        ));
+        let transform = Transform::from_translation(inst.piece_translation(p))
+            .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
+            .with_scale(Vec3::new(scale, scale_y, scale));
+
+        match asset_server {
+            Some(asset_server) => {
+                let path = shared::editor_catalog::glb_asset_path_in_kit(&p.stem, kit);
+                commands.spawn((
+                    LevelEntity,
+                    KenneyInstanceTag {
+                        instance_id: inst.instance_id,
+                    },
+                    KenneyColliderScene {
+                        stem: p.stem.clone(),
+                        mesh_cutouts,
+                        group_id: p.group_id,
+                        floor: p.floor,
+                    },
+                    KenneyPieceMeta {
+                        group_id: p.group_id,
+                        floor: p.floor,
+                    },
+                    SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
+                    transform,
+                ));
+            }
+            None => {
+                let colliders = crate::headless_gltf::bake_piece_colliders(
+                    glb_cache,
+                    &p.stem,
+                    kit,
+                    transform,
+                    &mesh_cutouts,
+                );
+                headless_pieces += 1;
+                for collider in colliders {
+                    headless_colliders += 1;
+                    commands.spawn((
+                        LevelEntity,
+                        KenneyInstanceTag {
+                            instance_id: inst.instance_id,
+                        },
+                        KenneyPieceMeta {
+                            group_id: p.group_id,
+                            floor: p.floor,
+                        },
+                        RigidBody::Static,
+                        collider,
+                        Transform::default(),
+                    ));
+                }
+            }
+        }
+    }
+    if asset_server.is_none() && headless_pieces > 0 {
+        info!(
+            "headless kenney colliders: instance {} — {} pieces, {} trimesh(es)",
+            inst.instance_id, headless_pieces, headless_colliders
+        );
     }
 }
 

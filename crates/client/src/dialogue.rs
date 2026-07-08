@@ -386,10 +386,19 @@ fn trade_row(
     affordable: bool,
 ) {
     let (tag, tag_color) = theme::item_style(item_id);
-    col.spawn(Node {
-        column_gap: Val::Px(6.0),
-        ..default()
-    })
+    col.spawn((
+        Node {
+            column_gap: Val::Px(6.0),
+            padding: UiRect::axes(Val::Px(6.0), Val::Px(3.0)),
+            border_radius: BorderRadius::all(theme::RADIUS_SM),
+            ..default()
+        },
+        BackgroundColor(if active {
+            Color::srgba(0.10, 0.22, 0.28, 0.95)
+        } else {
+            Color::NONE
+        }),
+    ))
     .with_children(|row| {
         let (t, f, _) = theme::body(if active { ">" } else { " " });
         row.spawn((t, f, TextColor(theme::ACCENT)));

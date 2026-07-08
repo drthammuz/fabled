@@ -21,6 +21,22 @@ use shared::{TestMapStyle, TestMode};
 
 use crate::editor_playtest::EditorPlaytestActive;
 
+/// MASTER BRIGHTNESS KNOB for the real multiplayer game (serve.bat / join.bat /
+/// serve_and_play.bat). This is the camera exposure — LOWER = BRIGHTER (each
+/// -1.0 roughly DOUBLES the image brightness; +1.0 halves it). 9.0 matches the
+/// editor+G playtest camera, which is where the maps were lit and tuned.
+///
+/// If the whole scene reads too dark or too bright, change THIS first. The other
+/// two knobs (ambient fill + overhead sun) live in
+/// `crates/client/src/darkness.rs`: `REAL_GAME_AMBIENT_BRIGHTNESS` and
+/// `REAL_GAME_SUN_ILLUMINANCE`.
+pub const CAMERA_EV100_REAL_GAME: f32 = 9.0;
+
+/// Camera exposure for the flat developer showcase map (`--test` without a real
+/// game). That map is flooded by an 8000-brightness ambient, so it wants a much
+/// darker exposure than the real game. Not used for serve/join.
+const CAMERA_EV100_DEV_TESTMAP: f32 = 13.5;
+
 /// Whether the player is viewing in third-person (middle-mouse toggle).
 #[derive(Resource, Default)]
 pub struct ThirdPersonMode(pub bool);
@@ -101,6 +117,7 @@ fn spawn_camera(
     editor: Option<Res<EditorMode>>,
     city: Option<Res<CityViewMode>>,
     test: Option<Res<TestMode>>,
+    real_game: Option<Res<shared::RealGameRun>>,
 ) {
     if editor.is_some() || city.is_some() {
         return;
@@ -110,9 +127,18 @@ fn spawn_camera(
         .unwrap_or_else(|| Transform::from_xyz(0.0, 10.0, 28.0).looking_at(Vec3::ZERO, Vec3::Y));
     let (yaw, pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
     if is_test {
+        // The real pool game (serve/join) rides on TestMode but must match the
+        // editor+G brightness where the maps were tuned; only the bare dev
+        // showcase map wants the darker exposure. This was the "too dark in MP"
+        // bug: real games were getting the 13.5 dev exposure (~22x too dark).
+        let ev100 = if real_game.is_some() {
+            CAMERA_EV100_REAL_GAME
+        } else {
+            CAMERA_EV100_DEV_TESTMAP
+        };
         commands.spawn((
             Camera3d::default(),
-            Exposure { ev100: 13.5 },
+            Exposure { ev100 },
             transform,
             FlyCamera { yaw, pitch },
         ));

@@ -12,6 +12,11 @@
 
 # Transient dev/runtime outputs (regenerated each run; not worth tracking)
 /crash_log.txt
+/crash_log_server.txt
+/log.txt
+/log2.txt
+/logs/
+/client_dist/
 /crash_err.txt
 /crash_out.txt
 /rt.txt

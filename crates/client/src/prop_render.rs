@@ -9,8 +9,10 @@ use bevy::gltf::GltfAssetLabel;
 use bevy::math::Vec3Swizzles;
 use bevy::prelude::*;
 use bevy::scene::SceneInstanceReady;
+use bevy::gltf::GltfAssetLabel as _GltfAssetLabel;
 use shared::props::PropShape;
-use shared::protocol::{Enemy, EnemyAiMode, Item, Npc, Projectile};
+use shared::protocol::{Enemy, EnemyAiMode, EnemyFireAnim, EnemyKind, Item, Npc, Projectile};
+use shared::items;
 
 pub struct PropRenderPlugin;
 
@@ -82,13 +84,44 @@ pub struct AiMarker;
 #[derive(Component)]
 pub struct AiMarkerHand;
 
+/// Quaternius pickup model + uniform scale for an item id (None = fall back to
+/// the generic glowing crate). Scale fits the model into config::ITEM_SIZE.
+fn item_pickup_model(item_id: u32) -> Option<(&'static str, f32)> {
+    let (path, model_h) = match item_id {
+        items::SCRAP => ("models/cyberpunk/pickups/Collectible_Gear.gltf", 0.4),
+        items::CREDITS => ("models/cyberpunk/pickups/Collectible_Board.gltf", 0.35),
+        items::MEDICAL_BAG => ("models/cyberpunk/pickups/Pickup_Health.gltf", 0.24),
+        // Guns/tools read as loot boxes on the ground.
+        items::SCRAP_PISTOL | items::HACKER_DEVICE | items::FLASHLIGHT | items::MAP => {
+            ("models/cyberpunk/pickups/Lootbox.gltf", 0.59)
+        }
+        _ => return None,
+    };
+    // Scale so the model's largest footprint ≈ crate size (ITEM_SIZE box).
+    Some((path, (shared::config::ITEM_SIZE / model_h).min(1.4)))
+}
+
 fn attach_prop_visuals(
     mut commands: Commands,
-    props: Query<(Entity, &PropShape, Has<Item>), Added<PropShape>>,
+    asset_server: Res<AssetServer>,
+    props: Query<(Entity, &PropShape, Option<&Item>), Added<PropShape>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (entity, shape, is_item) in &props {
+    for (entity, shape, item) in &props {
+        // Item with a cyberpunk model → attach the GLB as a child (keeps the
+        // physics crate collider; only the visual changes).
+        if let Some((path, scale)) = item.and_then(|i| item_pickup_model(i.id)) {
+            commands.entity(entity).with_children(|c| {
+                c.spawn((
+                    SceneRoot(asset_server.load(_GltfAssetLabel::Scene(0).from_asset(path))),
+                    Transform::from_scale(Vec3::splat(scale))
+                        .with_translation(Vec3::new(0.0, -shared::config::ITEM_SIZE * 0.5, 0.0)),
+                ));
+            });
+            continue;
+        }
+        let is_item = item.is_some();
         let (mesh, color) = match *shape {
             PropShape::Crate { size } => (
                 meshes.add(Cuboid::from_size(size)),
@@ -122,6 +155,7 @@ pub struct AgentAnim {
     idle: AnimationNodeIndex,
     walk: AnimationNodeIndex,
     run: AnimationNodeIndex,
+    shoot: Option<AnimationNodeIndex>,
     current: AnimationNodeIndex,
 }
 
@@ -130,6 +164,9 @@ pub struct AgentAnim {
 pub struct AgentMotion {
     last: Option<Vec3>,
     speed: f32,
+    /// Fire-anim overlay window (Time::elapsed_secs deadline) + last seq seen.
+    shoot_until: f32,
+    last_fire_seq: Option<u32>,
 }
 
 /// Spawn the model child for one agent and wire its animation graph
@@ -139,11 +176,9 @@ fn spawn_agent_model(
     asset_server: &AssetServer,
     agent: Entity,
     path: &'static str,
+    model_scale: f32,
+    visual_y_offset: f32,
 ) {
-    // Approx scale so ~1.8m tall (models bbox ~3.13 tall)
-    let model_scale: f32 = 1.8 / 3.13;
-    // visual local y offset to align feet when root is at collider center
-    let visual_y_offset: f32 = -0.85;
 
     let scene_h = asset_server.load(GltfAssetLabel::Scene(0).from_asset(path));
     let gltf_h: Handle<Gltf> = asset_server.load(path);
@@ -189,10 +224,12 @@ fn spawn_agent_model(
                 else {
                     return;
                 };
+                let shoot_c = clip_named("Shoot");
                 let mut g = AnimationGraph::new();
                 let idle = g.add_clip(idle_c, 1.0, g.root);
                 let walk = g.add_clip(walk_c, 1.0, g.root);
                 let run = g.add_clip(run_c, 1.0, g.root);
+                let shoot = shoot_c.map(|c| g.add_clip(c, 1.0, g.root));
                 let gh = graphs.add(g);
                 commands.entity(player_e).insert(AnimationGraphHandle(gh));
                 player.play(idle).repeat();
@@ -202,6 +239,7 @@ fn spawn_agent_model(
                         idle,
                         walk,
                         run,
+                        shoot,
                         current: idle,
                     },
                     AgentMotion::default(),
@@ -216,27 +254,22 @@ fn attach_agent_visuals(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     marker_assets: Res<AiMarkerAssets>,
-    enemies: Query<Entity, Added<Enemy>>,
+    enemies: Query<(Entity, Option<&EnemyKind>), Added<Enemy>>,
     npcs: Query<Entity, Added<Npc>>,
 ) {
-    // Enemy models from the provided pack (self-contained glTF with embedded buffers).
-    let enemy_paths = [
-        "models/glTF/Goblin_Male.gltf",
-        "models/glTF/Zombie_Male.gltf",
-        "models/glTF/Soldier_Male.gltf",
-    ];
+    // Quaternius cyberpunk enemies (self-contained glTF, embedded buffers).
+    // Scale/offset pairs MUST stay in sync with server combat::enemy_muzzle_local.
     let npc_paths = [
         "models/glTF/Casual_Male.gltf",
         "models/glTF/Worker_Male.gltf",
     ];
 
-    for (i, entity) in enemies.iter().enumerate() {
-        spawn_agent_model(
-            &mut commands,
-            &asset_server,
-            entity,
-            enemy_paths[i % enemy_paths.len()],
-        );
+    for (entity, kind) in &enemies {
+        let (path, scale) = match kind.map(|k| k.0).unwrap_or(0) {
+            1 => ("models/cyberpunk/enemies/Enemy_Large_Gun.gltf", 1.4),
+            _ => ("models/cyberpunk/enemies/Enemy_2Legs_Gun.gltf", 1.5),
+        };
+        spawn_agent_model(&mut commands, &asset_server, entity, path, scale, -0.85);
         // Dev marker above the head showing the replicated AI mode
         // (starts as Patrol/white; update_ai_markers recolors it).
         let marker = commands
@@ -270,6 +303,8 @@ fn attach_agent_visuals(
             &asset_server,
             entity,
             npc_paths[i % npc_paths.len()],
+            1.8 / 3.13,
+            -0.85,
         );
     }
 }
@@ -321,15 +356,28 @@ fn attach_projectile_visuals(
             Color::srgb(1.0, 0.35, 0.1)
         };
         // Elongated along +Z — the server orients the transform along the
-        // flight direction, so the streak reads as a tracer round.
-        let mesh = meshes.add(Cuboid::new(0.06, 0.06, 0.55));
+        // flight direction, so the streak reads as a laser bolt.
+        let mesh = meshes.add(Cuboid::new(0.045, 0.045, 0.7));
         let mat = materials.add(StandardMaterial {
             base_color: color,
-            emissive: LinearRgba::from(color) * 8.0,
+            emissive: LinearRgba::from(color) * 12.0,
             unlit: true,
             ..default()
         });
-        commands.entity(entity).insert((Mesh3d(mesh), MeshMaterial3d(mat)));
+        commands.entity(entity).insert((
+            Mesh3d(mesh),
+            MeshMaterial3d(mat),
+            // Small colored light travelling with the bolt so shots read on
+            // nearby walls. Cheap: short range, no shadows.
+            PointLight {
+                color,
+                intensity: 60_000.0,
+                range: 6.0,
+                radius: 0.05,
+                shadows_enabled: false,
+                ..default()
+            },
+        ));
     }
 }
 
@@ -337,14 +385,15 @@ fn attach_projectile_visuals(
 /// (Transform deltas — server-driven in host mode, interpolated when remote).
 fn drive_agent_animation(
     time: Res<Time>,
-    mut agents: Query<(&Transform, &mut AgentMotion, &mut AgentAnim)>,
+    mut agents: Query<(&Transform, &mut AgentMotion, &mut AgentAnim, Option<&EnemyFireAnim>)>,
     mut players: Query<&mut AnimationPlayer>,
 ) {
     let dt = time.delta_secs();
     if dt <= f32::EPSILON {
         return;
     }
-    for (transform, mut motion, mut anim) in &mut agents {
+    let now = time.elapsed_secs();
+    for (transform, mut motion, mut anim, fire) in &mut agents {
         let pos = transform.translation;
         let inst = motion
             .last
@@ -354,7 +403,30 @@ fn drive_agent_animation(
         // Light smoothing so a single interpolation hiccup doesn't flicker clips.
         motion.speed = motion.speed * 0.8 + inst * 0.2;
 
-        let want = if motion.speed > 3.2 {
+        // Fire-anim overlay: replicated seq bump opens a short Shoot window.
+        if let Some(f) = fire {
+            if motion.last_fire_seq != Some(f.0) {
+                let seen_before = motion.last_fire_seq.is_some();
+                motion.last_fire_seq = Some(f.0);
+                if seen_before && anim.shoot.is_some() {
+                    motion.shoot_until = now + 0.5;
+                    // Restart the clip on every shot.
+                    if let Ok(mut player) = players.get_mut(anim.player_entity) {
+                        let shoot = anim.shoot.unwrap();
+                        player.stop(anim.current);
+                        player.stop(shoot);
+                        player.play(shoot);
+                        anim.current = shoot;
+                    }
+                    continue;
+                }
+            }
+        }
+
+        let shooting = now < motion.shoot_until;
+        let want = if shooting {
+            anim.shoot.unwrap_or(anim.idle)
+        } else if motion.speed > 3.2 {
             anim.run
         } else if motion.speed > 0.4 {
             anim.walk
@@ -364,7 +436,10 @@ fn drive_agent_animation(
         if want != anim.current {
             if let Ok(mut player) = players.get_mut(anim.player_entity) {
                 player.stop(anim.current);
-                player.play(want).repeat();
+                let active = player.play(want);
+                if !shooting {
+                    active.repeat();
+                }
                 anim.current = want;
             }
         }

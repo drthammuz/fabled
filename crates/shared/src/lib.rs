@@ -11,6 +11,7 @@ pub mod map_pool;
 pub mod kenney_catalog;
 pub mod kenney_hub;
 pub mod kenney_layout;
+pub mod kenney_placement;
 pub mod kenney_pit;
 pub mod kenney_transitions;
 pub mod level;
@@ -39,6 +40,12 @@ pub struct KenneyPlaytestGeneration(pub u32);
 #[derive(bevy::prelude::Resource, Clone, Copy, Default)]
 pub struct EditorMode;
 
+/// Present when running headless dedicated `--server`: no local human, so
+/// server-only systems that assume a listen-server's own player (spawning a
+/// "Host" player, local input, etc.) must skip themselves.
+#[derive(bevy::prelude::Resource, Clone, Copy, Default)]
+pub struct HeadlessServer;
+
 /// Present when running `--dressing`: synth vignette sandbox only (no map/module/proc UI).
 #[derive(bevy::prelude::Resource, Clone, Copy, Default)]
 pub struct DressingShellMode;
@@ -46,6 +53,13 @@ pub struct DressingShellMode;
 /// Present when running `--city` (standalone GLB viewer, no gameplay).
 #[derive(bevy::prelude::Resource, Clone, Copy, Default)]
 pub struct CityViewMode;
+
+/// Present in REAL game sessions (plain `--host` / `--client` when the map pool
+/// exists): the kenney pool game with the real class-select screen. Rides on top
+/// of `TestMode{Kenney}` (which gates all kenney systems) but disables the
+/// test-only class auto-pick.
+#[derive(bevy::prelude::Resource, Clone, Copy, Default)]
+pub struct RealGameRun;
 
 /// Present (inserted by `--host --test`) when running the developer test map:
 /// procgen + the class-select screen are bypassed, the flat `testmap` level is

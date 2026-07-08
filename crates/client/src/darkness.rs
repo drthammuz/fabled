@@ -28,9 +28,28 @@ impl Plugin for DarknessPlugin {
 const DEV_AMBIENT_BRIGHTNESS: f32 = 8_000.0;
 const DEV_FILL_ILLUMINANCE: f32 = 45_000.0;
 const DEV_FILL_ILLUMINANCE_SOFT: f32 = 18_000.0;
+/// Real pool games are lit to match editor+G, where the maps were authored
+/// and tuned — same ambient + a single straight-down overhead sun. (The
+/// legacy sewer's near-black ambient assumes a dense PointLight grid the pool
+/// maps don't have; the old dev-preview flood used two *angled* directionals
+/// that glinted a bright streak across every ceiling.)
+const REAL_GAME_AMBIENT_BRIGHTNESS: f32 = 3_000.0;
+const REAL_GAME_SUN_ILLUMINANCE: f32 = 34_000.0;
 
-fn is_dev_preview(test: Option<&TestMode>, editor: Option<&EditorMode>, _city: Option<&CityViewMode>) -> bool {
-    test.is_some() || editor.is_some()
+/// True only for the flat developer test map / editor preview — NOT real
+/// pool-game sessions (`RealGameRun`), which ride on the same `TestMode` but
+/// need proper atmospheric lighting (single soft directional + shadows), not
+/// the "empty layout stays readable" flood lighting meant for a bare editor
+/// canvas. Two bright, always-on directional lights produced a hard specular
+/// highlight on every ceiling from a constant world-space direction — visible
+/// in every room since directional lights have no position, only direction.
+fn is_dev_preview(
+    test: Option<&TestMode>,
+    editor: Option<&EditorMode>,
+    _city: Option<&CityViewMode>,
+    real_game: Option<&shared::RealGameRun>,
+) -> bool {
+    (test.is_some() || editor.is_some()) && real_game.is_none()
 }
 
 /// City / editor / playtest scene lighting.
@@ -38,6 +57,7 @@ fn apply_scene_brightness(
     test: Option<Res<TestMode>>,
     editor: Option<Res<EditorMode>>,
     city: Option<Res<CityViewMode>>,
+    real_game: Option<Res<shared::RealGameRun>>,
     mut commands: Commands,
     mut ambient: ResMut<GlobalAmbientLight>,
 ) {
@@ -53,7 +73,14 @@ fn apply_scene_brightness(
         commands.insert_resource(ClearColor(Color::srgb(0.36, 0.40, 0.46)));
         return;
     }
-    if !is_dev_preview(test.as_deref(), editor.as_deref(), city.as_deref()) {
+    if real_game.is_some() {
+        // Match editor+G ambient exactly (see REAL_GAME_AMBIENT_BRIGHTNESS).
+        ambient.color = Color::srgb(0.68, 0.72, 0.78);
+        ambient.brightness = REAL_GAME_AMBIENT_BRIGHTNESS;
+        commands.insert_resource(ClearColor(Color::srgb(0.10, 0.11, 0.14)));
+        return;
+    }
+    if !is_dev_preview(test.as_deref(), editor.as_deref(), city.as_deref(), real_game.as_deref()) {
         return;
     }
     ambient.color = Color::srgb(0.82, 0.86, 0.95);
@@ -68,6 +95,7 @@ fn spawn_level_fill_light(
     test: Option<Res<TestMode>>,
     editor: Option<Res<EditorMode>>,
     city: Option<Res<CityViewMode>>,
+    real_game: Option<Res<shared::RealGameRun>>,
 ) {
     if city.is_some() {
         commands.spawn((
@@ -85,7 +113,22 @@ fn spawn_level_fill_light(
         // Kenney editor spawns its own overhead fill via spawn_editor_sun.
         return;
     }
-    let dev = is_dev_preview(test.as_deref(), editor.as_deref(), city.as_deref());
+    if real_game.is_some() {
+        // Straight-down overhead sun, matching the editor's `spawn_editor_sun`.
+        // Pointing straight down (not angled) means no bright specular streak
+        // reflected off the ceilings toward the camera.
+        commands.spawn((
+            DirectionalLight {
+                color: Color::srgb(0.92, 0.94, 0.98),
+                illuminance: REAL_GAME_SUN_ILLUMINANCE,
+                shadows_enabled: false,
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2)),
+        ));
+        return;
+    }
+    let dev = is_dev_preview(test.as_deref(), editor.as_deref(), city.as_deref(), real_game.as_deref());
     if dev {
         commands.spawn((
             DirectionalLight {
@@ -158,6 +201,7 @@ fn drive_flashlight(
     capture: Res<crate::netplay::InputCapture>,
     test: Option<Res<TestMode>>,
     city: Option<Res<CityViewMode>>,
+    real_game: Option<Res<shared::RealGameRun>>,
     mut on: ResMut<FlashlightOn>,
     inventory: Res<OwnInventory>,
     look: Res<LookAngles>,
@@ -167,10 +211,14 @@ fn drive_flashlight(
         (With<PlayerFlashlight>, Without<OwnPlayer>),
     >,
 ) {
-    let has_light = test.is_some()
-        || city.is_some()
+    // Only the flat dev showcase map / city view get a free always-on light. The
+    // REAL game rides on TestMode too, but there the flashlight must be an actual
+    // item you carry (buyable from vendors) and toggle with F — otherwise every
+    // player spawns with a phantom beam that reads like a free 3rd inventory item.
+    let auto_light = (test.is_some() && real_game.is_none()) || city.is_some();
+    let has_light = auto_light
         || inventory.slots.iter().any(|s| s.as_ref().is_some_and(items::is_flashlight));
-    if !capture.0 && keys.just_pressed(KeyCode::KeyF) && has_light && test.is_none() && city.is_none() {
+    if !capture.0 && keys.just_pressed(KeyCode::KeyF) && has_light && !auto_light {
         on.on = !on.on;
     }
     let Ok(player) = player.single() else { return };
@@ -178,11 +226,7 @@ fn drive_flashlight(
         return;
     };
     let active = has_light && on.on;
-    let intensity = if test.is_some() || city.is_some() {
-        400_000.0
-    } else {
-        120_000.0
-    };
+    let intensity = if auto_light { 400_000.0 } else { 120_000.0 };
     spot.intensity = if active { intensity } else { 0.0 };
     let eye = player.translation + Vec3::Y * shared::config::PLAYER_EYE_HEIGHT;
     transform.translation = eye;

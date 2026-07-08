@@ -146,23 +146,43 @@ fn initial_load(
 }
 
 /// Loads Kenney GLB scenes for trimesh collider baking (`--test --kenney`).
+/// `asset_server` is absent on the headless dedicated server (`--server`),
+/// which has no render app to load GLBs through Bevy's asset pipeline —
+/// `glb_cache` bakes the same colliders directly from the .glb files instead.
 fn spawn_kenney_layout_colliders(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    asset_server: Option<Res<AssetServer>>,
     test: Option<Res<TestMode>>,
     editor: Option<Res<EditorMode>>,
     mut layout_cache: ResMut<KenneyLayoutCache>,
     stream: Option<Res<crate::map_stream::KenneyStreamWorld>>,
+    mut glb_cache: ResMut<crate::headless_gltf::GlbGeometryCache>,
 ) {
     if test.as_ref().is_some_and(|t| t.style == TestMapStyle::Kenney) {
         if editor.is_some() {
+            let Some(asset_server) = asset_server else {
+                return;
+            };
             layout_cache.0 = shared::map_pool::play_layout(true);
-            spawn_kenney_piece_scenes(&mut commands, &asset_server, test.as_deref(), editor.as_deref(), 0);
+            spawn_kenney_piece_scenes(
+                &mut commands,
+                Some(&*asset_server),
+                &mut glb_cache,
+                test.as_deref(),
+                editor.as_deref(),
+                0,
+            );
             return;
         }
         if let Some(world) = stream.as_ref() {
             layout_cache.0 = world.active.to_world_layout();
-            crate::map_stream::spawn_stream_geometries(&mut commands, &asset_server, world);
+            crate::map_stream::spawn_stream_geometries(
+                &mut commands,
+                asset_server.as_deref(),
+                &mut glb_cache,
+                world,
+            );
+            spawn_stream_gameplay(&mut commands, &layout_cache.0);
             return;
         }
         if let Some((pool, active)) = shared::map_pool::bootstrap_active_map() {
@@ -173,13 +193,26 @@ fn spawn_kenney_layout_colliders(
                 candidates: Vec::new(),
                 epoch: 1,
             };
-            crate::map_stream::spawn_stream_geometries(&mut commands, &asset_server, &world);
+            crate::map_stream::spawn_stream_geometries(
+                &mut commands,
+                asset_server.as_deref(),
+                &mut glb_cache,
+                &world,
+            );
+            spawn_stream_gameplay(&mut commands, &layout_cache.0);
             commands.insert_resource(world);
             return;
         }
         layout_cache.0 = shared::map_pool::test_play_layout();
     }
-    spawn_kenney_piece_scenes(&mut commands, &asset_server, test.as_deref(), editor.as_deref(), 0);
+    spawn_kenney_piece_scenes(
+        &mut commands,
+        asset_server.as_deref(),
+        &mut glb_cache,
+        test.as_deref(),
+        editor.as_deref(),
+        0,
+    );
 }
 
 fn spawn_kenney_floor_colliders(
@@ -313,7 +346,7 @@ fn spawn_kenney_floor_cells(
 
 fn reload_kenney_playtest(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    asset_server: Option<Res<AssetServer>>,
     test: Option<Res<TestMode>>,
     editor: Option<Res<EditorMode>>,
     generation: Res<KenneyPlaytestGeneration>,
@@ -331,7 +364,11 @@ fn reload_kenney_playtest(
     >,
     stretch_statics: Query<Entity, With<StretchStaticCollider>>,
     old_agents: Query<Entity, bevy::ecs::query::Or<(With<Enemy>, With<Npc>)>>,
+    mut glb_cache: ResMut<crate::headless_gltf::GlbGeometryCache>,
 ) {
+    let Some(asset_server) = asset_server else {
+        return;
+    };
     let Some(test) = test else {
         return;
     };
@@ -377,7 +414,8 @@ fn reload_kenney_playtest(
     spawn_kenney_floor_cells(&mut commands, Some(&test), editor.as_deref(), epoch);
     spawn_kenney_piece_scenes(
         &mut commands,
-        &asset_server,
+        Some(&*asset_server),
+        &mut glb_cache,
         Some(&test),
         editor.as_deref(),
         epoch,
@@ -392,8 +430,27 @@ fn reload_kenney_playtest(
     spawn_agents_from_layout(&mut commands, &layout_cache.0);
 }
 
+/// Real-game (pool streaming) gameplay contents that the editor path's
+/// `reload_kenney_playtest` also spawns, but which the streaming loader used
+/// to skip entirely: the enemy nav grid + the map's baked enemy/NPC spawns.
+/// Without this the real game had geometry but zero agents. `layout` must be
+/// the ACTIVE map in world coords (`MountedMap::to_world_layout`).
+pub(crate) fn spawn_stream_gameplay(
+    commands: &mut Commands,
+    layout: &shared::kenney_layout::KenneyLayout,
+) {
+    let enemy_nav = crate::nav::EnemyNav::from_layout(layout);
+    info!(
+        "real-game nav: {} cells ({})",
+        enemy_nav.cells.len(),
+        if enemy_nav.is_empty() { "fallback wander" } else { "A* pathfinding" }
+    );
+    commands.insert_resource(enemy_nav);
+    spawn_agents_from_layout(commands, layout);
+}
+
 /// Despawn prior agents and spawn fresh ones from the current kenney layout spawns (proc map sliders).
-fn spawn_agents_from_layout(commands: &mut Commands, layout: &shared::kenney_layout::KenneyLayout) {
+pub(crate) fn spawn_agents_from_layout(commands: &mut Commands, layout: &shared::kenney_layout::KenneyLayout) {
     let base_y = layout.spawn_y.unwrap_or(0.0);
     // Nav floor height is authoritative on floor 0 — a stale/legacy baked y
     // would drop an agent INSIDE an elevated deck block. Off-grid spawns
@@ -424,8 +481,21 @@ fn spawn_agents_from_layout(commands: &mut Commands, layout: &shared::kenney_lay
             .unwrap_or_default();
         spawn_enemy(commands, Vec3::new(p[0], resolve_y(p), p[2]), patrol);
     }
+    // Hidden-room keepers are distinguished by proximity to a `hidden_entrance`
+    // gate-door (the layout carries no npc role, so we infer it here — no schema
+    // change / pool regen needed). Keepers get a different vendor stock + lore.
+    const KEEPER_DOOR_RADIUS_SQ: f32 = 9.0 * 9.0;
+    let hidden_doors: Vec<(f32, f32)> = layout
+        .pieces
+        .iter()
+        .filter(|p| p.tags.iter().any(|t| t == "hidden_entrance"))
+        .map(|p| (p.x, p.z))
+        .collect();
     for (i, p) in layout.npc_spawns.iter().enumerate() {
-        spawn_npc(commands, Vec3::new(p[0], resolve_y(p), p[2]), i);
+        let keeper = hidden_doors
+            .iter()
+            .any(|(dx, dz)| (dx - p[0]).powi(2) + (dz - p[2]).powi(2) < KEEPER_DOOR_RADIUS_SQ);
+        spawn_npc(commands, Vec3::new(p[0], resolve_y(p), p[2]), i, keeper);
     }
     let n_e = layout.enemy_spawns.len();
     let n_n = layout.npc_spawns.len();
@@ -464,6 +534,38 @@ fn spawn_hidden_door_seals(
         return;
     }
     let _ = editor;
+    let n = spawn_door_seals_for_layout(commands, layout, Vec3::ZERO, None, epoch);
+    if n > 0 {
+        info!("kenney layout reload: {n} door seal collider(s)");
+    }
+}
+
+/// Real Kenney pool games (bootstrap + hub streaming): same seal colliders
+/// as `spawn_hidden_door_seals`, but for one `MountedMap` instance at its
+/// world offset. Editor's `reload_kenney_playtest` never covered this path —
+/// gate-door pieces have no collider of their own (Kenney gate category), so
+/// without this seal they were neither open nor closed, just absent, and
+/// nothing ever let a player through what looked like a closed doorway.
+pub fn spawn_instance_door_seals(commands: &mut Commands, inst: &shared::map_pool::MountedMap, epoch: u32) {
+    let n = spawn_door_seals_for_layout(
+        commands,
+        &inst.layout,
+        inst.offset,
+        Some(inst.instance_id),
+        epoch,
+    );
+    if n > 0 {
+        info!("instance {}: {n} door seal collider(s)", inst.instance_id);
+    }
+}
+
+fn spawn_door_seals_for_layout(
+    commands: &mut Commands,
+    layout: &KenneyLayout,
+    offset: Vec3,
+    instance_id: Option<u32>,
+    epoch: u32,
+) -> u32 {
     let mut n = 0u32;
     for p in &layout.pieces {
         if !matches!(p.stem.as_str(), "gate-door" | "gate-door-window") {
@@ -474,8 +576,10 @@ fn spawn_hidden_door_seals(
         let half = Vec3::new(hx, hy, hz);
         // Piece-relative so elevated deck doors (synth 1.2 m) seal at the
         // right height, not at the bare floor level.
-        let y = p.world_y() + 2.06;
-        commands.spawn((
+        let y = p.world_y() + 2.06 + offset.y;
+        let pos = Vec3::new(p.x + offset.x, y, p.z + offset.z);
+        let rot = shared::kenney_layout::placement_rotation(yaw, false);
+        let mut e = commands.spawn((
             LevelEntity,
             Replicated,
             shared::protocol::DoorState { open: false },
@@ -483,18 +587,18 @@ fn spawn_hidden_door_seals(
             KenneyColliderEpoch(epoch),
             RigidBody::Static,
             Collider::cuboid(hx, hy, hz),
-            Transform::from_translation(Vec3::new(p.x, y, p.z))
-                .with_rotation(shared::kenney_layout::placement_rotation(yaw, false)),
+            Transform::from_translation(pos).with_rotation(rot),
             NetTransform {
-                translation: Vec3::new(p.x, y, p.z),
-                rotation: shared::kenney_layout::placement_rotation(yaw, false),
+                translation: pos,
+                rotation: rot,
             },
         ));
+        if let Some(instance_id) = instance_id {
+            e.insert(KenneyInstanceTag { instance_id });
+        }
         n += 1;
     }
-    if n > 0 {
-        info!("kenney layout reload: {n} door seal collider(s)");
-    }
+    n
 }
 
 fn sync_hidden_door_seals(
@@ -544,7 +648,8 @@ fn sync_hidden_door_seals(
 
 fn spawn_kenney_piece_scenes(
     commands: &mut Commands,
-    asset_server: &AssetServer,
+    asset_server: Option<&AssetServer>,
+    glb_cache: &mut crate::headless_gltf::GlbGeometryCache,
     test: Option<&TestMode>,
     editor: Option<&EditorMode>,
     epoch: u32,
@@ -569,10 +674,7 @@ fn spawn_kenney_piece_scenes(
         // solid interior floor; the trimesh — same path corridors use — holds reliably.
         let yaw = quantize_yaw(p.yaw);
         let floor_y = p.world_y();
-        let path = shared::editor_catalog::glb_asset_path_in_kit(
-            &p.stem,
-            p.kit.as_deref().unwrap_or("space"),
-        );
+        let kit = p.kit.as_deref().unwrap_or("space");
         let scale = p.scale.max(0.01);
         let scale_y = p.scale_y.unwrap_or(p.scale).max(0.01);
         let mesh_cutouts = shared::kenney_pit::mesh_cutouts_for_piece(
@@ -585,24 +687,53 @@ fn spawn_kenney_piece_scenes(
             layout.floors.get(&p.floor),
             p.ceiling,
         );
-        commands.spawn((
-            LevelEntity,
-            KenneyColliderScene {
-                stem: p.stem.clone(),
-                mesh_cutouts,
-                group_id: p.group_id,
-                floor: p.floor,
-            },
-            KenneyColliderEpoch(epoch),
-            KenneyPieceMeta {
-                group_id: p.group_id,
-                floor: p.floor,
-            },
-            SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
-            Transform::from_translation(Vec3::new(p.x, floor_y, p.z))
-                .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
-                .with_scale(Vec3::new(scale, scale_y, scale)),
-        ));
+        let transform = Transform::from_translation(Vec3::new(p.x, floor_y, p.z))
+            .with_rotation(shared::kenney_layout::placement_rotation(yaw, p.ceiling))
+            .with_scale(Vec3::new(scale, scale_y, scale));
+
+        match asset_server {
+            Some(asset_server) => {
+                let path = shared::editor_catalog::glb_asset_path_in_kit(&p.stem, kit);
+                commands.spawn((
+                    LevelEntity,
+                    KenneyColliderScene {
+                        stem: p.stem.clone(),
+                        mesh_cutouts,
+                        group_id: p.group_id,
+                        floor: p.floor,
+                    },
+                    KenneyColliderEpoch(epoch),
+                    KenneyPieceMeta {
+                        group_id: p.group_id,
+                        floor: p.floor,
+                    },
+                    SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
+                    transform,
+                ));
+            }
+            None => {
+                let colliders = crate::headless_gltf::bake_piece_colliders(
+                    glb_cache,
+                    &p.stem,
+                    kit,
+                    transform,
+                    &mesh_cutouts,
+                );
+                for collider in colliders {
+                    commands.spawn((
+                        LevelEntity,
+                        KenneyColliderEpoch(epoch),
+                        KenneyPieceMeta {
+                            group_id: p.group_id,
+                            floor: p.floor,
+                        },
+                        RigidBody::Static,
+                        collider,
+                        Transform::default(),
+                    ));
+                }
+            }
+        }
         n += 1;
     }
     info!("kenney layout reload: {} mesh colliders queued", n);
@@ -676,9 +807,12 @@ pub fn kenney_skip_piece_collider(
 /// Trimesh colliders for the cyberpunk city GLB (`--city`).
 fn spawn_city_colliders(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    asset_server: Option<Res<AssetServer>>,
     city: Option<Res<CityViewMode>>,
 ) {
+    let Some(asset_server) = asset_server else {
+        return;
+    };
     if city.is_none() {
         return;
     }
@@ -702,11 +836,14 @@ fn spawn_city_colliders(
 fn build_kenney_trimesh_colliders(
     mut commands: Commands,
     generation: Res<KenneyPlaytestGeneration>,
-    meshes: Res<Assets<Mesh>>,
+    meshes: Option<Res<Assets<Mesh>>>,
     scenes: Query<(Entity, &KenneyColliderScene, Option<&KenneyColliderEpoch>, &Children)>,
     children_q: Query<&Children>,
     mesh_q: Query<(&Mesh3d, &GlobalTransform)>,
 ) {
+    let Some(meshes) = meshes else {
+        return;
+    };
     let epoch = generation.0;
     for (scene, meta, scene_epoch, _) in &scenes {
         if scene_epoch.is_some_and(|e| e.0 != epoch) {
@@ -754,7 +891,7 @@ fn build_kenney_trimesh_colliders(
     }
 }
 
-fn world_trimesh(
+pub(crate) fn world_trimesh(
     mesh: &Mesh,
     gt: &GlobalTransform,
     cutouts: &shared::kenney_pit::KenneyMeshCutouts,
@@ -905,10 +1042,15 @@ fn spawn_enemy(commands: &mut Commands, feet_pos: Vec3, patrol: Vec<Vec3>) {
     let body_h = 1.7;
     let body_w = 0.55;
     let center = Vec3::new(feet_pos.x, feet_pos.y + body_h * 0.5, feet_pos.z);
+    // Deterministic model variant from spawn position (~1 in 4 large gunners).
+    let kind_hash = (feet_pos.x * 13.7).abs() as u32 + (feet_pos.z * 7.3).abs() as u32;
+    let kind = if kind_hash % 4 == 0 { 1 } else { 0 };
     commands.spawn((
         LevelEntity,
         Replicated,
         Enemy,
+        shared::protocol::EnemyKind(kind),
+        shared::protocol::EnemyFireAnim::default(),
         shared::protocol::EnemyAiMode::default(),
         EnemyBrain::at(center).with_patrol(patrol),
         Health {
@@ -925,16 +1067,21 @@ fn spawn_enemy(commands: &mut Commands, feet_pos: Vec3, patrol: Vec<Vec3>) {
     ));
 }
 
-fn spawn_npc(commands: &mut Commands, feet_pos: Vec3, idx: usize) {
+fn spawn_npc(commands: &mut Commands, feet_pos: Vec3, idx: usize, keeper: bool) {
     // Friendly NPCs use similar brain for basic wandering but no aggro logic targets them.
     let body_h = 1.6;
     let body_w = 0.5;
     let center = Vec3::new(feet_pos.x, feet_pos.y + body_h * 0.5, feet_pos.z);
+    let profile = if keeper {
+        crate::npc::keeper_profile(idx, center)
+    } else {
+        crate::npc::profile_for(idx, center)
+    };
     commands.spawn((
         LevelEntity,
         Replicated,
         Npc,
-        crate::npc::profile_for(idx, center),
+        profile,
         EnemyBrain::sized(center, body_h * 0.5), // re-use for patrol/wander on server
         RigidBody::Kinematic,
         Collider::cuboid(body_w, body_h, body_w),

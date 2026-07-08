@@ -51,22 +51,31 @@ fn apply_ui_font(
 
 // --- Palette -----------------------------------------------------------
 
-/// Panel background — near-black blue, translucent.
-pub const PANEL_BG: Color = Color::srgba(0.03, 0.05, 0.08, 0.82);
-/// Panel border — faint steel blue.
-pub const PANEL_BORDER: Color = Color::srgba(0.35, 0.55, 0.75, 0.35);
+/// Panel background — deep blue-black, mostly opaque so text stays crisp.
+pub const PANEL_BG: Color = Color::srgba(0.04, 0.06, 0.10, 0.92);
+/// Slightly lighter inset surface (rows, slots, wells) for layered depth.
+pub const SURFACE: Color = Color::srgba(0.10, 0.14, 0.20, 0.85);
+/// Panel border — steel blue, brighter than before so panels read as framed.
+pub const PANEL_BORDER: Color = Color::srgba(0.40, 0.62, 0.82, 0.55);
 /// Primary text.
-pub const TEXT: Color = Color::srgb(0.88, 0.92, 0.95);
+pub const TEXT: Color = Color::srgb(0.90, 0.94, 0.97);
 /// Secondary / label text.
-pub const TEXT_DIM: Color = Color::srgba(0.55, 0.65, 0.72, 0.9);
+pub const TEXT_DIM: Color = Color::srgba(0.58, 0.68, 0.76, 0.9);
 /// Accent — cyan, used for selection and headings.
-pub const ACCENT: Color = Color::srgb(0.35, 0.85, 0.95);
+pub const ACCENT: Color = Color::srgb(0.35, 0.88, 0.98);
+/// Dim accent — inactive selections / hint borders.
+pub const ACCENT_DIM: Color = Color::srgba(0.30, 0.62, 0.72, 0.55);
 /// Danger — damage, death, low HP.
-pub const DANGER: Color = Color::srgb(0.92, 0.25, 0.22);
+pub const DANGER: Color = Color::srgb(0.95, 0.28, 0.24);
 /// Warning — mid HP, credits.
-pub const WARN: Color = Color::srgb(0.95, 0.75, 0.25);
+pub const WARN: Color = Color::srgb(0.98, 0.78, 0.28);
 /// Good — full HP, extraction.
-pub const GOOD: Color = Color::srgb(0.35, 0.85, 0.45);
+pub const GOOD: Color = Color::srgb(0.40, 0.90, 0.50);
+
+/// Corner rounding used across every window/panel/slot for a consistent feel.
+pub const RADIUS: Val = Val::Px(10.0);
+/// Tighter rounding for small controls (chips, rows, hotbar slots).
+pub const RADIUS_SM: Val = Val::Px(6.0);
 
 // --- Builders -----------------------------------------------------------
 
@@ -74,8 +83,9 @@ pub const GOOD: Color = Color::srgb(0.35, 0.85, 0.45);
 pub fn panel() -> (Node, BackgroundColor, BorderColor) {
     (
         Node {
-            border: UiRect::all(Val::Px(1.0)),
-            padding: UiRect::all(Val::Px(8.0)),
+            border: UiRect::all(Val::Px(1.5)),
+            padding: UiRect::all(Val::Px(10.0)),
+            border_radius: BorderRadius::all(RADIUS),
             ..default()
         },
         BackgroundColor(PANEL_BG),
@@ -83,11 +93,23 @@ pub fn panel() -> (Node, BackgroundColor, BorderColor) {
     )
 }
 
+/// Inset surface node (a well/row inside a panel) — rounded, subtle fill.
+pub fn surface() -> (Node, BackgroundColor) {
+    (
+        Node {
+            padding: UiRect::axes(Val::Px(8.0), Val::Px(5.0)),
+            border_radius: BorderRadius::all(RADIUS_SM),
+            ..default()
+        },
+        BackgroundColor(SURFACE),
+    )
+}
+
 /// Heading text bundle (small caps feel via size + accent color).
 pub fn heading(text: &str) -> (Text, TextFont, TextColor) {
     (
         Text::new(text),
-        TextFont { font_size: 12.0, ..default() },
+        TextFont { font_size: 15.0, ..default() },
         TextColor(ACCENT),
     )
 }
@@ -96,7 +118,7 @@ pub fn heading(text: &str) -> (Text, TextFont, TextColor) {
 pub fn body(text: &str) -> (Text, TextFont, TextColor) {
     (
         Text::new(text),
-        TextFont { font_size: 14.0, ..default() },
+        TextFont { font_size: 15.0, ..default() },
         TextColor(TEXT),
     )
 }
@@ -105,7 +127,7 @@ pub fn body(text: &str) -> (Text, TextFont, TextColor) {
 pub fn label(text: &str) -> (Text, TextFont, TextColor) {
     (
         Text::new(text),
-        TextFont { font_size: 11.0, ..default() },
+        TextFont { font_size: 12.0, ..default() },
         TextColor(TEXT_DIM),
     )
 }
@@ -125,6 +147,10 @@ pub fn item_style(id: u32) -> (&'static str, Color) {
         shared::items::MEDICAL_BAG => ("MED", Color::srgb(0.40, 0.90, 0.55)),
         shared::items::HACKER_DEVICE => ("HAK", Color::srgb(0.75, 0.55, 0.95)),
         shared::items::SCRAP_PISTOL => ("GUN", Color::srgb(0.60, 0.75, 0.90)),
+        shared::items::BANDAGE => ("BND", Color::srgb(0.90, 0.90, 0.85)),
+        shared::items::TAGGER => ("TAG", Color::srgb(0.45, 0.95, 0.80)),
+        shared::items::ARMOR => ("ARM", Color::srgb(0.70, 0.72, 0.78)),
+        shared::items::DATA_SHARD => ("DAT", Color::srgb(0.55, 0.80, 1.0)),
         _ => ("???", Color::srgb(0.6, 0.6, 0.6)),
     }
 }

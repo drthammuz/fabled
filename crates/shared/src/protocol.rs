@@ -75,6 +75,9 @@ pub struct PlayerInput {
     pub trade_buy: Option<u8>,
     /// NPC trade: sell the item in this inventory slot.
     pub trade_sell: Option<u8>,
+    /// Tech perk: `hack` was run in a terminal this frame. The server grants the
+    /// reward only if the player's class is Tech.
+    pub terminal_hack: bool,
 }
 
 /// A pickup item. On world entities this is replicated to everyone;
@@ -214,6 +217,29 @@ pub struct DoorState {
     pub open: bool,
 }
 
+/// Visual model variant for an enemy (0 = biped gunner, 1 = large gunner).
+/// Server-assigned at spawn; the client picks the matching cyberpunk model and
+/// the server offsets projectile muzzles to the model's gun.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct EnemyKind(pub u8);
+
+/// Bumped every time an enemy fires — clients play the model's Shoot clip.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct EnemyFireAnim(pub u32);
+
+/// What the player's selected hotbar slot holds (0 none, 1 gun, 2 melee/bat).
+/// Drives idle pose + attack animation choice on ALL clients.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PlayerHeldKind(pub u8);
+
+/// Bumped every server-accepted player attack; `kind` mirrors PlayerHeldKind
+/// at fire time. Clients play the matching one-shot attack clip.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+pub struct PlayerAttackAnim {
+    pub seq: u32,
+    pub kind: u8,
+}
+
 /// A flying bullet/tracer. Server simulates; clients render a glowing streak
 /// from the replicated `NetTransform`. `friendly` = fired by a player.
 #[derive(Component, Serialize, Deserialize, Clone, Copy)]
@@ -272,6 +298,10 @@ impl Plugin for ProtocolPlugin {
             .replicate::<Projectile>()
             .replicate::<PlayerHealth>()
             .replicate::<DoorState>()
+            .replicate::<EnemyKind>()
+            .replicate::<EnemyFireAnim>()
+            .replicate::<PlayerHeldKind>()
+            .replicate::<PlayerAttackAnim>()
             .add_client_message::<PlayerInput>(Channel::Unreliable)
             .add_client_message::<ClassPick>(Channel::Ordered)
             .add_server_message::<InventoryUpdate>(Channel::Ordered)

@@ -43,10 +43,15 @@ struct ClassSelectRoot;
 fn auto_select_test(
     test: Option<Res<TestMode>>,
     city: Option<Res<CityViewMode>>,
+    real_game: Option<Res<shared::RealGameRun>>,
     mut writer: MessageWriter<ClassPick>,
     mut next: ResMut<NextState<SelectState>>,
     mut done: Local<bool>,
 ) {
+    // Real game sessions ride on TestMode{Kenney} but use the real class screen.
+    if real_game.is_some() {
+        return;
+    }
     if (test.is_none() && city.is_none()) || *done {
         return;
     }
@@ -60,8 +65,9 @@ fn setup_select_screen(
     asset_server: Res<AssetServer>,
     test: Option<Res<TestMode>>,
     city: Option<Res<CityViewMode>>,
+    real_game: Option<Res<shared::RealGameRun>>,
 ) {
-    if test.is_some() || city.is_some() {
+    if real_game.is_none() && (test.is_some() || city.is_some()) {
         return; // test / city bypasses the overlay
     }
     spawn_select_ui(&mut commands, &asset_server);

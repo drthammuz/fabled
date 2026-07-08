@@ -32,6 +32,7 @@ impl Plugin for NetPlayPlugin {
             .init_resource::<SmoothEyeHeight>()
             .init_resource::<InputCapture>()
             .init_resource::<PendingTrade>()
+            .init_resource::<TerminalHackPending>()
             .add_systems(Startup, preload_character_scenes)
             .add_observer(on_you_are)
             .add_systems(
@@ -92,6 +93,11 @@ pub struct OwnPlayer;
 /// or move the player. Set by `dialogue.rs` and `terminal.rs`.
 #[derive(Resource, Default)]
 pub struct InputCapture(pub bool);
+
+/// Set by the terminal when the Tech runs `hack`; drained by `send_input` into
+/// `PlayerInput::terminal_hack` (fires even while the terminal holds capture).
+#[derive(Resource, Default)]
+pub struct TerminalHackPending(pub bool);
 
 /// Trade actions queued by the dialogue UI; drained into the next
 /// `PlayerInput` message.
@@ -184,8 +190,11 @@ pub(crate) fn send_input(
     inventory: Res<crate::hotbar::OwnInventory>,
     capture: Res<InputCapture>,
     mut trade: ResMut<PendingTrade>,
+    mut hack: ResMut<TerminalHackPending>,
     mut writer: MessageWriter<PlayerInput>,
 ) {
+    // Drain the terminal hack request (fires even while a UI holds capture).
+    let terminal_hack = std::mem::take(&mut hack.0);
     if capture.0 {
         // A UI window owns the keyboard: keep the server fed (yaw/pitch/slot
         // stay current) but send no movement or actions, only queued trades.
@@ -196,6 +205,7 @@ pub(crate) fn send_input(
             selected_slot: inventory.selected as u8,
             trade_buy: trade.buy.take(),
             trade_sell: trade.sell.take(),
+            terminal_hack,
             ..default()
         });
         return;
@@ -235,6 +245,7 @@ pub(crate) fn send_input(
         flashlight_toggle: keys.just_pressed(KeyCode::KeyF),
         trade_buy: None,
         trade_sell: None,
+        terminal_hack,
     });
 }
 
@@ -485,10 +496,10 @@ fn rotate_own_player_third_person(
     }
 }
 
-/// Scale factor to fit the KayKit Adventurer (~2.31 units tall, feet at y≈0)
-/// into the game's 1.8 m player capsule, plus a Y offset so feet sit at the
-/// capsule base (entity Transform = capsule centre = 0.9 m above feet).
-const CHAR_SCALE: f32 = 0.78;     // 1.8 / 2.31
+/// Scale factor to fit the Quaternius cyberpunk Character (~1.40 units tall,
+/// feet at y≈0) into the game's 1.8 m player capsule, plus a Y offset so feet
+/// sit at the capsule base (entity Transform = capsule centre = 0.9 m above feet).
+const CHAR_SCALE: f32 = 1.28;     // 1.8 / 1.40
 const CHAR_OFFSET_Y: f32 = -0.9;  // shift model root down to capsule base
 
 /// Spawn the floating name tag for each new remote player.

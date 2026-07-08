@@ -2,6 +2,10 @@
 REM Real game, serve + play in one process (fullscreen). Friends join with join.bat <your-ip>.
 REM Build+run from cmd.exe (Git Bash's link.exe breaks the final link).
 
+REM Kill any still-running instance so the linker can overwrite fabled.exe
+REM (otherwise: "error: failed to remove file ... fabled.exe: Access is denied").
+taskkill /F /IM fabled.exe >nul 2>&1
+
 echo === Building (release) ===
 cargo build --release
 if errorlevel 1 (

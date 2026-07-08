@@ -1,0 +1,62 @@
+SCOUT
+Passive:
+
++20% walk speed, +30% sneak speed
+-30% max HP
+Detects traps at 5m (others: 2m). Only Scout can disarm traps.
+
+Tool: Tagger
+
+Aim at enemy → border lights up automatically for Scout while looking at it
+Left-click → enemy outline visible to entire team for 7 seconds (fades with time/movement)
+Tech can disable tagged robots within range (requires Scout tag first)
+
+Unlocks (pick 1-3 for playtest):
+
+Tag duration: 7s → 14s
+Tagger upgrade: scans for loot (nearest cache glows through walls briefly)
+Tagger upgrade: scans for heat (enemies visible through walls for 3s)
+
+
+TECH
+Passive:
+
+Terminal access: exclusive options visible to all but only usable by Tech (greyed out with "(Tech only)" label) (basic lore and unix shell browsing visible to all)
+Can disable tagged robots within range (requires Scout tag)
+
+Unlocks:
+
+Can hack electronic locks on caches
+Additional hacking capabilities
+Can remotely trigger tagged enemy (causes brief panic/distraction, no damage)
+
+MEDIC
+Passive:
+
+Sees all teammate HP bars at all times
++50% efficiency on health items (self and others; medic can use on others (needs to be a tooltip when using it for right click on self, left click on whoever is targeted (and friendlies subtly get highlighted when holding items that can be used on friendlies, when tagetting them.) (starts with one item)
+Revive downed teammate to 1 HP (starts with 1 revive consumable)
+
+Unlocks:
+
+Revive target to 25% HP instead of 1 HP
+Health item efficiency stacks: +50% instead of +25%
+Premonition (chance to sense incoming enemies. this is a unique ability that needs logic for implementing. it's quite of a big thing perhaps since it requires enemies actions to be planned 10 seconds in advance. premonition will give a chance to show a red/glowing/smokey outline for where the enemy will be in 10 seconds from now. this will of course be interrupted and poof disappear if a player (or other cause) causes a change of the enemy's plans, but if no players interfere it should work i think. just have to biuld it, so probably just show it as un upgrade but unavailable for now)
+
+
+SOLDIER
+Passive:
+
+Can equip armor (only class that can wear it)
+Highest scrap carry capacity
+
+Unlocks:
+
+Can wear heavy armor (second armor tier, others can only wear light)
++25% max HP
+Melee attacks briefly stagger enemies (interrupts attack animation)
+
+
+Note on armor economy: Armor being Soldier-exclusive means the team's first major Metal Scrap investment is obvious — get Soldier armored. Creates natural loot priority without needing rules.
+
+Note on Scout/Tech synergy: The tag-to-disable pipeline (Scout tags → Tech disables) is the first real cross-class mechanic. Reward teams that communicate.
