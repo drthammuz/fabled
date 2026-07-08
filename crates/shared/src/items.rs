@@ -14,6 +14,7 @@ pub const BANDAGE: u32 = 18;
 pub const TAGGER: u32 = 19;
 pub const ARMOR: u32 = 20;
 pub const DATA_SHARD: u32 = 21;
+pub const MELEE: u32 = 22;
 
 pub fn flashlight() -> Item {
     Item {
@@ -123,6 +124,17 @@ pub fn data_shard() -> Item {
     }
 }
 
+/// The default melee weapon every class carries in slot 0. Locked: can't be
+/// bought, sold, or dropped, so every player always has an attack.
+pub fn melee() -> Item {
+    Item {
+        id: MELEE,
+        name: "Melee".into(),
+        weight: 1.5,
+        value: 0,
+    }
+}
+
 /// Build an item from its id (spawn loadouts, shop grants, hack rewards).
 pub fn by_id(id: u32) -> Option<Item> {
     Some(match id {
@@ -136,8 +148,19 @@ pub fn by_id(id: u32) -> Option<Item> {
         TAGGER => tagger(),
         ARMOR => armor(),
         DATA_SHARD => data_shard(),
+        MELEE => melee(),
         _ => return None,
     })
+}
+
+/// The base melee weapon (swung with LMB when selected).
+pub fn is_melee(item: &Item) -> bool {
+    item.id == MELEE
+}
+
+/// Locked starter items that can't be sold, bought, or dropped.
+pub fn is_locked(item: &Item) -> bool {
+    item.id == MELEE
 }
 
 /// A consumable that restores health when used, and how much (base, before

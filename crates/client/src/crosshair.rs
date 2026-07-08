@@ -25,14 +25,21 @@ impl Plugin for CrosshairPlugin {
 #[derive(Component)]
 struct CrosshairRoot;
 
+/// The four gun bars, grouped so they can hide independently of the always-on
+/// center dot.
+#[derive(Component)]
+struct CrosshairBars;
+
 const BAR_THICKNESS: f32 = 2.0;
 const BAR_LENGTH: f32 = 7.0;
 const BAR_GAP: f32 = 3.0;
 const BAR_COLOR: Color = Color::srgba(0.95, 0.95, 0.95, 0.9);
+const DOT_SIZE: f32 = 3.0;
+const DOT_COLOR: Color = Color::srgba(0.95, 0.95, 0.95, 0.85);
 
 fn spawn_crosshair(mut commands: Commands) {
-    // Zero-size anchor at screen center; the four bars hang off it with
-    // absolute pixel offsets, so no flexbox math can drift the center.
+    // Zero-size anchor at screen center; children hang off it with absolute
+    // pixel offsets, so no flexbox math can drift the center.
     commands
         .spawn((
             CrosshairRoot,
@@ -48,27 +55,55 @@ fn spawn_crosshair(mut commands: Commands) {
             GlobalZIndex(40),
         ))
         .with_children(|anchor| {
-            let half = BAR_THICKNESS * 0.5;
-            let bars = [
-                // (left, top, width, height)
-                (-half, -(BAR_GAP + BAR_LENGTH), BAR_THICKNESS, BAR_LENGTH),
-                (-half, BAR_GAP, BAR_THICKNESS, BAR_LENGTH),
-                (-(BAR_GAP + BAR_LENGTH), -half, BAR_LENGTH, BAR_THICKNESS),
-                (BAR_GAP, -half, BAR_LENGTH, BAR_THICKNESS),
-            ];
-            for (left, top, width, height) in bars {
-                anchor.spawn((
+            // Always-on center dot: an aim/interaction point shown whenever the
+            // player is in the world, even with no weapon out (pickups, etc.).
+            anchor.spawn((
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(-DOT_SIZE * 0.5),
+                    top: Val::Px(-DOT_SIZE * 0.5),
+                    width: Val::Px(DOT_SIZE),
+                    height: Val::Px(DOT_SIZE),
+                    border_radius: BorderRadius::all(Val::Px(DOT_SIZE * 0.5)),
+                    ..default()
+                },
+                BackgroundColor(DOT_COLOR),
+            ));
+            // Gun bars: shown only when a gun is the selected item.
+            anchor
+                .spawn((
+                    CrosshairBars,
                     Node {
                         position_type: PositionType::Absolute,
-                        left: Val::Px(left),
-                        top: Val::Px(top),
-                        width: Val::Px(width),
-                        height: Val::Px(height),
+                        width: Val::Px(0.0),
+                        height: Val::Px(0.0),
                         ..default()
                     },
-                    BackgroundColor(BAR_COLOR),
-                ));
-            }
+                    Visibility::Inherited,
+                ))
+                .with_children(|bars_root| {
+                    let half = BAR_THICKNESS * 0.5;
+                    let bars = [
+                        // (left, top, width, height)
+                        (-half, -(BAR_GAP + BAR_LENGTH), BAR_THICKNESS, BAR_LENGTH),
+                        (-half, BAR_GAP, BAR_THICKNESS, BAR_LENGTH),
+                        (-(BAR_GAP + BAR_LENGTH), -half, BAR_LENGTH, BAR_THICKNESS),
+                        (BAR_GAP, -half, BAR_LENGTH, BAR_THICKNESS),
+                    ];
+                    for (left, top, width, height) in bars {
+                        bars_root.spawn((
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(left),
+                                top: Val::Px(top),
+                                width: Val::Px(width),
+                                height: Val::Px(height),
+                                ..default()
+                            },
+                            BackgroundColor(BAR_COLOR),
+                        ));
+                    }
+                });
         });
 }
 
@@ -82,7 +117,8 @@ fn sync_crosshair(
     select: Res<State<SelectState>>,
     capture: Res<crate::netplay::InputCapture>,
     player: Query<Option<&PlayerAlive>, With<OwnPlayer>>,
-    mut root: Query<&mut Visibility, With<CrosshairRoot>>,
+    mut root: Query<&mut Visibility, (With<CrosshairRoot>, Without<CrosshairBars>)>,
+    mut bars: Query<&mut Visibility, (With<CrosshairBars>, Without<CrosshairRoot>)>,
 ) {
     let gun_out = inventory
         .slots
@@ -95,12 +131,13 @@ fn sync_crosshair(
         .single()
         .map(|alive| alive.is_none_or(|a| a.0))
         .unwrap_or(false);
-    let show = gun_out && in_game && alive && !capture.0;
+    // Center dot shows whenever the player is in the world; the gun bars only
+    // when a gun is selected.
+    let show_dot = in_game && alive && !capture.0;
     for mut vis in &mut root {
-        *vis = if show {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
+        *vis = if show_dot { Visibility::Visible } else { Visibility::Hidden };
+    }
+    for mut vis in &mut bars {
+        *vis = if gun_out { Visibility::Inherited } else { Visibility::Hidden };
     }
 }

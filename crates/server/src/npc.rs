@@ -11,7 +11,7 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 use shared::config;
 use shared::classes::ClassKind;
-use shared::items::{self, FLASHLIGHT, MAP, MEDICAL_BAG, PIPE_BAT, SCRAP_PISTOL};
+use shared::items::{self, FLASHLIGHT, MAP, MEDICAL_BAG, SCRAP_PISTOL};
 use shared::protocol::{Npc, NpcDialogue, Player, PlayerAlive, PlayerClass, PlayerName, ShopEntry};
 
 use crate::character::CharacterSystems;
@@ -129,10 +129,10 @@ fn stock_for(keeper: bool) -> Vec<(u32, u32, &'static str)> {
         vec![(items::BANDAGE, 6, "Bandage")]
     } else {
         vec![
-            (PIPE_BAT, 10, "Pipe Bat"),
             (FLASHLIGHT, 12, "Flashlight"),
             (SCRAP_PISTOL, 45, "Scrap Pistol"),
             (MEDICAL_BAG, 30, "Medical Bag"),
+            (items::BANDAGE, 6, "Bandage"),
             (items::ARMOR, 60, "Body Armor"),
             (MAP, 20, "Sector Map"),
         ]
@@ -253,18 +253,22 @@ fn npc_trade(
         }
 
         if let Some(slot) = sell {
-            if let Some(item) = inventory
+            // Locked starters (the Melee weapon) can never be sold.
+            let locked = inventory
                 .0
-                .get_mut(slot as usize)
-                .and_then(Option::take)
-            {
-                if items::is_map(&item) && run.map_holder.as_deref() == Some(name.0.as_str()) {
-                    run.map_holder = None;
+                .get(slot as usize)
+                .and_then(Option::as_ref)
+                .is_some_and(items::is_locked);
+            if !locked {
+                if let Some(item) = inventory.0.get_mut(slot as usize).and_then(Option::take) {
+                    if items::is_map(&item) && run.map_holder.as_deref() == Some(name.0.as_str()) {
+                        run.map_holder = None;
+                    }
+                    let price = items::sell_price(&item);
+                    run.credits += price;
+                    changed = true;
+                    info!("trade: {} sold {} for {price}c", name.0, item.name);
                 }
-                let price = items::sell_price(&item);
-                run.credits += price;
-                changed = true;
-                info!("trade: {} sold {} for {price}c", name.0, item.name);
             }
         }
 

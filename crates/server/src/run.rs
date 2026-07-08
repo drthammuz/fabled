@@ -70,9 +70,11 @@ fn spawn_run_entity(
             phase: RunPhase::InStretch,
             level_id,
             hub_id: None,
-            // Dev modes start with a wallet so NPC trading is testable in the
-            // editor playtest without grinding credit pickups first.
-            credits: if test.is_some() || city.is_some() || editor.is_some() { 60 } else { 0 },
+            // Dev / real-playtest sessions start with a generous wallet so
+            // buying (armor 60c, weapons, map) is testable without grinding
+            // credit pickups first. Credits are the shop currency (distinct from
+            // Scrap, the crafting material). Drop this to 0 for a real economy.
+            credits: if test.is_some() || city.is_some() || editor.is_some() { 500 } else { 0 },
             scrap: 0,
             map_holder: None,
             route_options: vec![],

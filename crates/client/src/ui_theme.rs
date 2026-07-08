@@ -149,6 +149,7 @@ pub fn item_style(id: u32) -> (&'static str, Color) {
         shared::items::SCRAP_PISTOL => ("GUN", Color::srgb(0.60, 0.75, 0.90)),
         shared::items::BANDAGE => ("BND", Color::srgb(0.90, 0.90, 0.85)),
         shared::items::TAGGER => ("TAG", Color::srgb(0.45, 0.95, 0.80)),
+        shared::items::MELEE => ("MEL", Color::srgb(0.80, 0.55, 0.45)),
         shared::items::ARMOR => ("ARM", Color::srgb(0.70, 0.72, 0.78)),
         shared::items::DATA_SHARD => ("DAT", Color::srgb(0.55, 0.80, 1.0)),
         _ => ("???", Color::srgb(0.6, 0.6, 0.6)),

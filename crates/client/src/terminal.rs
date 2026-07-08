@@ -352,6 +352,7 @@ fn prompt_and_open(
     screens: Query<(Entity, &GlobalTransform, &TerminalScreen)>,
     npcs: Query<&Transform, With<Npc>>,
     player: Query<(&Transform, Option<&PlayerAlive>), With<OwnPlayer>>,
+    class_q: Query<&shared::protocol::PlayerClass, With<OwnPlayer>>,
     camera: Query<&Transform, (With<FlyCamera>, Without<OwnPlayer>)>,
     mut prompt: Query<&mut Visibility, With<TerminalPrompt>>,
     mut cams: Query<&mut Camera, With<TerminalCamera>>,
@@ -419,7 +420,12 @@ fn prompt_and_open(
         // Eat the press: send_input must not ship it as an NPC interact.
         keys.clear_just_pressed(KeyCode::KeyE);
         let seed = (pos.x.abs() * 7.31 + pos.z.abs() * 3.17) as u32;
-        let shell = Shell::new(&screen.kit, seed, SHELL_COLS, SHELL_ROWS);
+        let mut shell = Shell::new(&screen.kit, seed, SHELL_COLS, SHELL_ROWS);
+        let is_tech = class_q
+            .single()
+            .map(|c| c.0 == shared::classes::ClassKind::Tech)
+            .unwrap_or(false);
+        shell.set_tech(is_tech);
         if let Ok(mut t) = text.single_mut() {
             t.0 = shell.screen_text();
         }

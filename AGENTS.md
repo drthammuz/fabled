@@ -1,5 +1,22 @@
 # Agent instructions (Fabled)
 
+## ⛳ Update docs/TODO.md EVERY pass (not optional)
+
+`docs/TODO.md` is the single hand-off between sessions. The human relies on it
+to know it is safe to clear the chat/cache. At the **end of every pass**:
+
+1. Move anything you finished into a **"Done (recent)"** section with a one-line
+   what + where (file/fn), newest first.
+2. Update **"In progress / next"** so the next agent can start cold — what is
+   left, the exact files, and any decision already made.
+3. Keep it **skimmable**: short bullets, group by area, prune stale/duplicate
+   lines. Detailed narrative belongs in a `docs/handover-*.md`, not TODO.
+4. If you leave work unfinished, say so explicitly under "In progress" with the
+   next concrete step.
+
+The player also keeps design notes in **`docs/fromuser/`** — read them before
+class/gameplay work and reflect decisions into TODO.
+
 ## Game vision — read before player-facing features (roles, quests, rep, chapters)
 
 Author-stated design (professions, faction camps, reputation, prologue → campaign → open world): **[docs/game-pitch.md](docs/game-pitch.md)**. Implementation still largely ahead of this doc; use it for intent, not current behaviour.

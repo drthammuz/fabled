@@ -63,6 +63,7 @@ impl Plugin for FlyCameraPlugin {
                 Update,
                 (
                     toggle_cursor_grab.run_if(not(resource_exists::<EditorMode>)),
+                    release_cursor_on_focus_loss,
                     // Third person also works during editor playtest (the
                     // editor's middle-mouse orbit is gated off while playing).
                     toggle_third_person.run_if(
@@ -358,6 +359,21 @@ fn toggle_third_person(
 ) {
     if mouse.just_pressed(MouseButton::Middle) {
         mode.0 = !mode.0;
+    }
+}
+
+/// Release the mouse when the window loses focus, so Alt-Tab actually works —
+/// a locked cursor on a borderless-fullscreen window otherwise snaps focus
+/// straight back and the game feels "always on top". Left-click re-grabs.
+fn release_cursor_on_focus_loss(
+    mut focus_events: MessageReader<bevy::window::WindowFocused>,
+    mut window: Single<&mut CursorOptions, With<PrimaryWindow>>,
+) {
+    for ev in focus_events.read() {
+        if !ev.focused {
+            window.grab_mode = CursorGrabMode::None;
+            window.visible = true;
+        }
     }
 }
 

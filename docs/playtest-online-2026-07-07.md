@@ -41,17 +41,29 @@ The game talks over the internet on **UDP port 5000**. Up to **8 players**.
 
 **C. Give your friends the game (so they DON'T need to install anything)**
 
-Run this once in cmd.exe:
+Run this in cmd.exe:
 ```
 pack_client.bat
 ```
-It makes a folder called **`client_dist`**. Right-click it → *Send to* →
-*Compressed (zipped) folder*, and send that `.zip` to your friends (Discord,
-WeTransfer, a USB stick — whatever). That's the whole "client". They do **not**
-need the code, GitHub, or Rust.
+It builds the game and makes **`fabled_client.zip`** containing only the files a
+player needs (the exe, the art it actually loads, and a `PLAY.bat`). Your friends
+do **not** need the code, GitHub, or Rust.
 
-> Re-run `pack_client.bat` and re-send the zip whenever you change the game, so
-> everyone is on the same version. Mismatched versions cause weird glitches.
+Two ways to get the zip to them:
+
+- **Automatic (best): upload to GitHub Releases.** Do this **once**, ever:
+  ```
+  winget install --id GitHub.cli
+  gh auth login
+  ```
+  After that, every time you run `pack_client.bat` it uploads the zip to your
+  repo's **Releases → "playtest"** and prints the link. Friends always grab the
+  newest from that one page — no re-sending files.
+- **Manual:** if you haven't set up `gh`, the bat still makes `fabled_client.zip`
+  in the repo folder — send it however you like (Discord, WeTransfer, USB).
+
+> Re-run `pack_client.bat` after any change so everyone is on the same version.
+> Mismatched versions cause weird glitches.
 
 ---
 

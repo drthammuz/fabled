@@ -46,6 +46,9 @@ pub struct Shell {
     /// Set when the user runs `hack`; the client picks it up and asks the server
     /// to apply the reward (Tech-only). Cleared by `take_hack_request`.
     hack_requested: bool,
+    /// Whether the local player is the Tech class (set per session via
+    /// `set_tech`). Gates the `hack` command so feedback is honest.
+    is_tech: bool,
 }
 
 /// Per-faction hostname + login banner so a synth box doesn't greet like a
@@ -73,6 +76,7 @@ impl Shell {
             cols,
             rows,
             hack_requested: false,
+            is_tech: false,
         };
         sh.push_line(banner.to_string());
         sh.push_line(format!("{} tty1", sh.hostname));
@@ -100,6 +104,11 @@ impl Shell {
         std::mem::take(&mut self.hack_requested)
     }
 
+    /// Mark this session as belonging to the Tech class (enables `hack`).
+    pub fn set_tech(&mut self, is_tech: bool) {
+        self.is_tech = is_tech;
+    }
+
     pub fn submit(&mut self) {
         let line = std::mem::take(&mut self.input);
         let prompt = self.prompt();
@@ -113,10 +122,14 @@ impl Shell {
                 self.push_line("whoami hostname uname hack exit(Esc)".to_string());
             }
             "hack" => {
-                self.hack_requested = true;
-                self.push_line("breaching sector node...".to_string());
-                self.push_line("[####______] siphoning credits".to_string());
-                self.push_line("(requires Tech clearance to complete)".to_string());
+                if self.is_tech {
+                    self.hack_requested = true;
+                    self.push_line("breaching sector node...".to_string());
+                    self.push_line("[##########] access granted".to_string());
+                    self.push_line("siphoning credits + pulling data shard".to_string());
+                } else {
+                    self.push_line("hack: access denied - Tech clearance required".to_string());
+                }
             }
             "ls" => self.cmd_ls(args.first().copied()),
             "cd" => self.cmd_cd(args.first().copied().unwrap_or("/")),

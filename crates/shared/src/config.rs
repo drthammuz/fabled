@@ -131,7 +131,7 @@ pub const THROW_REF_MASS: f32 = 40.0;
 // --- Items / inventory (M5) ---
 
 /// Number of inventory slots per player.
-pub const INVENTORY_SLOTS: usize = 4;
+pub const INVENTORY_SLOTS: usize = 5;
 /// Max distance for the interact (pickup) raycast.
 pub const INTERACT_RANGE: f32 = 3.0;
 /// Forward speed given to dropped items, m/s.

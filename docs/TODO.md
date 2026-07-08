@@ -8,6 +8,39 @@ add newly discovered ones, keep priorities honest.
 given (mechanical, well-scoped, verifiable by a script/test); `[F]` = needs Fable-level
 debugging/design judgment. Anything with a listed verification gate is safer to delegate.
 
+## ✅ STATUS — read this first (updated 2026-07-08, gameplay/classes pass)
+
+**Done since last playtest** (all compiled + committed on `freeform/ceiling-roofs`):
+- Lighting: real MP now matches editor+G (camera `CAMERA_EV100_REAL_GAME` in
+  fly_camera.rs). Extraction drop → hub fires at y<-1.5 (run.rs). Buy-from-vendor
+  works (per-class inventory).
+- Classes: `ClassDef.starting_items` (per-class loadout). **Everyone: 5 slots + a
+  locked "Melee" weapon in slot 0** (can't buy/sell/drop; replaced the bat).
+  Soldier +Blaster +armor equip (40% DR, `combat::PlayerArmor`); Medic LMB-heal
+  self/aimed ally (+50%); Tech terminal `hack` → +credits +Data Shard (Tech-only,
+  honest client-side feedback now). Melee: 1 swing/click + faster anim.
+- Keeper NPCs (bandages + lore) in hidden rooms; metal shack (roof+poles, roof at
+  y=4). UI restyle (rounded, palette, fonts). Always-on center dot (crosshair.rs).
+- Alt-tab fixed (release cursor on focus loss, fly_camera.rs). Starting credits
+  bumped to 500 in dev/playtest so buying is testable (run.rs) — credits are the
+  shop currency; Scrap is the separate crafting material.
+- MP packaging: **`pack_client.bat`** builds `fabled_client.zip` (exe + only the
+  runtime assets + `PLAY.bat`) and uploads it to the GitHub "playtest" release if
+  `gh` is installed. Friends need NO repo/Rust. Guide: **docs/playtest-online-2026-07-07.md**.
+
+**Next (prioritised):**
+- **Scout Tagger** (only class mechanic still stubbed): aim→tag enemy, team-visible
+  outline ~7s, **tagged enemies take +30% damage** (user 2026-07-08), Tech can
+  disable tagged robots. Then un-stub the "coming soon" text.
+- **Medic revive** needs a real DOWNED state (dev auto-respawn currently masks
+  death; decide the MP death model first). Then wire revive→1HP + friendly UI.
+- **Audio** (skipped so far): footstep on foot-DOWN (needs anim events), melee/
+  ranged/enemy-attack SFX, subtle enemy-movement metal clack.
+- Tech: real hacking (locked caches/doors) beyond the credit-drip stub.
+- Verify list below (streaming/hub edge cases) still applies.
+
+---
+
 ## ⚠️ REAL MULTIPLAYER CONVERGENCE (2026-07-08) — READ THIS FIRST
 
 **The core problem (why the user is furious, and rightly so).** The game was

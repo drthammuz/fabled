@@ -1179,7 +1179,7 @@ fn player_attacks(
             continue;
         }
 
-        if !held.is_some_and(items::is_bat) {
+        if !held.is_some_and(items::is_melee) {
             continue;
         }
         // One swing per press: ignore attacks while still recovering.
